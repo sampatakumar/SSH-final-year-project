@@ -468,22 +468,30 @@ export default function OnboardingFlow() {
       return;
     }
 
-    // Validate file type (only PDF and DOCX)
+    // Validate file type (PDF, DOCX, TXT, RTF)
     const allowedTypes = new Set([
       "application/pdf",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "text/plain",
+      "application/rtf",
+      "text/rtf"
     ]);
     const lowerName = file.name.toLowerCase();
-    const isAllowed = allowedTypes.has(file.type) || lowerName.endsWith(".pdf") || lowerName.endsWith(".docx");
+    const isAllowed =
+      allowedTypes.has(file.type) ||
+      lowerName.endsWith(".pdf") ||
+      lowerName.endsWith(".docx") ||
+      lowerName.endsWith(".txt") ||
+      lowerName.endsWith(".rtf");
 
     if (!isAllowed) {
-      toast.error("Please upload only PDF or DOCX files.");
+      toast.error("Please upload a PDF, DOCX, TXT, or RTF resume.");
       return;
     }
 
-    // Validate file size (max 2 MB)
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("File size must not exceed 2 MB.");
+    // Validate file size (max 10 MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("File size must not exceed 10 MB.");
       return;
     }
 
@@ -1048,7 +1056,7 @@ function ProfileStep({
             <input
               id="onboarding-resume-upload"
               type="file"
-              accept=".pdf,.docx"
+              accept=".pdf,.docx,.txt,.rtf"
               className="hidden"
               onChange={(event) => {
                 const file = event.target.files?.[0] || null;

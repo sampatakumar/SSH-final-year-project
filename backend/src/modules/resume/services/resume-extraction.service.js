@@ -119,9 +119,117 @@ const readImageText = async (filePath) => extractionLimit(async () => {
   }
 });
 
+const readRtfBuffer = async (buffer) => {
+  const rtf = buffer.toString("utf8");
+  // Remove font tables, color tables, stylesheets, info blocks, pict/object blocks
+  let text = rtf.replace(/\{\\(?:fonttbl|colortbl|stylesheet|info|pict|object)[\s\S]*?\}/gi, "");
+  // Replace unicode escape sequences \'xx with their corresponding char
+  text = text.replace(/\\'([0-9a-fA-F]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+  // Replace \uN? unicode characters
+  text = text.replace(/\\u([0-9]{2,5})\??/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)));
+  // Replace line breaks \par, \line with newlines
+  text = text.replace(/\\(par|line)\b/gi, "\n");
+  // Replace tabs \tab with space
+  text = text.replace(/\\tab\b/gi, " ");
+  // Remove remaining control words like \b, \i, \fs24, \ul, etc.
+  text = text.replace(/\\[a-zA-Z]+-?\d* ?/g, "");
+  // Remove braces { and }
+  text = text.replace(/[{}]/g, "");
+  // Normalize extra spaces and lines
+  return text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).join("\n");
+};
+
+const readRtfText = async (filePath) => {
+  const buffer = await fs.readFile(filePath);
+  return readRtfBuffer(buffer);
+};
+
+export const validateResumeFileSignature = (buffer, extension) => {
+  if (!buffer || buffer.length === 0) {
+    return { valid: false, reason: "Empty file buffer" };
+  }
+
+  const ext = (extension || "").toLowerCase();
+
+  if (ext === ".pdf") {
+    const isPdf = buffer.length >= 4 && buffer.slice(0, 5).toString("ascii").startsWith("%PDF");
+    if (!isPdf) return { valid: false, reason: "Malformed PDF: missing %PDF signature" };
+  }
+
+  if (ext === ".docx") {
+    const isZip = buffer.length >= 4 && buffer[0] === 0x50 && buffer[1] === 0x4b && buffer[2] === 0x03 && buffer[3] === 0x04;
+    if (!isZip) return { valid: false, reason: "Malformed DOCX: missing PK signature" };
+  }
+
+  if (ext === ".rtf") {
+    const isRtf = buffer.length >= 5 && buffer.slice(0, 5).toString("ascii").startsWith("{\\rtf");
+    if (!isRtf) return { valid: false, reason: "Malformed RTF: missing {\\rtf signature" };
+  }
+
+  if (ext === ".png") {
+    const isPng = buffer.length >= 8 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
+    if (!isPng) return { valid: false, reason: "Malformed PNG image" };
+  }
+
+  if (ext === ".jpg" || ext === ".jpeg") {
+    const isJpg = buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+    if (!isJpg) return { valid: false, reason: "Malformed JPEG image" };
+  }
+
+  return { valid: true };
+};
+
+export const calculateExtractionConfidence = (parsedData, rawText = "") => {
+  const lowerText = (rawText || "").toLowerCase();
+
+  const getFieldConfidence = (val, minLen = 2) => {
+    if (!val || (typeof val === "string" && !val.trim())) return "LOW";
+    const str = String(val).toLowerCase().trim();
+    if (str.length >= minLen && lowerText.includes(str)) return "HIGH";
+    return "MEDIUM";
+  };
+
+  const nameConfidence = getFieldConfidence(parsedData.profile?.displayName, 3);
+  const emailConfidence = parsedData.contact?.email && lowerText.includes(parsedData.contact.email.toLowerCase()) ? "HIGH" : (parsedData.contact?.email ? "MEDIUM" : "LOW");
+  const phoneConfidence = parsedData.profile?.phone ? "HIGH" : "LOW";
+  const aboutConfidence = parsedData.profile?.about ? "HIGH" : "LOW";
+
+  const educationConfidence = (parsedData.educationEntries || []).length > 0 ? "HIGH" : "LOW";
+  const skillsConfidence = (parsedData.skillSections || []).some((s) => s.skills?.length > 0) ? "HIGH" : "LOW";
+  const experienceConfidence = (parsedData.experience || []).length > 0 ? "HIGH" : "LOW";
+  const projectsConfidence = (parsedData.projects || []).length > 0 ? "HIGH" : "LOW";
+  const achievementsConfidence = (parsedData.achievements || []).length > 0 ? "HIGH" : "LOW";
+  const linksConfidence = (parsedData.preferences?.githubUrl || parsedData.preferences?.linkedInUrl) ? "HIGH" : "LOW";
+
+  const scores = [nameConfidence, emailConfidence, phoneConfidence, educationConfidence, skillsConfidence, experienceConfidence, projectsConfidence];
+  const highCount = scores.filter((s) => s === "HIGH").length;
+  const overall = highCount >= 5 ? "HIGH" : highCount >= 3 ? "MEDIUM" : "LOW";
+
+  return {
+    overall,
+    fields: {
+      displayName: { value: parsedData.profile?.displayName || "", confidence: nameConfidence },
+      email: { value: parsedData.contact?.email || "", confidence: emailConfidence },
+      phone: { value: parsedData.profile?.phone || "", confidence: phoneConfidence },
+      about: { value: parsedData.profile?.about || "", confidence: aboutConfidence },
+      linkedInUrl: { value: parsedData.preferences?.linkedInUrl || "", confidence: parsedData.preferences?.linkedInUrl ? "HIGH" : "LOW" },
+      githubUrl: { value: parsedData.preferences?.githubUrl || "", confidence: parsedData.preferences?.githubUrl ? "HIGH" : "LOW" },
+      education: { count: (parsedData.educationEntries || []).length, confidence: educationConfidence },
+      skills: { count: (parsedData.skillSections || []).reduce((acc, s) => acc + (s.skills?.length || 0), 0), confidence: skillsConfidence },
+      experience: { count: (parsedData.experience || []).length, confidence: experienceConfidence },
+      projects: { count: (parsedData.projects || []).length, confidence: projectsConfidence },
+      achievements: { count: (parsedData.achievements || []).length, confidence: achievementsConfidence }
+    }
+  };
+};
+
 const readTextFromBufferByExtension = async (buffer, extension) => {
   if (extension === ".txt" || extension === ".tex") {
     return readTextBuffer(buffer);
+  }
+
+  if (extension === ".rtf") {
+    return readRtfBuffer(buffer);
   }
 
   if (extension === ".pdf") {
@@ -149,6 +257,7 @@ const inferExtensionFromUpload = ({ originalName = "", mimeType = "" }) => {
   if (normalizedMime.includes("pdf")) return ".pdf";
   if (normalizedMime.includes("wordprocessingml")) return ".docx";
   if (normalizedMime.includes("msword")) return ".doc";
+  if (normalizedMime.includes("rtf")) return ".rtf";
   if (normalizedMime.includes("plain")) return ".txt";
   if (normalizedMime.includes("x-tex")) return ".tex";
   if (normalizedMime.includes("png")) return ".png";
@@ -233,6 +342,10 @@ export const extractResumeRawText = async (resume) => {
 
   if (extension === ".txt" || extension === ".tex") {
     return readTextFile(absoluteFilePath);
+  }
+
+  if (extension === ".rtf") {
+    return readRtfText(absoluteFilePath);
   }
 
   if (extension === ".pdf") {
@@ -350,4 +463,42 @@ export const extractNormalizedSkills = (skillsText) => {
     .filter((item) => item.length <= 60);
 
   return Array.from(new Set(tokens)).slice(0, 40);
+};
+
+export const pickProfileLinksFromExtractedLinks = (links = []) => {
+  const normalized = Array.from(
+    new Set(
+      links
+        .map((item) => String(item || "").trim())
+        .map((item) => item.replace(/[).,;]+$/, ""))
+        .filter(Boolean)
+    )
+  );
+  const httpLinks = normalized.filter((link) => /^https?:\/\//i.test(link));
+  const mailtoLink = normalized.find((link) => /^mailto:/i.test(link)) || "";
+  const emailFromMailto = String(mailtoLink.replace(/^mailto:/i, "")).trim();
+
+  const linkedInRegex = /https?:\/\/(?:www\.)?linkedin\.com\/[A-Za-z0-9\-_/?.=&%#]+/i;
+  const githubRegex = /https?:\/\/(?:www\.)?github\.com\/[A-Za-z0-9\-_/?.=&%#]+/i;
+
+  const isGithubProfileLink = (value) => {
+    const norm = String(value || "").toLowerCase().trim();
+    const match = norm.match(/^https?:\/\/(?:www\.)?github\.com\/([^/?#]+)(?:[/?#].*)?$/i);
+    if (!match?.[1]) return false;
+    const remaining = norm.replace(/^https?:\/\/(?:www\.)?github\.com\/[^/?#]+/i, "");
+    return !remaining || remaining === "/" || remaining.startsWith("?") || remaining.startsWith("#");
+  };
+
+  const linkedInUrl = httpLinks.find((link) => linkedInRegex.test(link)) || "";
+  const githubUrl = httpLinks.find((link) => isGithubProfileLink(link)) || "";
+  const projectGithubLinks = httpLinks.filter((link) => githubRegex.test(link) && !isGithubProfileLink(link));
+  const liveLinks = httpLinks.filter((link) => !linkedInRegex.test(link) && !githubRegex.test(link));
+
+  return {
+    linkedInUrl,
+    githubUrl,
+    emailFromMailto,
+    projectGithubLinks,
+    liveLinks
+  };
 };

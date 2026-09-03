@@ -12,6 +12,16 @@ import { useAuth } from "@/core/auth";
 import { useEffect, useRef, useState, type ComponentType, type Dispatch, type SetStateAction } from "react";
 import { ProfileApi } from "@/modules/profile/services/profile.api";
 import { toast } from "sonner";
+import { ResumeUploadDropzone } from "@/components/resume/ResumeUploadDropzone";
+import { ResumeExtractionReviewDialog } from "@/components/resume/ResumeExtractionReviewDialog";
+import { type ResumeUploadExtractionResponse } from "@/modules/resume/services/resume.api";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 // ==========================================
 // TYPES & CONSTANTS
@@ -69,6 +79,11 @@ export default function ProfileDetailsPage() {
   const [saving, setSaving] = useState(false);
   const [generatingSummary, setGeneratingSummary] = useState(false);
   const [generatorTarget, setGeneratorTarget] = useState<{ kind: "experience" | "achievement"; index: number } | null>(null);
+
+  // Resume Upload & Extraction State
+  const [showResumeUploadModal, setShowResumeUploadModal] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [extractedResumeData, setExtractedResumeData] = useState<ResumeUploadExtractionResponse | null>(null);
 
   // Form States
   const [displayName, setDisplayName] = useState("");
@@ -452,13 +467,24 @@ export default function ProfileDetailsPage() {
               Manage your professional identity, career information, and profile data used across Smart Skill Hub.
             </p>
           </div>
-          <Button 
-            onClick={handleSave} 
-            disabled={saving || isLoadingProfile}
-            className="w-full sm:w-auto glow-primary h-10 px-6 rounded-full font-medium transition-all hover:scale-105 active:scale-95"
-          >
-            {saving ? "Saving..." : isLoadingProfile ? "Loading..." : "Save Changes"}
-          </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowResumeUploadModal(true)}
+              className="w-full sm:w-auto h-10 px-5 rounded-full border-cyan-500/40 bg-cyan-950/20 text-cyan-300 hover:bg-cyan-500/20 hover:text-white transition-all shadow-[0_0_15px_rgba(6,182,212,0.15)]"
+            >
+              <Sparkles className="w-4 h-4 mr-2 text-cyan-400" />
+              Import from Resume
+            </Button>
+            <Button 
+              onClick={handleSave} 
+              disabled={saving || isLoadingProfile}
+              className="w-full sm:w-auto glow-primary h-10 px-6 rounded-full font-medium transition-all hover:scale-105 active:scale-95"
+            >
+              {saving ? "Saving..." : isLoadingProfile ? "Loading..." : "Save Changes"}
+            </Button>
+          </div>
         </div>
       </motion.div>
 
@@ -803,6 +829,62 @@ export default function ProfileDetailsPage() {
         defaultPrompt={generatorConfig.defaultPrompt}
         context={generatorConfig.context}
         onApply={generatorConfig.onApply}
+      />
+
+      {/* Resume Upload Modal */}
+      <Dialog open={showResumeUploadModal} onOpenChange={setShowResumeUploadModal}>
+        <DialogContent className="max-w-2xl bg-slate-950 border-slate-800 text-slate-100 p-6 shadow-2xl">
+          <DialogHeader className="space-y-1.5 pb-2">
+            <div className="flex items-center space-x-2">
+              <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <DialogTitle className="text-xl font-bold tracking-tight text-white">
+                Import Details from Resume
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-xs text-slate-400">
+              Upload your PDF, DOCX, TXT, or RTF resume to automatically populate your profile fields.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-2">
+            <ResumeUploadDropzone
+              onExtracted={(data) => {
+                setExtractedResumeData(data);
+                setShowResumeUploadModal(false);
+                setShowReviewModal(true);
+              }}
+              onCancel={() => setShowResumeUploadModal(false)}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Resume Extraction Review & Conflict Resolver Dialog */}
+      <ResumeExtractionReviewDialog
+        open={showReviewModal}
+        onOpenChange={setShowReviewModal}
+        extractionData={extractedResumeData}
+        currentUserProfile={{
+          displayName,
+          phone,
+          headline: backendUser?.headline,
+          linkedInUrl,
+          githubUrl,
+        }}
+        onApplied={(updatedUser) => {
+          if (updatedUser) {
+            populateFromUser(updatedUser);
+          }
+          if (typeof refreshProfile === "function") {
+            void refreshProfile();
+          }
+        }}
+        onUploadDifferent={() => {
+          setShowReviewModal(false);
+          setShowResumeUploadModal(true);
+        }}
       />
     </div>
   );

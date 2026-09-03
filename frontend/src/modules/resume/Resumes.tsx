@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { FileText, Eye, Trash2, Download, ChevronUp, Plus, Wand2, ArrowRight, ArrowLeft, Sparkles } from "lucide-react";
+import { FileText, Eye, Trash2, Download, ChevronUp, Plus, Wand2, ArrowRight, ArrowLeft, Sparkles, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/core/auth";
@@ -20,6 +20,9 @@ import { AI_PROMPT_PRESETS } from "@/config/aiPromptPresets";
 import JakeResumePreview, { type PreviewLayoutConfig } from "@/components/resume/JakeResumePreview";
 import ResumeDocumentViewer from "@/components/resume/ResumeDocumentViewer";
 import ResumeBuilder from "./builder/ResumeBuilder";
+import { ResumeUploadDropzone } from "@/components/resume/ResumeUploadDropzone";
+import { ResumeExtractionReviewDialog } from "@/components/resume/ResumeExtractionReviewDialog";
+import { type ResumeUploadExtractionResponse } from "./services/resume.api";
 import type { Achievement, Education, Experience, Project, ResumeData } from "@/components/resume/ResumeTypes";
 import { getRenderableSkillLines } from "@/components/resume/skillFormat";
 import jsPDF from "jspdf";
@@ -126,6 +129,11 @@ const Resumes = () => {
   const [resumeTitle, setResumeTitle] = useState("");
   const [saveTitleMode, setSaveTitleMode] = useState<"jake" | null>(null);
   const [expandedResumeId, setExpandedResumeId] = useState<string | null>(null);
+
+  // Resume Upload & Extraction State
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [extractedResumeData, setExtractedResumeData] = useState<ResumeUploadExtractionResponse | null>(null);
 
   // Builder State
   const [showBuilder, setShowBuilder] = useState(false);
@@ -779,9 +787,16 @@ const Resumes = () => {
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-2">
           <div>
             <h1 className="text-4xl font-extrabold text-gradient mb-2 tracking-tight">Resumes</h1>
-            <p className="text-muted-foreground text-lg">Manage your master documents and AI-generated variants.</p>
+            <p className="text-muted-foreground text-lg">Manage your master documents, uploaded resumes, and AI-generated variants.</p>
           </div>
-          <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            <Button
+              variant="outline"
+              onClick={() => setShowUploadModal(true)}
+              className="w-full md:w-auto font-medium border-cyan-500/40 bg-cyan-950/20 text-cyan-300 hover:bg-cyan-500/20 hover:text-white transition-all shadow-[0_0_15px_rgba(6,182,212,0.15)]"
+            >
+              <Upload className="h-4 w-4 mr-2 text-cyan-400" /> Upload & Extract Resume
+            </Button>
             <Button
               variant="hero-gradient"
               onClick={() => {
@@ -796,28 +811,77 @@ const Resumes = () => {
         </div>
       </motion.div>
 
-      {/* Jake Builder Info Card */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-        <div className="glass rounded-2xl border border-primary/10 bg-gradient-to-br from-primary/5 to-primary/0 p-6 sm:p-8">
-          <div className="flex gap-4 sm:gap-6">
-            <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
-              <Wand2 className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-lg sm:text-xl font-bold text-foreground mb-2">Smart Skill Hub Resume Builder</h3>
-              <p className="text-sm sm:text-base text-muted-foreground leading-relaxed mb-4">
-                Build professional, ATS-compliant resumes with 5 interchangeable templates, real-time A4 live preview, custom section ordering, one-page density optimization, and grounded AI bullet enhancement.
+      {/* Feature Cards Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Upload Existing Resume Card */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+          <div className="h-full glass rounded-2xl border border-cyan-500/20 bg-gradient-to-br from-cyan-950/20 via-slate-900/40 to-slate-950 p-6 sm:p-7 flex flex-col justify-between relative overflow-hidden">
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center shrink-0">
+                  <Upload className="h-6 w-6 text-cyan-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Import from Existing Resume</h3>
+                  <p className="text-xs text-slate-400">PDF, DOCX, TXT, RTF • Up to 10 MB</p>
+                </div>
+              </div>
+              <p className="text-sm text-slate-300 leading-relaxed">
+                Already have a resume? Upload it to automatically extract your skills, work experience, education, and links into your Smart Skill Hub profile with AI.
               </p>
-              <div className="flex flex-wrap gap-2 sm:gap-3">
-                <div className="text-xs sm:text-sm text-muted-foreground bg-background/50 px-3 py-1.5 rounded-full border border-border/50">✓ 5 ATS Templates</div>
-                <div className="text-xs sm:text-sm text-muted-foreground bg-background/50 px-3 py-1.5 rounded-full border border-border/50">✓ Live A4 Preview</div>
-                <div className="text-xs sm:text-sm text-muted-foreground bg-background/50 px-3 py-1.5 rounded-full border border-border/50">✓ 1-Page Optimizer</div>
-                <div className="text-xs sm:text-sm text-muted-foreground bg-background/50 px-3 py-1.5 rounded-full border border-border/50">✓ Drag & Drop Sections</div>
+              <div className="flex flex-wrap gap-2">
+                <span className="text-xs text-cyan-300 bg-cyan-950/40 border border-cyan-800/40 px-2.5 py-1 rounded-full">✓ Multi-Format (PDF/DOCX/TXT/RTF)</span>
+                <span className="text-xs text-cyan-300 bg-cyan-950/40 border border-cyan-800/40 px-2.5 py-1 rounded-full">✓ Conflict Resolver</span>
+                <span className="text-xs text-cyan-300 bg-cyan-950/40 border border-cyan-800/40 px-2.5 py-1 rounded-full">✓ Confidence Scoring</span>
               </div>
             </div>
+            <div className="pt-5">
+              <Button
+                onClick={() => setShowUploadModal(true)}
+                className="w-full bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 border border-cyan-500/40 font-medium"
+              >
+                <Upload className="h-4 w-4 mr-2" /> Upload Document
+              </Button>
+            </div>
           </div>
-        </div>
-      </motion.div>
+        </motion.div>
+
+        {/* Jake Builder Info Card */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+          <div className="h-full glass rounded-2xl border border-primary/10 bg-gradient-to-br from-primary/5 to-primary/0 p-6 sm:p-7 flex flex-col justify-between">
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
+                  <Wand2 className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-foreground">Smart Skill Hub Resume Builder</h3>
+                  <p className="text-xs text-muted-foreground">5 ATS Templates • Live A4 Preview</p>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Build professional, ATS-compliant resumes with real-time A4 live preview, custom section ordering, 1-page density optimization, and grounded AI bullet enhancement.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <span className="text-xs text-muted-foreground bg-background/50 px-2.5 py-1 rounded-full border border-border/50">✓ 5 ATS Templates</span>
+                <span className="text-xs text-muted-foreground bg-background/50 px-2.5 py-1 rounded-full border border-border/50">✓ 1-Page Optimizer</span>
+                <span className="text-xs text-muted-foreground bg-background/50 px-2.5 py-1 rounded-full border border-border/50">✓ Drag & Drop</span>
+              </div>
+            </div>
+            <div className="pt-5">
+              <Button
+                onClick={() => {
+                  setEditingResume(null);
+                  setShowBuilder(true);
+                }}
+                className="w-full glow-primary font-medium"
+              >
+                <Wand2 className="h-4 w-4 mr-2" /> Open Builder
+              </Button>
+            </div>
+          </div>
+        </motion.div>
+      </div>
 
       {/* Resume List */}
       <div className="space-y-4">
@@ -1149,6 +1213,52 @@ const Resumes = () => {
         defaultPrompt={generatorConfig.defaultPrompt}
         context={generatorConfig.context}
         onApply={generatorConfig.onApply}
+      />
+
+      {/* Resume Upload Modal */}
+      <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
+        <DialogContent className="max-w-2xl bg-slate-950 border-slate-800 text-slate-100 p-6 shadow-2xl">
+          <DialogHeader className="space-y-1.5 pb-2">
+            <div className="flex items-center space-x-2">
+              <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
+                <Upload className="w-5 h-5" />
+              </div>
+              <DialogTitle className="text-xl font-bold tracking-tight text-white">
+                Upload & Extract Resume
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-xs text-slate-400">
+              Upload your PDF, DOCX, TXT, or RTF document to store it in your resume library and extract details into your profile.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-2">
+            <ResumeUploadDropzone
+              onExtracted={(data) => {
+                setExtractedResumeData(data);
+                setShowUploadModal(false);
+                setShowReviewModal(true);
+                void fetchResumes();
+              }}
+              onCancel={() => setShowUploadModal(false)}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Resume Extraction Review & Conflict Resolver Dialog */}
+      <ResumeExtractionReviewDialog
+        open={showReviewModal}
+        onOpenChange={setShowReviewModal}
+        extractionData={extractedResumeData}
+        currentUserProfile={{}}
+        onApplied={() => {
+          void fetchResumes();
+        }}
+        onUploadDifferent={() => {
+          setShowReviewModal(false);
+          setShowUploadModal(true);
+        }}
       />
     </div>
   );

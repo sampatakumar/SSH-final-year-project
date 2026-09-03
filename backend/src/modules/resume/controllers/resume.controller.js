@@ -12,6 +12,17 @@ import {
 import { ApiResponse } from "../../../core/errors/ApiResponse.js";
 import { ApiError, ResumeError } from "../../../core/errors/ApiError.js";
 import { asyncHandler } from "../../../core/errors/asyncHandler.js";
+import {
+  extractRawTextFromUploadedResume,
+  extractResumeLinksFromUploadedResume,
+  extractResumeRawText,
+  validateResumeFileSignature,
+  calculateExtractionConfidence,
+  pickProfileLinksFromExtractedLinks
+} from "../services/resume-extraction.service.js";
+import { parseResumeWithLLM } from "../services/groq.service.js";
+import { User } from "../../../core/database/models/user.models.js";
+import { Project } from "../models/project.models.js";
 
 const createResumeSchema = z.object({
   title: z.string().min(2, "title must be at least 2 characters"),
@@ -398,4 +409,350 @@ export const deleteResume = asyncHandler(async (req, res) => {
   }
 
   return res.status(200).json(new ApiResponse(200, { resumeId }, "Resume deleted successfully"));
+});
+
+const applyProfileSchema = z.object({
+  profile: z.object({
+    displayName: z.string().optional(),
+    headline: z.string().optional(),
+    phone: z.string().optional(),
+    about: z.string().optional(),
+    customDomain: z.string().optional(),
+  }).optional(),
+  preferences: z.object({
+    linkedInUrl: z.string().optional(),
+    githubUrl: z.string().optional(),
+    leetCodeId: z.string().optional(),
+    geeksForGeeksId: z.string().optional(),
+  }).optional(),
+  educationEntries: z.array(z.object({
+    degree: z.string().optional().default(""),
+    specialization: z.string().optional().default(""),
+    college: z.string().optional().default(""),
+    location: z.string().optional().default(""),
+    endDate: z.string().optional().default(""),
+    grade: z.string().optional().default("")
+  })).optional(),
+  skillSections: z.array(z.object({
+    title: z.string().optional().default(""),
+    skills: z.array(z.string()).optional().default([])
+  })).optional(),
+  experience: z.array(z.object({
+    role: z.string().optional().default(""),
+    company: z.string().optional().default(""),
+    location: z.string().optional().default(""),
+    date: z.string().optional().default(""),
+    bullets: z.union([z.array(z.string()), z.string()]).optional().default([])
+  })).optional(),
+  projects: z.array(z.object({
+    title: z.string().optional().default(""),
+    description: z.string().optional().default(""),
+    stack: z.union([z.array(z.string()), z.string()]).optional().default(""),
+    date: z.string().optional().default(""),
+    githubUrl: z.string().optional().default(""),
+    demoUrl: z.string().optional().default("")
+  })).optional(),
+  achievements: z.array(z.object({
+    title: z.string().optional().default(""),
+    date: z.string().optional().default(""),
+    bullets: z.union([z.array(z.string()), z.string()]).optional().default([])
+  })).optional(),
+});
+
+export const uploadAndExtractResume = asyncHandler(async (req, res) => {
+  const traceId = makeTraceId();
+  const user = req.user;
+
+  if (!req.file) {
+    throw new ApiError(400, "Resume file is required");
+  }
+
+  const ext = path.extname(req.file.originalname).toLowerCase();
+  const sigValidation = validateResumeFileSignature(req.file.buffer, ext);
+  if (!sigValidation.valid) {
+    throw new ApiError(400, sigValidation.reason || "Invalid or malformed resume file.");
+  }
+
+  let extractedText = "";
+  try {
+    extractedText = await extractRawTextFromUploadedResume(req.file);
+  } catch (err) {
+    console.warn(`[resume-debug][${traceId}] extractText:error`, err?.message || err);
+  }
+
+  if (!extractedText || !extractedText.trim()) {
+    throw new ApiError(400, "We couldn't find readable text in this file. Try uploading a clearer document.");
+  }
+
+  let extractedLinks = [];
+  try {
+    extractedLinks = await extractResumeLinksFromUploadedResume(req.file, extractedText);
+  } catch {}
+
+  const linkMeta = pickProfileLinksFromExtractedLinks(extractedLinks);
+
+  let structuredParsed = {
+    profile: { displayName: "", headline: "", phone: "", about: "" },
+    preferences: { linkedInUrl: "", githubUrl: "" },
+    contact: { email: "" },
+    educationEntries: [],
+    skillSections: [],
+    experience: [],
+    projects: [],
+    achievements: []
+  };
+
+  try {
+    const rawLlm = await parseResumeWithLLM({ rawText: extractedText, linkMeta });
+    const parsedJson = typeof rawLlm === "string" ? JSON.parse(rawLlm) : rawLlm;
+    if (parsedJson && typeof parsedJson === "object") {
+      structuredParsed = {
+        ...structuredParsed,
+        ...parsedJson,
+        profile: { ...structuredParsed.profile, ...(parsedJson.profile || {}) },
+        preferences: { ...structuredParsed.preferences, ...(parsedJson.preferences || {}) },
+        contact: { ...structuredParsed.contact, ...(parsedJson.contact || {}) }
+      };
+    }
+  } catch (llmErr) {
+    console.warn(`[resume-debug][${traceId}] parseLLM:fallback`, llmErr?.message || llmErr);
+  }
+
+  // Contact fallbacks from regex
+  const emailMatch = extractedText.match(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i)?.[0];
+  const phoneMatch = extractedText.match(/(?:\+?\d{1,3}[\s-]?)?(?:\(?\d{2,4}\)?[\s-]?)?\d{3,5}[\s-]?\d{3,5}/)?.[0];
+
+  if (!structuredParsed.contact?.email && emailMatch) {
+    structuredParsed.contact = { ...(structuredParsed.contact || {}), email: emailMatch };
+  }
+  if (!structuredParsed.profile?.phone && phoneMatch) {
+    structuredParsed.profile = { ...(structuredParsed.profile || {}), phone: phoneMatch };
+  }
+  if (!structuredParsed.preferences?.linkedInUrl && linkMeta.linkedInUrl) {
+    structuredParsed.preferences = { ...(structuredParsed.preferences || {}), linkedInUrl: linkMeta.linkedInUrl };
+  }
+  if (!structuredParsed.preferences?.githubUrl && linkMeta.githubUrl) {
+    structuredParsed.preferences = { ...(structuredParsed.preferences || {}), githubUrl: linkMeta.githubUrl };
+  }
+
+  const confidence = calculateExtractionConfidence(structuredParsed, extractedText);
+
+  // Upload to Supabase Storage if configured
+  let supabaseUpload = null;
+  try {
+    supabaseUpload = await uploadResumeToSupabaseStorage({
+      buffer: req.file.buffer,
+      originalFileName: req.file.originalname,
+      mimeType: req.file.mimetype,
+      ownerKey: req.auth.uid
+    });
+  } catch (uploadErr) {
+    console.warn(`[resume-debug][${traceId}] storage upload skipped:`, uploadErr?.message);
+  }
+
+  const detectedFormat = req.file.originalname.toLowerCase().endsWith(".docx")
+    ? "DOCX"
+    : req.file.originalname.toLowerCase().endsWith(".txt")
+    ? "TXT"
+    : req.file.originalname.toLowerCase().endsWith(".rtf")
+    ? "TXT"
+    : new Set([".png", ".jpg", ".jpeg", ".webp"]).has(ext)
+    ? "IMAGE"
+    : "PDF";
+
+  const resolvedFileMeta = supabaseUpload
+    ? resolveFileMeta(req.file, supabaseUpload)
+    : {
+        originalFileName: req.file.originalname,
+        storedFileName: req.file.originalname,
+        filePath: "",
+        mimeType: req.file.mimetype,
+        fileSize: req.file.size || req.file.buffer?.length || 0,
+        storageProvider: "local"
+      };
+
+  const resume = await Resume.create({
+    owner: user._id,
+    title: req.body.title || req.file.originalname.replace(/\.[^.]+$/, ""),
+    format: detectedFormat,
+    content: extractedText,
+    ...resolvedFileMeta,
+    builderConfig: {
+      extractedProfile: structuredParsed,
+      confidence
+    }
+  });
+
+  const responseResume = resume.toObject();
+  if (resolveSupabaseResumeStorageLocation(responseResume).storagePath) {
+    const signedFileMeta = await buildSignedResumeFileMeta(responseResume, traceId);
+    responseResume.filePath = signedFileMeta.filePath;
+    responseResume.signedUrlExpiresAt = signedFileMeta.signedUrlExpiresAt;
+  }
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        resume: responseResume,
+        extractedProfile: structuredParsed,
+        confidence,
+        extractionMeta: {
+          originalFileName: req.file.originalname,
+          fileSize: req.file.size || req.file.buffer?.length || 0,
+          mimeType: req.file.mimetype,
+          textLength: extractedText.length,
+          extractedLinksCount: extractedLinks.length,
+          status: "READY"
+        }
+      },
+      "Resume analyzed successfully"
+    )
+  );
+});
+
+export const extractResumeById = asyncHandler(async (req, res) => {
+  const { resumeId } = req.params;
+  const user = req.user;
+
+  const resume = await Resume.findOne({ _id: resumeId, owner: user._id });
+  if (!resume) {
+    throw new ApiError(404, "Resume not found");
+  }
+
+  const rawText = await extractResumeRawText(resume);
+  if (!rawText || !rawText.trim()) {
+    throw new ApiError(400, "Unable to extract readable text from this resume");
+  }
+
+  let structuredParsed = {
+    profile: { displayName: "", headline: "", phone: "", about: "" },
+    preferences: { linkedInUrl: "", githubUrl: "" },
+    contact: { email: "" },
+    educationEntries: [],
+    skillSections: [],
+    experience: [],
+    projects: [],
+    achievements: []
+  };
+
+  try {
+    const rawLlm = await parseResumeWithLLM({ rawText, linkMeta: {} });
+    const parsedJson = typeof rawLlm === "string" ? JSON.parse(rawLlm) : rawLlm;
+    if (parsedJson && typeof parsedJson === "object") {
+      structuredParsed = {
+        ...structuredParsed,
+        ...parsedJson,
+        profile: { ...structuredParsed.profile, ...(parsedJson.profile || {}) },
+        preferences: { ...structuredParsed.preferences, ...(parsedJson.preferences || {}) },
+        contact: { ...structuredParsed.contact, ...(parsedJson.contact || {}) }
+      };
+    }
+  } catch (err) {
+    // fallback to empty structure
+  }
+
+  const confidence = calculateExtractionConfidence(structuredParsed, rawText);
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        resumeId,
+        extractedProfile: structuredParsed,
+        confidence,
+        rawTextLength: rawText.length
+      },
+      "Resume extracted successfully"
+    )
+  );
+});
+
+export const applyExtractedProfileToUser = asyncHandler(async (req, res) => {
+  const parsed = applyProfileSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw new ApiError(400, "Invalid profile payload", parsed.error.issues);
+  }
+
+  const user = req.user;
+  const data = parsed.data;
+
+  // Merge profile fields without erasing existing data if incoming is empty
+  if (data.profile) {
+    if (data.profile.displayName) user.displayName = data.profile.displayName;
+    if (data.profile.headline) user.headline = data.profile.headline;
+    if (data.profile.phone) user.phone = data.profile.phone;
+    if (data.profile.about) user.about = data.profile.about;
+    if (data.profile.customDomain) user.customDomain = data.profile.customDomain;
+  }
+
+  if (data.preferences) {
+    if (data.preferences.linkedInUrl) user.linkedInUrl = data.preferences.linkedInUrl;
+    if (data.preferences.githubUrl) user.githubUrl = data.preferences.githubUrl;
+    if (data.preferences.leetCodeId) user.leetCodeId = data.preferences.leetCodeId;
+    if (data.preferences.geeksForGeeksId) user.geeksForGeeksId = data.preferences.geeksForGeeksId;
+  }
+
+  if (Array.isArray(data.educationEntries) && data.educationEntries.length > 0) {
+    user.educationEntries = data.educationEntries;
+  }
+
+  if (Array.isArray(data.skillSections) && data.skillSections.length > 0) {
+    user.skillSections = data.skillSections.map((s) => ({
+      title: s.title || "Skills",
+      skills: Array.isArray(s.skills) ? s.skills.filter(Boolean) : []
+    }));
+  }
+
+  if (Array.isArray(data.experience) && data.experience.length > 0) {
+    user.experience = data.experience.map((e) => ({
+      role: e.role || "",
+      company: e.company || "",
+      location: e.location || "",
+      date: e.date || "",
+      bullets: Array.isArray(e.bullets)
+        ? e.bullets
+        : (typeof e.bullets === "string" ? e.bullets.split("\n").filter(Boolean) : [])
+    }));
+  }
+
+  if (Array.isArray(data.achievements) && data.achievements.length > 0) {
+    user.achievements = data.achievements.map((a) => ({
+      title: a.title || "",
+      date: a.date || "",
+      bullets: Array.isArray(a.bullets)
+        ? a.bullets
+        : (typeof a.bullets === "string" ? a.bullets.split("\n").filter(Boolean) : [])
+    }));
+  }
+
+  await user.save();
+
+  // If projects were extracted, seed user's projects in MongoDB
+  if (Array.isArray(data.projects) && data.projects.length > 0) {
+    for (const proj of data.projects) {
+      if (proj.title && proj.title.trim()) {
+        const stackArr = Array.isArray(proj.stack)
+          ? proj.stack
+          : (typeof proj.stack === "string" ? proj.stack.split(/[,/|]/).map((s) => s.trim()).filter(Boolean) : []);
+
+        const existingProj = await Project.findOne({ owner: user._id, title: proj.title.trim() });
+        if (!existingProj) {
+          await Project.create({
+            owner: user._id,
+            title: proj.title.trim(),
+            description: proj.description || "",
+            stack: stackArr,
+            date: proj.date || "",
+            githubUrl: proj.githubUrl || "",
+            demoUrl: proj.demoUrl || ""
+          });
+        }
+      }
+    }
+  }
+
+  return res.status(200).json(
+    new ApiResponse(200, { user: user.toObject() }, "Profile updated from resume successfully")
+  );
 });

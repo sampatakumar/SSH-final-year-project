@@ -7,6 +7,8 @@ const fileFilter = (_req, file, callback) => {
     "application/pdf",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/msword",
+    "application/rtf",
+    "text/rtf",
     "text/plain",
     "application/x-tex",
     "text/x-tex",
@@ -18,6 +20,7 @@ const fileFilter = (_req, file, callback) => {
     ".pdf",
     ".docx",
     ".doc",
+    ".rtf",
     ".txt",
     ".tex",
     ".png",
@@ -27,17 +30,19 @@ const fileFilter = (_req, file, callback) => {
   ]);
 
   if (!allowedMimeTypes.has(file.mimetype) && !allowedExtensions.has(extension)) {
-    callback(new Error("Only PDF, DOCX, DOC, TXT, TEX, and image files are allowed"));
+    callback(new Error("This file type isn't supported. Please upload a PDF, DOCX, TXT, or RTF resume."));
     return;
   }
 
   callback(null, true);
 };
 
+const maxResumeSize = (Number(process.env.MAX_RESUME_SIZE_MB) || 10) * 1024 * 1024;
+
 export const resumeUpload = multer({
   storage: multer.memoryStorage(),
   fileFilter,
-  limits: { fileSize: 25 * 1024 * 1024 },
+  limits: { fileSize: maxResumeSize },
 });
 
 const readmeFileFilter = (_req, file, callback) => {
