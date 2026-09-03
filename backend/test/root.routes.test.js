@@ -7,7 +7,7 @@ describe("Root and Healthcheck routes", () => {
     const response = await request(app).get("/");
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
-    expect(response.body.message).toBe("ResumeAI API Backend is running");
+    expect(response.body.message).toBe("Smart Skill Hub API Backend is running");
   });
 
   it("returns 200 OK for GET /api/v1/healthcheck", async () => {

@@ -5,12 +5,14 @@ import { EduTubeSearch } from "./EduTubeSearch";
 export interface EduTubeHeaderProps {
   searchQuery: string;
   onSearch: (query: string) => void;
+  onClear?: () => void;
   isLoading?: boolean;
 }
 
 export const EduTubeHeader: React.FC<EduTubeHeaderProps> = ({
   searchQuery,
   onSearch,
+  onClear,
   isLoading = false,
 }) => {
   return (
@@ -40,6 +42,7 @@ export const EduTubeHeader: React.FC<EduTubeHeaderProps> = ({
         <EduTubeSearch
           initialQuery={searchQuery}
           onSearch={onSearch}
+          onClear={onClear}
           isLoading={isLoading}
         />
       </div>

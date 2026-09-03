@@ -102,6 +102,7 @@ export const SavedVideosPage: React.FC = () => {
                     embedUrl: `https://www.youtube.com/embed/${item.videoId}`,
                     youtubeUrl: `https://www.youtube.com/watch?v=${item.videoId}`,
                   }}
+                  initialIsSaved={true}
                   onWatch={handleWatch}
                 />
               ))}

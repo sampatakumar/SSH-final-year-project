@@ -4,16 +4,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Sparkles,
   BookOpen,
-  Layers,
-  Flame,
-  Search,
   Award,
   Video,
   ListVideo,
   Bookmark,
-  Compass,
 } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { EduTubeApi } from "../services/edutube.api";
 import { EduTubeHeader } from "../components/EduTubeHeader";
@@ -39,10 +34,10 @@ export const EduTubePage: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  // Search & Filter State
-  const initialQuery = searchParams.get("q") || "JavaScript full course";
-  const [query, setQuery] = useState(initialQuery);
-  const [displayQuery, setDisplayQuery] = useState(initialQuery);
+  // Search & Filter State — submittedQuery controls active search mode
+  const initialSubmittedQuery = searchParams.get("q") || "";
+  const [submittedQuery, setSubmittedQuery] = useState<string>(initialSubmittedQuery);
+  const [displayQuery, setDisplayQuery] = useState<string>(initialSubmittedQuery);
   const [language, setLanguage] = useState<EduTubeLanguage>((searchParams.get("lang") as EduTubeLanguage) || "all");
   const [level, setLevel] = useState<EduTubeLevel>((searchParams.get("level") as EduTubeLevel) || "all");
   const [duration, setDuration] = useState<EduTubeDuration>((searchParams.get("dur") as EduTubeDuration) || "all");
@@ -57,8 +52,8 @@ export const EduTubePage: React.FC = () => {
   const [currentPlaybackSeconds, setCurrentPlaybackSeconds] = useState(0);
   const [seekToSeconds, setSeekToSeconds] = useState<number | null>(null);
 
-  // Loading & Error States
-  const [isLoading, setIsLoading] = useState(true);
+  // Loading & Error States (Initial loading is true only if explicit query is present)
+  const [isLoading, setIsLoading] = useState(Boolean(initialSubmittedQuery.trim()));
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -81,7 +76,7 @@ export const EduTubePage: React.FC = () => {
     }
   }, [routeVideoId]);
 
-  // Execute Video Search
+  // Execute Video Search — only called when a non-empty submitted query exists
   const fetchVideos = useCallback(
     async (
       searchQuery: string,
@@ -91,7 +86,12 @@ export const EduTubePage: React.FC = () => {
       targetSort = sort,
       pageTokenToFetch?: string
     ) => {
-      if (!searchQuery.trim()) return;
+      const trimmed = searchQuery.trim();
+      if (!trimmed) {
+        setVideos([]);
+        setIsLoading(false);
+        return;
+      }
 
       const isLoadMore = Boolean(pageTokenToFetch);
 
@@ -104,7 +104,7 @@ export const EduTubePage: React.FC = () => {
 
       try {
         const result = await EduTubeApi.search({
-          q: searchQuery,
+          q: trimmed,
           language: targetLanguage,
           level: targetLevel,
           duration: targetDuration,
@@ -124,7 +124,7 @@ export const EduTubePage: React.FC = () => {
         }
 
         setNextPageToken(result.nextPageToken || null);
-        setDisplayQuery(searchQuery);
+        setDisplayQuery(trimmed);
       } catch (err: any) {
         console.error("EduTube search error:", err);
         setError(err.message || "Failed to load educational lessons. Please try again.");
@@ -139,21 +139,23 @@ export const EduTubePage: React.FC = () => {
     [language, level, duration, sort]
   );
 
-  // Initial catalog load on mount
+  // Synchronize state with searchParams (initial load & navigation changes)
   useEffect(() => {
-    fetchVideos(initialQuery);
-  }, []);
-
-  // Synchronize when searchParams change
-  useEffect(() => {
-    const qParam = searchParams.get("q");
-    if (qParam && qParam !== query) {
-      setQuery(qParam);
-      fetchVideos(qParam);
+    const qParam = searchParams.get("q") || "";
+    const trimmed = qParam.trim();
+    if (trimmed) {
+      setSubmittedQuery(trimmed);
+      setDisplayQuery(trimmed);
+      fetchVideos(trimmed);
+    } else {
+      setSubmittedQuery("");
+      setDisplayQuery("");
+      setVideos([]);
+      setIsLoading(false);
     }
   }, [searchParams]);
 
-  // Learning Stats query (Phase 3B)
+  // Learning Stats query
   const { data: statsData } = useQuery({
     queryKey: ["edutube", "stats"],
     queryFn: () => EduTubeApi.getLearningStats(),
@@ -167,20 +169,28 @@ export const EduTubePage: React.FC = () => {
     savedVideos: 0,
   };
 
-  const handleSearchSubmit = (searchQuery: string) => {
-    setQuery(searchQuery);
+  const handleSearchSubmit = (newQuery: string) => {
+    if (!newQuery?.trim()) return;
+    const trimmed = newQuery.trim();
     const params = new URLSearchParams(searchParams);
-    params.set("q", searchQuery);
+    params.set("q", trimmed);
     setSearchParams(params);
-    fetchVideos(searchQuery);
   };
 
   const handleSelectTechnology = (techQuery: string) => {
-    setQuery(techQuery);
+    handleSearchSubmit(techQuery);
+  };
+
+  const handleClearSearch = () => {
+    setSubmittedQuery("");
+    setDisplayQuery("");
+    setVideos([]);
+    setNextPageToken(null);
+    setError(null);
+    setIsLoading(false);
     const params = new URLSearchParams(searchParams);
-    params.set("q", techQuery);
+    params.delete("q");
     setSearchParams(params);
-    fetchVideos(techQuery);
   };
 
   const handleLanguageChange = (newLang: EduTubeLanguage) => {
@@ -189,7 +199,9 @@ export const EduTubePage: React.FC = () => {
     if (newLang === "all") params.delete("lang");
     else params.set("lang", newLang);
     setSearchParams(params);
-    fetchVideos(query, newLang, level, duration, sort);
+    if (submittedQuery) {
+      fetchVideos(submittedQuery, newLang, level, duration, sort);
+    }
   };
 
   const handleLevelChange = (newLevel: EduTubeLevel) => {
@@ -198,7 +210,9 @@ export const EduTubePage: React.FC = () => {
     if (newLevel === "all") params.delete("level");
     else params.set("level", newLevel);
     setSearchParams(params);
-    fetchVideos(query, language, newLevel, duration, sort);
+    if (submittedQuery) {
+      fetchVideos(submittedQuery, language, newLevel, duration, sort);
+    }
   };
 
   const handleDurationChange = (newDuration: EduTubeDuration) => {
@@ -207,7 +221,9 @@ export const EduTubePage: React.FC = () => {
     if (newDuration === "all") params.delete("dur");
     else params.set("dur", newDuration);
     setSearchParams(params);
-    fetchVideos(query, language, level, newDuration, sort);
+    if (submittedQuery) {
+      fetchVideos(submittedQuery, language, level, newDuration, sort);
+    }
   };
 
   const handleSortChange = (newSort: EduTubeSort) => {
@@ -216,7 +232,9 @@ export const EduTubePage: React.FC = () => {
     if (newSort === "relevance") params.delete("sort");
     else params.set("sort", newSort);
     setSearchParams(params);
-    fetchVideos(query, language, level, duration, newSort);
+    if (submittedQuery) {
+      fetchVideos(submittedQuery, language, level, duration, newSort);
+    }
   };
 
   const handleResetFilters = () => {
@@ -224,7 +242,9 @@ export const EduTubePage: React.FC = () => {
     setLevel("all");
     setDuration("all");
     setSort("relevance");
-    fetchVideos(query, "all", "all", "all", "relevance");
+    if (submittedQuery) {
+      fetchVideos(submittedQuery, "all", "all", "all", "relevance");
+    }
   };
 
   const handleWatchVideo = (video: EduTubeVideoItem | string) => {
@@ -261,12 +281,15 @@ export const EduTubePage: React.FC = () => {
     }
   };
 
+  const isSearchActive = Boolean(submittedQuery && submittedQuery.trim().length > 0);
+
   return (
     <div className="space-y-6 pb-16 animate-in fade-in-50 duration-150">
       {/* Top Header */}
       <EduTubeHeader
-        searchQuery={query}
+        searchQuery={displayQuery}
         onSearch={handleSearchSubmit}
+        onClear={handleClearSearch}
         isLoading={isLoading}
       />
 
@@ -297,10 +320,85 @@ export const EduTubePage: React.FC = () => {
                 onSeekTo={(sec) => setSeekToSeconds(sec)}
               />
             </div>
+          ) : isSearchActive ? (
+            /* SEARCH MODE: Search Results Primary, Followed by Recommendations */
+            <div className="space-y-8 animate-in fade-in-50 duration-200">
+              {/* Technology Category Chips */}
+              <CategorySection
+                activeQuery={submittedQuery}
+                onSelectTechnology={handleSelectTechnology}
+              />
+
+              {/* Filters Bar */}
+              <FilterBar
+                language={language}
+                level={level}
+                duration={duration}
+                sort={sort}
+                onLanguageChange={handleLanguageChange}
+                onLevelChange={handleLevelChange}
+                onDurationChange={handleDurationChange}
+                onSortChange={handleSortChange}
+                onReset={handleResetFilters}
+              />
+
+              {/* Search Results Header */}
+              <div className="flex items-center justify-between pt-2 border-b border-border/30 pb-3">
+                <div className="flex items-center gap-2">
+                  <BookOpen className="h-4 w-4 text-primary" />
+                  <h2 className="text-base font-bold text-foreground">
+                    Educational Lessons for "{displayQuery}"
+                  </h2>
+                </div>
+                {!isLoading && (
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-semibold text-muted-foreground">
+                      {videos.length} videos displayed
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleClearSearch}
+                      className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Clear Search
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* Responsive Video Grid with Skeletons & Load More */}
+              <VideoGrid
+                videos={videos}
+                isLoading={isLoading}
+                isLoadingMore={isLoadingMore}
+                error={error}
+                hasMore={Boolean(nextPageToken)}
+                onLoadMore={() =>
+                  fetchVideos(submittedQuery, language, level, duration, sort, nextPageToken || undefined)
+                }
+                onWatch={handleWatchVideo}
+                onRetry={() => fetchVideos(submittedQuery)}
+                query={displayQuery}
+                onClearQuery={handleClearSearch}
+                onSelectSuggestion={(s) => handleSearchSubmit(s)}
+              />
+
+              {/* Recommendations remain available in search mode below search results */}
+              <div className="pt-8 border-t border-border/30 space-y-6">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  <h2 className="text-base font-bold text-foreground">
+                    Recommended for You
+                  </h2>
+                </div>
+                <PersonalizedFeed onWatch={handleWatchVideo} />
+              </div>
+            </div>
           ) : (
-            /* Discovery & AI Personalized Feed View */
-            <div className="space-y-8">
-              {/* Learning Stats Bar (Phase 3B) */}
+            /* DEFAULT PERSONALIZED MODE: No Search Called Initially */
+            <div className="space-y-8 animate-in fade-in-50 duration-200">
+              {/* Learning Stats Bar */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="p-3 bg-surface/80 border border-border/40 rounded-xl space-y-1 shadow-neo-raised-sm">
                   <span className="text-[11px] font-bold text-muted-foreground flex items-center gap-1.5">
@@ -335,61 +433,17 @@ export const EduTubePage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Continue Learning Active Section (Phase 3B) */}
+              {/* Continue Learning Active Section */}
               <ContinueLearningSection onContinueVideo={handleWatchVideo} />
 
-              {/* Phase 3C: AI Personalized Learning Feed */}
+              {/* AI Personalized Learning Feed */}
               <PersonalizedFeed onWatch={handleWatchVideo} />
 
-              {/* Phase 3A: Search, Categories & Filters */}
-              <div className="space-y-6 pt-4 border-t border-border/30 animate-in fade-in-50 duration-200">
-                {/* Technology Category Chips */}
+              {/* Technology Category Chips / Curated Tracks */}
+              <div className="pt-4 border-t border-border/30">
                 <CategorySection
-                  activeQuery={query}
+                  activeQuery={submittedQuery}
                   onSelectTechnology={handleSelectTechnology}
-                />
-
-                {/* Filters Bar */}
-                <FilterBar
-                  language={language}
-                  level={level}
-                  duration={duration}
-                  sort={sort}
-                  onLanguageChange={handleLanguageChange}
-                  onLevelChange={handleLevelChange}
-                  onDurationChange={handleDurationChange}
-                  onSortChange={handleSortChange}
-                  onReset={handleResetFilters}
-                />
-
-                {/* Search Results Header */}
-                <div className="flex items-center justify-between pt-2 border-b border-border/30 pb-3">
-                  <div className="flex items-center gap-2">
-                    <BookOpen className="h-4 w-4 text-primary" />
-                    <h2 className="text-base font-bold text-foreground">
-                      Educational Lessons for "{displayQuery}"
-                    </h2>
-                  </div>
-                  {!isLoading && (
-                    <span className="text-xs font-semibold text-muted-foreground">
-                      {videos.length} videos displayed
-                    </span>
-                  )}
-                </div>
-
-                {/* Responsive Video Grid with Skeletons & Load More */}
-                <VideoGrid
-                  videos={videos}
-                  isLoading={isLoading}
-                  isLoadingMore={isLoadingMore}
-                  error={error}
-                  hasMore={Boolean(nextPageToken)}
-                  onLoadMore={() => fetchVideos(query, language, level, duration, sort, nextPageToken || undefined)}
-                  onWatch={handleWatchVideo}
-                  onRetry={() => fetchVideos(query)}
-                  query={displayQuery}
-                  onClearQuery={() => handleSearchSubmit("JavaScript tutorial")}
-                  onSelectSuggestion={(s) => handleSearchSubmit(s)}
                 />
               </div>
             </div>

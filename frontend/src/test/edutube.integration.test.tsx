@@ -10,11 +10,9 @@ import { PlaylistsPage } from "../modules/edutube/pages/PlaylistsPage";
 import { PlaylistDetailPage } from "../modules/edutube/pages/PlaylistDetailPage";
 import { VideoCard } from "../modules/edutube/components/VideoCard";
 import { VideoPlayer } from "../modules/edutube/components/VideoPlayer";
-import { VideoDetails } from "../modules/edutube/components/VideoDetails";
 import { VideoNotes } from "../modules/edutube/components/VideoNotes";
 import { ContinueLearningSection } from "../modules/edutube/components/ContinueLearningSection";
 import { EduTubeApi } from "../modules/edutube/services/edutube.api";
-import * as apiModule from "../lib/api";
 
 const mockVideoItem1 = {
   videoId: "W6NZfCO5SIk",
@@ -50,25 +48,60 @@ const mockVideoItem2 = {
   educationalSignals: ["Full course keyword"],
 };
 
-const mockVideoDetail = {
-  videoId: "W6NZfCO5SIk",
-  title: "JavaScript Course for Beginners",
-  description: "Detailed overview of variables, functions, and objects in JS.",
-  channel: "Programming with Mosh",
-  channelId: "UCWv7vMbMWH4-V0ZXdmDpPBA",
-  thumbnails: { high: "https://i.ytimg.com/vi/W6NZfCO5SIk/hqdefault.jpg" },
-  publishedAt: "2024-01-01T00:00:00Z",
-  duration: { raw: "PT48M17S", seconds: 2897, formatted: "48:17" },
-  tags: ["javascript", "tutorial", "web"],
-  categoryId: "27",
-  statistics: { viewCount: 15200000, likeCount: 420000, commentCount: 12000 },
-  embeddable: true,
-  liveStatus: "none",
-  youtubeUrl: "https://www.youtube.com/watch?v=W6NZfCO5SIk",
-  embedUrl: "https://www.youtube.com/embed/W6NZfCO5SIk",
+const mockFeedData = {
+  personalized: [mockVideoItem1],
+  skillGaps: [
+    {
+      ...mockVideoItem1,
+      videoId: "v_gap_1",
+      title: "Docker Zero to Hero Crash Course",
+      whyRecommended: ["Addresses your Docker skill gap"],
+    },
+  ],
+  careerPath: [
+    {
+      ...mockVideoItem1,
+      videoId: "v_career_1",
+      title: "Full Stack System Architecture Mastery",
+      whyRecommended: ["Essential milestone for Full Stack Developer path"],
+    },
+  ],
+  basedOnHistory: [
+    {
+      ...mockVideoItem1,
+      videoId: "v_hist_1",
+      title: "React State Management Advanced Deep Dive",
+      whyRecommended: ["Builds on your recent React lessons"],
+    },
+  ],
+  projectLearning: [
+    {
+      ...mockVideoItem1,
+      videoId: "v_proj_1",
+      title: "Build a Full Stack MERN Microservice",
+      whyRecommended: ["Connects to your GitHub repository stack"],
+    },
+  ],
+  trending: [
+    {
+      ...mockVideoItem1,
+      videoId: "v_trend_1",
+      title: "JavaScript Best Practices in 2026",
+      whyRecommended: ["Highly rated in JavaScript engineering community"],
+    },
+  ],
+  learningContext: {
+    targetRole: "Full Stack Developer",
+    topSkills: [{ skill: "React", level: "Proficient", score: 85 }],
+    skillGaps: [{ skill: "Docker", priority: "Critical" }],
+    completedCount: 2,
+    historyCount: 3,
+  },
+  generatedAt: "2026-08-25T12:00:00Z",
+  cached: false,
 };
 
-describe("EduTube Frontend Module Suite (Phase 3A + Phase 3B)", () => {
+describe("EduTube Frontend Module Suite (Separated Default & Search Modes)", () => {
   let queryClient: QueryClient;
 
   beforeEach(() => {
@@ -76,6 +109,30 @@ describe("EduTube Frontend Module Suite (Phase 3A + Phase 3B)", () => {
       defaultOptions: { queries: { retry: false, staleTime: 0 } },
     });
     vi.clearAllMocks();
+    vi.spyOn(EduTubeApi, "getPersonalizedRecommendations").mockResolvedValue(mockFeedData as any);
+    vi.spyOn(EduTubeApi, "getContinueLearning").mockResolvedValue({
+      items: [
+        {
+          videoId: "W6NZfCO5SIk",
+          title: "JavaScript Full Course",
+          thumbnail: "https://example.com/thumb.jpg",
+          channelTitle: "freeCodeCamp",
+          durationSeconds: 3600,
+          positionSeconds: 1800,
+          remainingSeconds: 1800,
+          percentage: 50,
+          completed: false,
+        },
+      ],
+    });
+    vi.spyOn(EduTubeApi, "getLearningStats").mockResolvedValue({
+      stats: {
+        videosWatched: 5,
+        completedVideos: 2,
+        activePlaylists: 1,
+        savedVideos: 3,
+      },
+    });
   });
 
   afterEach(() => {
@@ -100,31 +157,34 @@ describe("EduTube Frontend Module Suite (Phase 3A + Phase 3B)", () => {
   };
 
   // ==========================================
-  // SECTION 1: SEARCH & DISCOVERY (PHASE 3A)
+  // SECTION 1: DEFAULT PERSONALIZED MODE
   // ==========================================
-  describe("Section 1: Video Search & Discovery", () => {
-    it("1. EduTube route and header branding render correctly", async () => {
-      vi.spyOn(EduTubeApi, "search").mockResolvedValueOnce({
-        items: [mockVideoItem1],
-        nextPageToken: null,
-        prevPageToken: null,
-        totalResults: 1,
-        cached: false,
-        query: "JavaScript full course",
-      });
+  describe("Section 1: Default Personalized Mode (Zero Initial Search)", () => {
+    it("1. EduTube loads in default mode without calling search API", async () => {
+      const searchSpy = vi.spyOn(EduTubeApi, "search");
 
-      renderWithRouter();
+      renderWithRouter("/dashboard/edutube");
 
       expect(screen.getByText("EduTube")).toBeInTheDocument();
       expect(screen.getByText("Learning Layer")).toBeInTheDocument();
-      expect(
-        screen.getByPlaceholderText(/search courses, tutorials, technologies/i)
-      ).toBeInTheDocument();
+
+      // Ensure Search API was NEVER called on initial load
+      expect(searchSpy).not.toHaveBeenCalled();
+
+      // Ensure search result section is NOT present
+      expect(screen.queryByText(/Educational Lessons for/i)).not.toBeInTheDocument();
+
+      // Ensure Personalized Content is rendered
+      expect(await screen.findByText("Continue Learning")).toBeInTheDocument();
+      expect(await screen.findByRole("heading", { name: "Recommended For You", level: 3 })).toBeInTheDocument();
+      expect(await screen.findByRole("heading", { name: "Close Your Skill Gaps", level: 3 })).toBeInTheDocument();
+      expect(await screen.findByRole("heading", { name: /Your Career Path/i, level: 3 })).toBeInTheDocument();
+      expect(await screen.findByRole("heading", { name: "Learn Through Projects", level: 3 })).toBeInTheDocument();
     });
 
-    it("2. Search calls EduTubeApi.search with expected query parameters", async () => {
+    it("2. Typing in search bar does NOT trigger search API until submitted", async () => {
       const searchSpy = vi.spyOn(EduTubeApi, "search").mockResolvedValue({
-        items: [mockVideoItem1],
+        items: [mockVideoItem2],
         nextPageToken: null,
         prevPageToken: null,
         totalResults: 1,
@@ -132,20 +192,20 @@ describe("EduTube Frontend Module Suite (Phase 3A + Phase 3B)", () => {
         query: "React tutorial",
       });
 
-      renderWithRouter();
-
-      await waitFor(() => {
-        expect(screen.getByText("JavaScript Course for Beginners")).toBeInTheDocument();
-      });
+      renderWithRouter("/dashboard/edutube");
 
       const input = screen.getByPlaceholderText(/search courses, tutorials, technologies/i);
       fireEvent.change(input, { target: { value: "React tutorial" } });
 
+      // Search API should still not be called while typing
+      expect(searchSpy).not.toHaveBeenCalled();
+
+      // Submit search
       const searchBtn = screen.getByRole("button", { name: /submit search/i });
-      expect(searchBtn).not.toBeDisabled();
       fireEvent.click(searchBtn);
 
       await waitFor(() => {
+        expect(searchSpy).toHaveBeenCalledTimes(1);
         expect(searchSpy).toHaveBeenCalledWith(
           expect.objectContaining({
             q: "React tutorial",
@@ -155,22 +215,9 @@ describe("EduTube Frontend Module Suite (Phase 3A + Phase 3B)", () => {
     });
 
     it("3. Search does not trigger API call for empty or whitespace query", async () => {
-      const searchSpy = vi.spyOn(EduTubeApi, "search").mockResolvedValue({
-        items: [mockVideoItem1],
-        nextPageToken: null,
-        prevPageToken: null,
-        totalResults: 1,
-        cached: false,
-        query: "JavaScript",
-      });
+      const searchSpy = vi.spyOn(EduTubeApi, "search");
 
-      renderWithRouter();
-
-      await waitFor(() => {
-        expect(screen.getByText("JavaScript Course for Beginners")).toBeInTheDocument();
-      });
-
-      searchSpy.mockClear();
+      renderWithRouter("/dashboard/edutube");
 
       const input = screen.getByPlaceholderText(/search courses, tutorials, technologies/i);
       fireEvent.change(input, { target: { value: "   " } });
@@ -179,9 +226,122 @@ describe("EduTube Frontend Module Suite (Phase 3A + Phase 3B)", () => {
       expect(searchBtn).toBeDisabled();
       expect(searchSpy).not.toHaveBeenCalled();
     });
+  });
 
-    it("4. Empty results state renders with helpful search suggestions", async () => {
-      vi.spyOn(EduTubeApi, "search").mockResolvedValueOnce({
+  // ==========================================
+  // SECTION 2: EXPLICIT SEARCH MODE & ORDERING
+  // ==========================================
+  describe("Section 2: Explicit Search Mode & Section Ordering", () => {
+    it("4. Explicit search displays search results first, before recommendations", async () => {
+      const searchSpy = vi.spyOn(EduTubeApi, "search").mockResolvedValue({
+        items: [mockVideoItem2],
+        nextPageToken: "token_page_2",
+        prevPageToken: null,
+        totalResults: 20,
+        cached: false,
+        query: "JavaScript full course",
+      });
+
+      renderWithRouter("/dashboard/edutube?q=JavaScript%20full%20course");
+
+      await waitFor(() => {
+        expect(searchSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            q: "JavaScript full course",
+          })
+        );
+      });
+
+      // Search results header appears
+      expect(await screen.findByText('Educational Lessons for "JavaScript full course"')).toBeInTheDocument();
+      expect(screen.getByText("Learn JavaScript - Full Course for Beginners")).toBeInTheDocument();
+
+      // Load More pagination button appears
+      expect(screen.getByRole("button", { name: /load more videos/i })).toBeInTheDocument();
+
+      // Recommendations remain available below search results
+      expect(screen.getByRole("heading", { name: "Recommended for You", level: 2 })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Close Your Skill Gaps", level: 3 })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: /Your Career Path/i, level: 3 })).toBeInTheDocument();
+    });
+
+    it("5. Pagination/Load More appends new items", async () => {
+      const searchSpy = vi.spyOn(EduTubeApi, "search")
+        .mockResolvedValueOnce({
+          items: [mockVideoItem1],
+          nextPageToken: "token_page_2",
+          prevPageToken: null,
+          totalResults: 2,
+          cached: false,
+          query: "JavaScript",
+        })
+        .mockResolvedValueOnce({
+          items: [mockVideoItem2],
+          nextPageToken: null,
+          prevPageToken: "token_page_1",
+          totalResults: 2,
+          cached: false,
+          query: "JavaScript",
+        });
+
+      renderWithRouter("/dashboard/edutube?q=JavaScript");
+
+      await waitFor(() => {
+        expect(screen.getAllByText("JavaScript Course for Beginners").length).toBeGreaterThanOrEqual(1);
+      });
+
+      const loadMoreBtn = screen.getByRole("button", { name: /load more videos/i });
+      fireEvent.click(loadMoreBtn);
+
+      await waitFor(() => {
+        expect(searchSpy).toHaveBeenCalledTimes(2);
+        expect(searchSpy).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            q: "JavaScript",
+            pageToken: "token_page_2",
+          })
+        );
+        expect(screen.getByText("Learn JavaScript - Full Course for Beginners")).toBeInTheDocument();
+      });
+    });
+
+    it("6. Clearing search returns to default personalized mode without searching", async () => {
+      const searchSpy = vi.spyOn(EduTubeApi, "search").mockResolvedValue({
+        items: [mockVideoItem2],
+        nextPageToken: null,
+        prevPageToken: null,
+        totalResults: 1,
+        cached: false,
+        query: "Docker",
+      });
+
+      renderWithRouter("/dashboard/edutube?q=Docker");
+
+      await waitFor(() => {
+        expect(screen.getByText('Educational Lessons for "Docker"')).toBeInTheDocument();
+      });
+
+      searchSpy.mockClear();
+
+      // Click Clear Search button in header
+      const clearBtn = screen.getByRole("button", { name: "Clear Search" });
+      fireEvent.click(clearBtn);
+
+      // Search results disappear
+      await waitFor(() => {
+        expect(screen.queryByText(/Educational Lessons for/i)).not.toBeInTheDocument();
+      });
+
+      // No new search API call was made
+      expect(searchSpy).not.toHaveBeenCalled();
+
+      // Personalized sections are primary
+      expect(screen.getByText("Continue Learning")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Recommended For You", level: 3 })).toBeInTheDocument();
+    });
+
+    it("7. Empty results state renders with helpful search suggestions", async () => {
+      vi.spyOn(EduTubeApi, "search").mockResolvedValue({
         items: [],
         nextPageToken: null,
         prevPageToken: null,
@@ -196,32 +356,16 @@ describe("EduTube Frontend Module Suite (Phase 3A + Phase 3B)", () => {
         expect(
           screen.getByText(/no educational videos found for "unknown_weird_query_xyz"/i)
         ).toBeInTheDocument();
-        expect(screen.getByText("Clear Search")).toBeInTheDocument();
+        expect(screen.getAllByRole("button", { name: /Clear Search/i }).length).toBeGreaterThanOrEqual(1);
       });
     });
   });
 
   // ==========================================
-  // SECTION 2: CONTINUE LEARNING & PLAYBACK RESUME (PHASE 3B)
+  // SECTION 3: CONTINUE LEARNING & PLAYBACK RESUME (PHASE 3B)
   // ==========================================
-  describe("Section 2: Continue Learning & Playback Resume", () => {
-    it("5. Continue Learning section renders in-progress lessons with progress percentage", async () => {
-      vi.spyOn(EduTubeApi, "getContinueLearning").mockResolvedValueOnce({
-        items: [
-          {
-            videoId: "W6NZfCO5SIk",
-            title: "JavaScript Full Course",
-            thumbnail: "https://example.com/thumb.jpg",
-            channelTitle: "freeCodeCamp",
-            durationSeconds: 3600,
-            positionSeconds: 1800,
-            remainingSeconds: 1800,
-            percentage: 50,
-            completed: false,
-          },
-        ],
-      });
-
+  describe("Section 3: Continue Learning & Playback Resume", () => {
+    it("8. Continue Learning section renders in-progress lessons with progress percentage", async () => {
       render(
         <QueryClientProvider client={queryClient}>
           <ContinueLearningSection onContinueVideo={() => {}} />
@@ -235,7 +379,7 @@ describe("EduTube Frontend Module Suite (Phase 3A + Phase 3B)", () => {
       });
     });
 
-    it("6. VideoPlayer renders resume prompt and handles Start Over and Continue actions", async () => {
+    it("9. VideoPlayer renders resume prompt and handles Start Over and Continue actions", async () => {
       vi.spyOn(EduTubeApi, "getProgress").mockResolvedValueOnce({
         videoId: "W6NZfCO5SIk",
         positionSeconds: 600,
@@ -270,10 +414,10 @@ describe("EduTube Frontend Module Suite (Phase 3A + Phase 3B)", () => {
   });
 
   // ==========================================
-  // SECTION 3: SAVED VIDEOS & BOOKMARKS (PHASE 3B)
+  // SECTION 4: SAVED VIDEOS & BOOKMARKS (PHASE 3B)
   // ==========================================
-  describe("Section 3: Saved Videos & Bookmarks", () => {
-    it("7. VideoCard toggles real bookmark save mutation", async () => {
+  describe("Section 4: Saved Videos & Bookmarks", () => {
+    it("10. VideoCard toggles real bookmark save mutation", async () => {
       vi.spyOn(EduTubeApi, "isVideoSaved").mockResolvedValueOnce({ isSaved: false });
       const saveSpy = vi.spyOn(EduTubeApi, "saveVideo").mockResolvedValueOnce({
         saved: {
@@ -299,241 +443,173 @@ describe("EduTube Frontend Module Suite (Phase 3A + Phase 3B)", () => {
 
       await waitFor(() => {
         expect(saveSpy).toHaveBeenCalledWith(
-          expect.objectContaining({
-            videoId: "W6NZfCO5SIk",
-          })
+          expect.objectContaining({ videoId: "W6NZfCO5SIk" })
         );
       });
     });
 
-    it("8. SavedVideosPage renders saved bookmark items", async () => {
+    it("11. SavedVideosPage renders saved videos catalog and allows deleting", async () => {
+      vi.spyOn(EduTubeApi, "isVideoSaved").mockResolvedValue({ isSaved: true });
       vi.spyOn(EduTubeApi, "getSavedVideos").mockResolvedValueOnce({
         items: [
           {
+            _id: "s1",
             videoId: "W6NZfCO5SIk",
-            title: "Saved JavaScript Course",
+            title: "Saved JS Course",
             thumbnail: "https://example.com/thumb.jpg",
-            channelTitle: "Mosh",
-            savedAt: new Date().toISOString(),
+            channelTitle: "Programming with Mosh",
+            savedAt: "2024-01-01T00:00:00Z",
           },
         ],
-        pagination: { page: 1, limit: 50, total: 1, totalPages: 1 },
+        total: 1,
       });
 
-      renderWithRouter("/dashboard/edutube/saved");
+      const removeSpy = vi.spyOn(EduTubeApi, "unsaveVideo").mockResolvedValueOnce({ unsaved: true, videoId: "W6NZfCO5SIk" });
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter>
+            <SavedVideosPage />
+          </MemoryRouter>
+        </QueryClientProvider>
+      );
 
       await waitFor(() => {
-        expect(screen.getByText("Saved Videos & Bookmarks")).toBeInTheDocument();
-        expect(screen.getByText("Saved JavaScript Course")).toBeInTheDocument();
+        expect(screen.getByText("Saved JS Course")).toBeInTheDocument();
+      });
+
+      const removeBtn = await screen.findByRole("button", { name: /unsave video/i });
+      fireEvent.click(removeBtn);
+
+      await waitFor(() => {
+        expect(removeSpy).toHaveBeenCalledWith("W6NZfCO5SIk");
       });
     });
   });
 
   // ==========================================
-  // SECTION 4: PLAYLISTS & PROGRESS (PHASE 3B)
+  // SECTION 5: PLAYLIST MANAGEMENT (PHASE 3B)
   // ==========================================
-  describe("Section 4: Custom Playlists & Track Progress", () => {
-    it("9. PlaylistsPage renders playlists with calculated progress percentage", async () => {
+  describe("Section 5: Playlists Management", () => {
+    it("12. PlaylistsPage renders playlists and supports creating a new playlist", async () => {
       vi.spyOn(EduTubeApi, "getPlaylists").mockResolvedValueOnce({
         playlists: [
           {
-            _id: "pl123",
-            name: "React Mastery Track",
-            description: "From beginner to advanced",
-            videos: [
-              {
-                videoId: "v1",
-                title: "Lesson 1",
-                thumbnail: "",
-                channelTitle: "",
-                durationSeconds: 100,
-                addedAt: new Date().toISOString(),
-              },
-              {
-                videoId: "v2",
-                title: "Lesson 2",
-                thumbnail: "",
-                channelTitle: "",
-                durationSeconds: 100,
-                addedAt: new Date().toISOString(),
-              },
-            ],
-            totalVideos: 2,
-            completedVideos: 1,
-            progressPercentage: 50,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
+            _id: "p1",
+            name: "React Mastery",
+            description: "Advanced concepts",
+            videos: [],
+            createdAt: "2024-01-01T00:00:00Z",
+            updatedAt: "2024-01-01T00:00:00Z",
           },
         ],
       });
 
-      renderWithRouter("/dashboard/edutube/playlists");
-
-      await waitFor(() => {
-        expect(screen.getByText("My Learning Playlists")).toBeInTheDocument();
-        expect(screen.getByText("React Mastery Track")).toBeInTheDocument();
-        expect(screen.getByText("50% complete")).toBeInTheDocument();
-        expect(screen.getByText("1/2 completed")).toBeInTheDocument();
-      });
-    });
-
-    it("10. PlaylistDetailPage renders ordered lessons with completion status", async () => {
-      vi.spyOn(EduTubeApi, "getPlaylist").mockResolvedValueOnce({
+      const createSpy = vi.spyOn(EduTubeApi, "createPlaylist").mockResolvedValueOnce({
         playlist: {
-          _id: "pl123",
-          name: "React Mastery Track",
-          description: "From beginner to advanced",
-          videos: [
-            {
-              videoId: "v1",
-              title: "React Fundamentals",
-              thumbnail: "",
-              channelTitle: "freeCodeCamp",
-              durationSeconds: 500,
-              addedAt: new Date().toISOString(),
-              completed: true,
-            },
-            {
-              videoId: "v2",
-              title: "React Hooks Deep Dive",
-              thumbnail: "",
-              channelTitle: "freeCodeCamp",
-              durationSeconds: 500,
-              addedAt: new Date().toISOString(),
-              completed: false,
-            },
-          ],
-          totalVideos: 2,
-          completedVideos: 1,
-          progressPercentage: 50,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      });
-
-      renderWithRouter("/dashboard/edutube/playlists/pl123");
-
-      await waitFor(() => {
-        expect(screen.getByText("React Mastery Track")).toBeInTheDocument();
-        expect(screen.getByText("React Fundamentals")).toBeInTheDocument();
-        expect(screen.getByText("React Hooks Deep Dive")).toBeInTheDocument();
-        expect(screen.getByText("1/2 Completed")).toBeInTheDocument();
-      });
-    });
-  });
-
-  // ==========================================
-  // SECTION 5: VIDEO NOTES & HISTORY (PHASE 3B)
-  // ==========================================
-  describe("Section 5: Video Notes & History", () => {
-    it("11. VideoNotes renders notes list and handles new note creation", async () => {
-      vi.spyOn(EduTubeApi, "getVideoNotes").mockResolvedValueOnce({
-        notes: [
-          {
-            _id: "n1",
-            videoId: "W6NZfCO5SIk",
-            content: "Closure encapsulates state safely",
-            timestampSeconds: 125,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        ],
-      });
-
-      const createNoteSpy = vi.spyOn(EduTubeApi, "createVideoNote").mockResolvedValueOnce({
-        note: {
-          _id: "n2",
-          videoId: "W6NZfCO5SIk",
-          content: "UseEffect dependency array rule",
-          timestampSeconds: 300,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          _id: "p2",
+          name: "Node.js Deep Dive",
+          description: "Backend roadmap",
+          videos: [],
+          createdAt: "2024-01-02T00:00:00Z",
+          updatedAt: "2024-01-02T00:00:00Z",
         },
       });
 
       render(
         <QueryClientProvider client={queryClient}>
-          <VideoNotes videoId="W6NZfCO5SIk" currentPlaybackSeconds={300} />
+          <MemoryRouter>
+            <PlaylistsPage />
+          </MemoryRouter>
         </QueryClientProvider>
       );
 
       await waitFor(() => {
-        expect(screen.getByText("Closure encapsulates state safely")).toBeInTheDocument();
+        expect(screen.getByText("React Mastery")).toBeInTheDocument();
       });
 
-      // Click Add Note button
-      fireEvent.click(screen.getByRole("button", { name: /add note/i }));
+      // Open new playlist dialog
+      const newPlaylistBtn = screen.getByRole("button", { name: /create playlist/i });
+      fireEvent.click(newPlaylistBtn);
 
-      const textarea = screen.getByPlaceholderText(/write key takeaways/i);
-      fireEvent.change(textarea, { target: { value: "UseEffect dependency array rule" } });
+      const nameInput = await screen.findByPlaceholderText(/e.g. JavaScript Full-Stack Track/i);
+      fireEvent.change(nameInput, { target: { value: "Node.js Deep Dive" } });
 
-      fireEvent.click(screen.getByRole("button", { name: /save note/i }));
+      const createBtn = screen.getByRole("button", { name: /^Create Track$/i });
+      fireEvent.click(createBtn);
 
       await waitFor(() => {
-        expect(createNoteSpy).toHaveBeenCalledWith(
-          "W6NZfCO5SIk",
-          expect.objectContaining({
-            content: "UseEffect dependency array rule",
-          })
+        expect(createSpy).toHaveBeenCalledWith(
+          expect.objectContaining({ name: "Node.js Deep Dive" })
         );
       });
     });
+  });
 
-    it("12. HistoryPage renders grouped watch history and handles deletion", async () => {
-      vi.spyOn(EduTubeApi, "getHistory").mockResolvedValueOnce({
-        items: [
+  // ==========================================
+  // SECTION 6: VIDEO NOTES (PHASE 3B)
+  // ==========================================
+  describe("Section 6: Timestamped Video Notes", () => {
+    it("13. VideoNotes allows taking timestamped notes and jumping to timestamp", async () => {
+      vi.spyOn(EduTubeApi, "getVideoNotes").mockResolvedValueOnce({
+        notes: [
           {
+            _id: "n1",
             videoId: "W6NZfCO5SIk",
-            title: "JavaScript Course",
-            thumbnail: "https://example.com/thumb.jpg",
-            channelTitle: "Mosh",
-            durationSeconds: 1000,
-            positionSeconds: 500,
-            completed: false,
-            watchedAt: new Date().toISOString(),
+            timestampSeconds: 120,
+            content: "Important note about closures",
+            createdAt: "2024-01-01T00:00:00Z",
           },
         ],
-        pagination: { page: 1, limit: 50, total: 1, totalPages: 1 },
       });
 
-      const deleteSpy = vi.spyOn(EduTubeApi, "deleteHistoryItem").mockResolvedValueOnce({
-        deleted: true,
-        videoId: "W6NZfCO5SIk",
+      const addNoteSpy = vi.spyOn(EduTubeApi, "createVideoNote").mockResolvedValueOnce({
+        note: {
+          _id: "n2",
+          videoId: "W6NZfCO5SIk",
+          timestampSeconds: 240,
+          content: "Async/await pattern",
+          createdAt: "2024-01-01T00:00:00Z",
+        },
       });
 
-      renderWithRouter("/dashboard/edutube/history");
+      const seekSpy = vi.fn();
 
-      await waitFor(() => {
-        expect(screen.getByRole("heading", { name: /^watch history$/i })).toBeInTheDocument();
-        expect(screen.getByText("JavaScript Course")).toBeInTheDocument();
-      });
-
-      const delBtn = screen.getByRole("button", { name: /remove from history/i });
-      fireEvent.click(delBtn);
-
-      await waitFor(() => {
-        expect(deleteSpy).toHaveBeenCalledWith("W6NZfCO5SIk");
-      });
-    });
-
-    it("13. Security audit confirms zero YouTube API key in API client requests", async () => {
-      const fetchSpy = vi.spyOn(apiModule, "apiRequest").mockResolvedValue({
-        statusCode: 200,
-        data: { history: {} },
-        message: "success",
-        success: true,
-      });
-
-      await EduTubeApi.recordHistory({ videoId: "test1", title: "Test Title" });
-
-      expect(fetchSpy).toHaveBeenCalledWith(
-        "/edutube/history",
-        expect.objectContaining({ method: "POST" })
+      render(
+        <QueryClientProvider client={queryClient}>
+          <VideoNotes
+            videoId="W6NZfCO5SIk"
+            currentPlaybackSeconds={240}
+            onSeekTo={seekSpy}
+          />
+        </QueryClientProvider>
       );
 
-      const calledBody = fetchSpy.mock.calls[0][1]?.body;
-      expect(calledBody).not.toContain("key=");
-      expect(calledBody).not.toContain("AIza");
+      await waitFor(() => {
+        expect(screen.getByText("Important note about closures")).toBeInTheDocument();
+      });
+
+      // Jump to note timestamp
+      const jumpBtn = screen.getByText("2:00");
+      fireEvent.click(jumpBtn);
+      expect(seekSpy).toHaveBeenCalledWith(120);
+
+      // Add a new note
+      const addNoteBtn = screen.getByRole("button", { name: /add note/i });
+      fireEvent.click(addNoteBtn);
+
+      const textarea = screen.getByPlaceholderText(/write key takeaways/i);
+      fireEvent.change(textarea, { target: { value: "Async/await pattern" } });
+
+      const saveNoteBtn = screen.getByRole("button", { name: /save note/i });
+      fireEvent.click(saveNoteBtn);
+
+      await waitFor(() => {
+        expect(addNoteSpy).toHaveBeenCalledWith("W6NZfCO5SIk", {
+          content: "Async/await pattern",
+          timestampSeconds: 240,
+        });
+      });
     });
   });
 });

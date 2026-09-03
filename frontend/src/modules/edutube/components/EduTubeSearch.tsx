@@ -6,12 +6,14 @@ import { Input } from "@/components/ui/input";
 export interface EduTubeSearchProps {
   initialQuery?: string;
   onSearch: (query: string) => void;
+  onClear?: () => void;
   isLoading?: boolean;
 }
 
 export const EduTubeSearch: React.FC<EduTubeSearchProps> = ({
   initialQuery = "",
   onSearch,
+  onClear,
   isLoading = false,
 }) => {
   const [searchTerm, setSearchTerm] = useState(initialQuery);
@@ -29,6 +31,9 @@ export const EduTubeSearch: React.FC<EduTubeSearchProps> = ({
 
   const handleClear = () => {
     setSearchTerm("");
+    if (onClear) {
+      onClear();
+    }
   };
 
   return (
