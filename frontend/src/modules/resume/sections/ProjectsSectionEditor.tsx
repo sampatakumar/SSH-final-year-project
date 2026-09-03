@@ -170,35 +170,42 @@ export const ProjectsSectionEditor: React.FC<ProjectsSectionEditorProps> = ({
       </div>
 
       {/* Suggested from GitHub Intelligence Banner */}
-      {availableGitHubProjects.length > 0 && (
-        <div className="p-3 bg-primary/5 rounded-xl border border-primary/20 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-              <Github className="h-3.5 w-3.5 text-primary" /> Suggested from GitHub Intelligence
-            </span>
-            <span className="text-[10px] text-muted-foreground">Verified repositories</span>
-          </div>
+      {(() => {
+        const unadded = availableGitHubProjects.filter(
+          (gh) => !projects.some((p) => p.name.trim().toLowerCase() === String(gh.title || "").trim().toLowerCase())
+        );
+        if (unadded.length === 0) return null;
 
-          <div className="flex flex-wrap gap-2 pt-1">
-            {availableGitHubProjects.map((gh) => (
-              <button
-                key={gh._id || gh.title}
-                type="button"
-                onClick={() => handleAddFromGitHub(gh)}
-                className="flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg border border-primary/30 bg-background/80 hover:bg-primary/10 hover:border-primary text-foreground transition-all"
-              >
-                <Plus className="h-3 w-3 text-primary" />
-                <span className="font-semibold">{gh.title}</span>
-                {gh.stack?.length ? (
-                  <span className="text-[10px] text-muted-foreground font-mono">
-                    ({gh.stack.slice(0, 2).join(", ")})
-                  </span>
-                ) : null}
-              </button>
-            ))}
+        return (
+          <div className="p-3 bg-primary/5 rounded-xl border border-primary/20 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <Github className="h-3.5 w-3.5 text-primary" /> Suggested from GitHub Intelligence
+              </span>
+              <span className="text-[10px] text-muted-foreground">{unadded.length} available</span>
+            </div>
+
+            <div className="flex flex-wrap gap-2 pt-1">
+              {unadded.map((gh) => (
+                <button
+                  key={gh._id || gh.title}
+                  type="button"
+                  onClick={() => handleAddFromGitHub(gh)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg border border-primary/30 bg-background/80 hover:bg-primary/10 hover:border-primary text-foreground transition-all"
+                >
+                  <Plus className="h-3 w-3 text-primary" />
+                  <span className="font-semibold">{gh.title}</span>
+                  {gh.stack?.length ? (
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      ({gh.stack.slice(0, 2).join(", ")})
+                    </span>
+                  ) : null}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Projects List */}
       {projects.length === 0 ? (

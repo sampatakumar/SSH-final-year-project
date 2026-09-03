@@ -142,37 +142,57 @@ export function adaptMasterProfileToResume(
         .filter((exp) => exp.company || exp.role)
     : [];
 
-  // 5. Projects Mapping (from User Projects collection)
-  const projects: Project[] = Array.isArray(userProjects)
-    ? userProjects
-        .map((proj) => {
-          const technologies = Array.isArray(proj.stack) ? proj.stack.join(", ") : "";
-          const bullets = proj.description
-            ? [proj.description.trim()]
-            : ["Built scalable application with modular components and clean architecture."];
+  // 5. Projects Mapping (from User Projects collection with strict deduplication)
+  const seenProjectTitles = new Set<string>();
+  const projects: Project[] = [];
 
-          return {
-            name: String(proj.title || "").trim(),
-            technologies,
-            githubUrl: String(proj.githubUrl || "").trim(),
-            demoUrl: String(proj.demoUrl || "").trim(),
-            bullets,
-          };
-        })
-        .filter((p) => p.name)
-    : [];
+  if (Array.isArray(userProjects)) {
+    for (const proj of userProjects) {
+      const name = String(proj.title || "").trim();
+      const normKey = name.toLowerCase();
+      if (!name || seenProjectTitles.has(normKey)) continue;
+
+      seenProjectTitles.add(normKey);
+      const technologies = Array.isArray(proj.stack) ? proj.stack.filter(Boolean).join(", ") : "";
+      const bullets = proj.description
+        ? [proj.description.trim()]
+        : ["Engineered application components with modular architecture and clean code practices."];
+
+      projects.push({
+        name,
+        technologies,
+        githubUrl: String(proj.githubUrl || "").trim(),
+        demoUrl: String(proj.demoUrl || "").trim(),
+        bullets,
+      });
+    }
+  }
 
   // 6. Skills Mapping
-  const skillLanguages = Array.isArray(profile.skillLanguages) ? profile.skillLanguages : [];
-  const skillFrameworks = Array.isArray(profile.skillFrameworks) ? profile.skillFrameworks : [];
-  const skillTools = Array.isArray(profile.skillTools) ? profile.skillTools : [];
-  const skillLibraries = Array.isArray(profile.skillLibraries) ? profile.skillLibraries : [];
+  const dedupeStringList = (items: string[] = []) => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const item of items) {
+      const clean = String(item || "").trim();
+      const norm = clean.toLowerCase();
+      if (clean && !seen.has(norm)) {
+        seen.add(norm);
+        out.push(clean);
+      }
+    }
+    return out;
+  };
+
+  const skillLanguages = dedupeStringList(Array.isArray(profile.skillLanguages) ? profile.skillLanguages : []);
+  const skillFrameworks = dedupeStringList(Array.isArray(profile.skillFrameworks) ? profile.skillFrameworks : []);
+  const skillTools = dedupeStringList(Array.isArray(profile.skillTools) ? profile.skillTools : []);
+  const skillLibraries = dedupeStringList(Array.isArray(profile.skillLibraries) ? profile.skillLibraries : []);
 
   const rawSkillSections = Array.isArray(profile.skillSections) ? profile.skillSections : [];
   const skillSections: SkillSection[] = rawSkillSections
     .map((sec) => ({
       title: String(sec.title || "").trim(),
-      skills: Array.isArray(sec.skills) ? sec.skills.map((s) => String(s).trim()).filter(Boolean) : [],
+      skills: dedupeStringList(Array.isArray(sec.skills) ? sec.skills.map((s) => String(s).trim()) : []),
     }))
     .filter((sec) => sec.title && sec.skills.length > 0);
 
@@ -194,9 +214,18 @@ export function adaptMasterProfileToResume(
       const titleLower = sec.title.toLowerCase();
       if (titleLower.includes("language")) {
         categorizedSkills.languages.push(...sec.skills);
-      } else if (titleLower.includes("framework") || titleLower.includes("technical") || titleLower.includes("frontend") || titleLower.includes("backend")) {
+      } else if (
+        titleLower.includes("framework") ||
+        titleLower.includes("technical") ||
+        titleLower.includes("frontend") ||
+        titleLower.includes("backend")
+      ) {
         categorizedSkills.frameworks.push(...sec.skills);
-      } else if (titleLower.includes("tool") || titleLower.includes("devops") || titleLower.includes("platform")) {
+      } else if (
+        titleLower.includes("tool") ||
+        titleLower.includes("devops") ||
+        titleLower.includes("platform")
+      ) {
         categorizedSkills.tools.push(...sec.skills);
       } else {
         categorizedSkills.libraries.push(...sec.skills);
@@ -205,10 +234,10 @@ export function adaptMasterProfileToResume(
 
     // Deduplicate
     categorizedSkills = {
-      languages: Array.from(new Set(categorizedSkills.languages)),
-      frameworks: Array.from(new Set(categorizedSkills.frameworks)),
-      tools: Array.from(new Set(categorizedSkills.tools)),
-      libraries: Array.from(new Set(categorizedSkills.libraries)),
+      languages: dedupeStringList(categorizedSkills.languages),
+      frameworks: dedupeStringList(categorizedSkills.frameworks),
+      tools: dedupeStringList(categorizedSkills.tools),
+      libraries: dedupeStringList(categorizedSkills.libraries),
     };
   }
 
@@ -246,7 +275,7 @@ export function adaptMasterProfileToResume(
 
 /**
  * Merge Master Profile data into an existing ResumeData snapshot without overwriting
- * user-customized non-empty fields.
+ * user-customized non-empty fields and ensuring no duplicate entries.
  */
 export function mergeProfileWithSavedResume(
   savedResume: Partial<ResumeData> | null | undefined,
@@ -262,6 +291,25 @@ export function mergeProfileWithSavedResume(
   if (!savedResume) {
     return profileResume;
   }
+
+  // Deduplicate saved projects by normalized title
+  const dedupeProjects = (list: Project[]): Project[] => {
+    const seen = new Set<string>();
+    const out: Project[] = [];
+    for (const p of list) {
+      const key = String(p.name || "").trim().toLowerCase();
+      if (key && !seen.has(key)) {
+        seen.add(key);
+        out.push(p);
+      }
+    }
+    return out;
+  };
+
+  const rawSavedProjects = Array.isArray(savedResume.projects) ? savedResume.projects : [];
+  const mergedProjects = rawSavedProjects.length > 0
+    ? dedupeProjects(rawSavedProjects)
+    : profileResume.projects;
 
   // Preserved configuration (template, sectionOrder, typography, colors, customSections)
   const mergedConfig = {
@@ -288,10 +336,7 @@ export function mergeProfileWithSavedResume(
       Array.isArray(savedResume.experience) && savedResume.experience.length > 0
         ? savedResume.experience
         : profileResume.experience,
-    projects:
-      Array.isArray(savedResume.projects) && savedResume.projects.length > 0
-        ? savedResume.projects
-        : profileResume.projects,
+    projects: mergedProjects,
     achievements:
       Array.isArray(savedResume.achievements) && savedResume.achievements.length > 0
         ? savedResume.achievements

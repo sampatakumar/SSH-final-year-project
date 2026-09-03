@@ -306,7 +306,7 @@ describe("Master Profile → Resume Builder Integration Test Suite", () => {
       });
 
       // Click "Sync from Master Profile"
-      const syncBtn = screen.getByText("Sync from Master Profile");
+      const syncBtn = screen.getAllByText("Sync from Master Profile")[0];
       fireEvent.click(syncBtn);
 
       // Check confirmation modal appears

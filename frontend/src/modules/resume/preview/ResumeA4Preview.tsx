@@ -112,17 +112,34 @@ export const ResumeA4Preview: React.FC<ResumeA4PreviewProps> = ({
             transformOrigin: "top center",
             transition: "transform 120ms ease-out",
           }}
-          className="transition-all"
+          className="transition-all flex flex-col items-center gap-6"
         >
-          {/* True A4 Page (210mm x 297mm scaled ~ 794px x 1123px) */}
-          <div
-            id="resume-a4-preview-canvas"
-            className="w-[794px] min-h-[1123px] bg-white text-slate-900 rounded-sm shadow-2xl relative select-text"
-            style={{
-              padding: `${config.typography?.pageMargins || 32}px`,
-            }}
-          >
-            <ResumeTemplateRenderer data={data} config={config} />
+          {/* A4 Document Container */}
+          <div className="relative">
+            {/* Multi-page badge overlay */}
+            <div className="absolute -top-6 left-0 right-0 flex items-center justify-between text-[11px] text-slate-400 px-1 font-mono">
+              <span>A4 Standard (210 × 297 mm)</span>
+              <span>
+                Page 1 of {density.estimatedPages}
+              </span>
+            </div>
+
+            {/* True A4 Page (210mm x 297mm scaled ~ 794px x 1123px per page) */}
+            <div
+              id="resume-a4-preview-canvas"
+              className="w-[794px] min-h-[1123px] bg-white text-slate-900 rounded-sm shadow-2xl relative select-text"
+              style={{
+                padding: `${config.typography?.pageMargins || 32}px`,
+              }}
+            >
+              <ResumeTemplateRenderer data={data} config={config} />
+            </div>
+
+            {density.estimatedPages > 1 && (
+              <div className="mt-3 text-center text-xs font-mono text-slate-400 bg-slate-800/80 px-3 py-1 rounded-full border border-slate-700 w-fit mx-auto">
+                Multi-page document: Page 2 rendered below
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -131,7 +148,11 @@ export const ResumeA4Preview: React.FC<ResumeA4PreviewProps> = ({
       {density.warnings.length > 0 && (
         <div className="px-4 py-2 bg-slate-950 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
           <div className="flex items-center gap-2 truncate">
-            <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+            <span
+              className={`h-2 w-2 rounded-full ${
+                density.status === "overflowing" ? "bg-amber-400 animate-pulse" : "bg-emerald-400"
+              }`}
+            />
             <span className="truncate">{density.warnings[0]}</span>
           </div>
           {density.suggestions[0] && (

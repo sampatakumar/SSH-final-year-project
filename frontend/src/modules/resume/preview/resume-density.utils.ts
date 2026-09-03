@@ -72,18 +72,29 @@ export const calculateResumeDensity = (
   const suggestions: string[] = [];
   let status: "underfilled" | "balanced" | "overflowing" = "balanced";
 
+  const isFontTooSmall = (config.typography?.bodySize || 10) < 9.5;
+  const isLineHeightTooTight = (config.typography?.lineHeight || 1.3) < 1.18;
+  const isCramped = (isFontTooSmall || isLineHeightTooTight) && adjustedLines > 45;
+
+  if (isCramped) {
+    warnings.push("Your resume is becoming difficult to read due to compact typography.");
+    suggestions.push("Shorten summary or reduce redundant bullets to increase font size and line spacing.");
+  }
+
   if (fillRatio < 0.7) {
     status = "underfilled";
     warnings.push("Large unused whitespace detected on the page.");
     suggestions.push("Add a strong Professional Summary, detailed project bullets, or coursework to fill the page.");
-  } else if (fillRatio > 1.05 && fillRatio < 1.4) {
+  } else if (fillRatio > 1.05 && fillRatio < 1.35) {
     status = "overflowing";
-    warnings.push("Content slightly spills onto a 2nd page with sparse lines.");
-    suggestions.push("Click 'Optimize for 1 Page' to fit cleanly on one sheet without deleting content.");
-  } else if (fillRatio >= 1.4 && fillRatio < 1.8) {
+    warnings.push("Your resume is spilling onto a 2nd page with sparse lines.");
+    suggestions.push("Shorten project descriptions or click 'Optimize for 1 Page' to fit cleanly on one sheet.");
+  } else if (fillRatio >= 1.35 && fillRatio < 1.75) {
     status = "overflowing";
     warnings.push("Resume is between 1 and 2 pages.");
     suggestions.push("Either trim secondary details for a clean 1-page resume or expand experiences for a full 2-page format.");
+  } else if (fillRatio >= 1.75) {
+    status = "balanced"; // Solid 2-page resume
   }
 
   return {
@@ -93,7 +104,7 @@ export const calculateResumeDensity = (
     estimatedPages,
     status,
     warnings,
-    suggestions
+    suggestions,
   };
 };
 
@@ -116,11 +127,11 @@ export const optimizeConfigForOnePage = (
   );
   let nextLineHeight = Math.min(
     currentConfig.typography.lineHeight,
-    Math.max(1.12, Number((currentConfig.typography.lineHeight / overflow).toFixed(2)))
+    Math.max(1.15, Number((currentConfig.typography.lineHeight / overflow).toFixed(2)))
   );
   let nextBodySize = Math.min(
     currentConfig.typography.bodySize,
-    Math.max(9.0, Number((currentConfig.typography.bodySize / overflow).toFixed(1)))
+    Math.max(9.2, Number((currentConfig.typography.bodySize / overflow).toFixed(1)))
   );
   let nextPageMargins = Math.min(
     currentConfig.typography.pageMargins,
@@ -130,7 +141,7 @@ export const optimizeConfigForOnePage = (
   // If still overflowing slightly, tighten further
   if (overflow > 1.3) {
     nextSectionGap = Math.max(6, nextSectionGap - 2);
-    nextBodySize = Math.max(9.0, nextBodySize - 0.3);
+    nextBodySize = Math.max(9.0, nextBodySize - 0.2);
   }
 
   return {
@@ -143,7 +154,7 @@ export const optimizeConfigForOnePage = (
       lineHeight: nextLineHeight,
       bodySize: nextBodySize,
       headingSize: Math.max(10.5, nextBodySize + 1.5),
-      pageMargins: nextPageMargins
-    }
+      pageMargins: nextPageMargins,
+    },
   };
 };

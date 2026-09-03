@@ -11,9 +11,21 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useAuth } from "@/core/auth";
 import { apiRequest } from "@/lib/api";
-import { RefreshCw, Loader2, Edit3, Sliders, Eye, ListOrdered } from "lucide-react";
+import {
+  RefreshCw,
+  Loader2,
+  Edit3,
+  Sliders,
+  Eye,
+  ListOrdered,
+  Sparkles,
+  Target,
+  Palette,
+  CheckCircle2,
+  Copy,
+} from "lucide-react";
 
-import type { ResumeData, ResumeBuilderConfig, Education, Experience, Project, Achievement, CustomSection } from "../templates/types";
+import type { ResumeData, ResumeBuilderConfig } from "../templates/types";
 import { TEMPLATE_REGISTRY } from "../templates/TemplateRegistry";
 import { ResumeEditorHeader } from "./ResumeEditorHeader";
 import { ResumeDesignPanel } from "./ResumeDesignPanel";
@@ -31,8 +43,8 @@ import { SkillsSectionEditor } from "../sections/SkillsSectionEditor";
 import { AchievementsSectionEditor } from "../sections/AchievementsSectionEditor";
 import { CustomSectionEditor } from "./CustomSectionEditor";
 
-import { CareerMentorModal } from "../ai/CareerMentorModal";
-import { ResumeQualityAssistant } from "../ai/ResumeQualityAssistant";
+import { AiResumeAssistant } from "../ai/AiResumeAssistant";
+import { JobTailorPanel } from "../ai/JobTailorPanel";
 
 import { generateResumePdfBlob } from "../services/pdf-export.service";
 import {
@@ -42,6 +54,7 @@ import {
 } from "../services/resume-normalizer";
 import type { UserProjectItem } from "../services/resume-profile-adapter";
 import { calculateResumeDensity, optimizeConfigForOnePage } from "../preview/resume-density.utils";
+import { calculateAtsReadiness, calculateCompletenessScore } from "../services/resume-scoring.utils";
 
 export interface ResumeEditorProps {
   initialResume?: Partial<ResumeData> & { _id?: string; title?: string };
@@ -61,14 +74,13 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
   const [userProjects, setUserProjects] = useState<UserProjectItem[]>([]);
   const [isHydrated, setIsHydrated] = useState(false);
   const [showSyncDialog, setShowSyncDialog] = useState(false);
-  const [showCareerMentor, setShowCareerMentor] = useState(false);
-  const [showQualityAssistant, setShowQualityAssistant] = useState(false);
+  const [showAiAssistantModal, setShowAiAssistantModal] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
 
-  // Layout Tabs
-  const [leftTab, setLeftTab] = useState<"design" | "formatting">("design");
+  // Layout Right Tab Switcher: "edit" | "design" | "ai" | "tailor" | "sync"
+  const [rightTab, setRightTab] = useState<"edit" | "design" | "ai" | "tailor" | "sync">("edit");
   const [activeSection, setActiveSection] = useState<string>("personal");
-  const [mobileView, setMobileView] = useState<"form" | "styles" | "sections" | "preview">("form");
+  const [mobileView, setMobileView] = useState<"form" | "sections" | "styles" | "preview">("form");
 
   // State
   const [resumeData, setResumeData] = useState<ResumeData>(() =>
@@ -139,10 +151,18 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
 
   const config = resumeData.config!;
 
-  // Density & Page metrics
+  // Grounded Metrics
   const density = useMemo(() => {
     return calculateResumeDensity(resumeData, config);
   }, [resumeData, config]);
+
+  const atsReport = useMemo(() => {
+    return calculateAtsReadiness(resumeData, config);
+  }, [resumeData, config]);
+
+  const completenessReport = useMemo(() => {
+    return calculateCompletenessScore(resumeData);
+  }, [resumeData]);
 
   // Section Counts
   const sectionCounts = useMemo(() => {
@@ -158,36 +178,6 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
         (resumeData.skills?.tools?.length || 0),
       achievements: resumeData.achievements?.length || 0,
     };
-  }, [resumeData]);
-
-  // Completeness & ATS Score Calculations
-  const completeness = useMemo(() => {
-    let score = 0;
-    if (resumeData.name) score += 15;
-    if (resumeData.email && resumeData.phone) score += 15;
-    if (resumeData.professionalSummary) score += 15;
-    if (resumeData.experience?.length) score += 15;
-    if (resumeData.projects?.length) score += 15;
-    if (resumeData.education?.length) score += 15;
-    if (
-      resumeData.skills?.languages?.length ||
-      resumeData.skills?.frameworks?.length ||
-      resumeData.skills?.tools?.length
-    ) {
-      score += 10;
-    }
-    return Math.min(100, score);
-  }, [resumeData]);
-
-  const atsScore = useMemo(() => {
-    let score = 50;
-    if (resumeData.name && resumeData.email) score += 10;
-    if (resumeData.professionalSummary?.length && resumeData.professionalSummary.length >= 40) score += 10;
-    if (resumeData.experience?.length) score += 10;
-    if (resumeData.projects?.length) score += 10;
-    if (resumeData.education?.length) score += 5;
-    if (resumeData.skills?.languages?.length || resumeData.skills?.frameworks?.length) score += 5;
-    return Math.min(100, score);
   }, [resumeData]);
 
   // Update Config Helper
@@ -234,8 +224,8 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
     toast.success("Resume synchronized with Master Profile!");
   };
 
-  // Save Resume to DB (with optional notification)
-  const handleSaveResume = async (isAutoSave = false) => {
+  // Save Resume to DB (PUT if editing, POST if new/version)
+  const handleSaveResume = async (isAutoSave = false, forceCreateNew = false) => {
     if (!idToken) return;
 
     setIsSaving(true);
@@ -249,7 +239,7 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
       formData.append("resumeFile", pdfBlob, `${resumeTitle.replace(/\s+/g, "_")}.pdf`);
       formData.append("builderConfig", JSON.stringify(config));
 
-      const isEditing = Boolean(initialResume?._id);
+      const isEditing = Boolean(initialResume?._id) && !forceCreateNew;
       const endpoint = isEditing ? `/resumes/${initialResume?._id}` : "/resumes";
 
       const res = await apiRequest<{ resume: any }>(endpoint, {
@@ -260,7 +250,7 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
 
       setLastSavedAt(new Date());
       if (!isAutoSave) {
-        toast.success("Resume saved successfully!");
+        toast.success(forceCreateNew ? "New resume version saved!" : "Resume saved successfully!");
         if (onSaved) onSaved(res.data?.resume);
       }
     } catch (error: any) {
@@ -270,6 +260,13 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
     } finally {
       setIsSaving(false);
     }
+  };
+
+  // Save as Version Handler
+  const handleSaveAsVersion = async () => {
+    const versionTitle = `${resumeTitle.replace(/\s*\(v\d+\)$/i, "")} (v${Date.now().toString().slice(-3)})`;
+    setResumeTitle(versionTitle);
+    await handleSaveResume(false, true);
   };
 
   // Debounced Autosave on content change
@@ -331,14 +328,18 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
         onChangeTitle={setResumeTitle}
         templateName={activeTemplateMeta.name}
         onBack={onBack}
-        onOpenCareerMentor={() => setShowCareerMentor(true)}
-        onOpenSyncDialog={() => setShowSyncDialog(true)}
+        onOpenAiAssistant={() => setShowAiAssistantModal(true)}
+        onOpenTailor={() => {
+          setRightTab("tailor");
+          setMobileView("form");
+        }}
+        onSaveAsVersion={handleSaveAsVersion}
         onExportPdf={handleExportPdf}
         isExportingPdf={isExportingPdf}
         isFullScreen={isFullScreen}
         onToggleFullScreen={() => setIsFullScreen((prev) => !prev)}
-        activeLeftTab={leftTab}
-        onToggleLeftTab={(tab) => setLeftTab(tab)}
+        activeRightTab={rightTab}
+        onSelectRightTab={(tab) => setRightTab(tab as any)}
       />
 
       {/* Mobile Tab Switcher */}
@@ -381,49 +382,33 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
         </button>
       </div>
 
-      {/* 2. MAIN 3-ZONE WORKSPACE */}
+      {/* 2. MAIN 3-ZONE WORKSPACE (Left: Sections Nav, Center: Large A4 Preview, Right: Tabbed Panel) */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 overflow-hidden min-h-0 relative">
-        {/* LEFT ZONE: Design & Formatting Controls (3 cols on desktop) */}
+        {/* LEFT ZONE: Section Navigator & Reordering (2 cols desktop) */}
         {!isFullScreen && (
           <div
-            className={`lg:col-span-3 lg:flex flex-col border-r border-border/50 bg-card overflow-y-auto custom-scrollbar p-4 space-y-4 ${
-              mobileView === "styles" ? "flex" : "hidden"
+            className={`lg:col-span-2 lg:flex flex-col border-r border-border/50 bg-card overflow-y-auto custom-scrollbar p-3 space-y-3 ${
+              mobileView === "sections" ? "flex" : "hidden"
             }`}
           >
-            {/* Tab switch inside left panel for mobile/tablet */}
-            <div className="flex lg:hidden items-center bg-muted/60 p-0.5 rounded-lg border border-border/40 text-xs mb-2">
-              <button
-                type="button"
-                onClick={() => setLeftTab("design")}
-                className={`flex-1 py-1 rounded-md font-semibold ${
-                  leftTab === "design" ? "bg-card text-foreground shadow-xs" : "text-muted-foreground"
-                }`}
-              >
-                Templates & Colors
-              </button>
-              <button
-                type="button"
-                onClick={() => setLeftTab("formatting")}
-                className={`flex-1 py-1 rounded-md font-semibold ${
-                  leftTab === "formatting" ? "bg-card text-foreground shadow-xs" : "text-muted-foreground"
-                }`}
-              >
-                Typography & Spacing
-              </button>
-            </div>
-
-            {leftTab === "design" ? (
-              <ResumeDesignPanel config={config} onUpdateConfig={handleUpdateConfig} />
-            ) : (
-              <ResumeFormattingPanel config={config} onUpdateConfig={handleUpdateConfig} />
-            )}
+            <ResumeSectionsPanel
+              config={config}
+              onUpdateConfig={handleUpdateConfig}
+              activeSection={activeSection}
+              onSelectSection={(secId) => {
+                setActiveSection(secId);
+                setRightTab("edit");
+                setMobileView("form");
+              }}
+              sectionCounts={sectionCounts}
+            />
           </div>
         )}
 
-        {/* CENTER ZONE: Live A4 Hero Workspace (5 cols desktop, 9 cols in full screen) */}
+        {/* CENTER ZONE: Live A4 Hero Workspace (6 cols desktop, 12 cols in full screen) */}
         <div
           className={`${
-            isFullScreen ? "lg:col-span-12" : "lg:col-span-5"
+            isFullScreen ? "lg:col-span-12" : "lg:col-span-6"
           } lg:flex flex-col overflow-hidden min-h-0 ${
             mobileView === "preview" ? "flex" : "hidden"
           }`}
@@ -440,105 +425,243 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
           />
         </div>
 
-        {/* RIGHT ZONE: Sections Navigation & Live Section Form (4 cols desktop) */}
+        {/* RIGHT ZONE: Tabbed Contextual Editor & AI Panel (4 cols desktop) */}
         {!isFullScreen && (
           <div
             className={`lg:col-span-4 lg:flex flex-col border-l border-border/50 bg-card overflow-y-auto custom-scrollbar ${
-              mobileView === "form" || mobileView === "sections" ? "flex" : "hidden"
+              mobileView === "form" || mobileView === "styles" ? "flex" : "hidden"
             }`}
           >
-            {/* Section Navigation Accordion Header */}
-            <div className="p-3.5 border-b border-border/40 bg-muted/20">
-              <ResumeSectionsPanel
-                config={config}
-                onUpdateConfig={handleUpdateConfig}
-                activeSection={activeSection}
-                onSelectSection={(secId) => {
-                  setActiveSection(secId);
-                  setMobileView("form");
-                }}
-                sectionCounts={sectionCounts}
-              />
+            {/* Top Sub-tabs */}
+            <div className="flex items-center bg-muted/30 border-b border-border/40 p-1.5 text-xs shrink-0 gap-1 overflow-x-auto custom-scrollbar">
+              <button
+                type="button"
+                onClick={() => setRightTab("edit")}
+                className={`px-3 py-1 rounded-lg font-semibold transition-all flex items-center gap-1 shrink-0 ${
+                  rightTab === "edit"
+                    ? "bg-card text-foreground shadow-xs border border-border/40"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Edit3 className="h-3 w-3 text-primary" /> Edit
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setRightTab("design")}
+                className={`px-3 py-1 rounded-lg font-semibold transition-all flex items-center gap-1 shrink-0 ${
+                  rightTab === "design"
+                    ? "bg-card text-foreground shadow-xs border border-border/40"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Palette className="h-3 w-3 text-primary" /> Design
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setRightTab("ai")}
+                className={`px-3 py-1 rounded-lg font-semibold transition-all flex items-center gap-1 shrink-0 ${
+                  rightTab === "ai"
+                    ? "bg-card text-foreground shadow-xs border border-border/40"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Sparkles className="h-3 w-3 text-primary" /> AI Health
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setRightTab("tailor")}
+                className={`px-3 py-1 rounded-lg font-semibold transition-all flex items-center gap-1 shrink-0 ${
+                  rightTab === "tailor"
+                    ? "bg-card text-foreground shadow-xs border border-border/40"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Target className="h-3 w-3 text-primary" /> Tailor
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setRightTab("sync")}
+                className={`px-3 py-1 rounded-lg font-semibold transition-all flex items-center gap-1 shrink-0 ${
+                  rightTab === "sync"
+                    ? "bg-card text-foreground shadow-xs border border-border/40"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <RefreshCw className="h-3 w-3 text-primary" /> Profile
+              </button>
             </div>
 
-            {/* Active Section Dedicated Editing Form */}
+            {/* Tab Contents */}
             <div className="p-4 flex-1">
-              {activeSection === "personal" && (
-                <PersonalSectionEditor
-                  data={resumeData}
-                  onUpdate={(patch) => setResumeData((prev) => ({ ...prev, ...patch }))}
-                  onOpenSyncDialog={() => setShowSyncDialog(true)}
-                  hasMasterProfile={Boolean(backendUser)}
-                />
+              {/* TAB 1: Section Forms */}
+              {rightTab === "edit" && (
+                <div className="space-y-4">
+                  {activeSection === "personal" && (
+                    <PersonalSectionEditor
+                      data={resumeData}
+                      onUpdate={(patch) => setResumeData((prev) => ({ ...prev, ...patch }))}
+                      onOpenSyncDialog={() => setShowSyncDialog(true)}
+                      hasMasterProfile={Boolean(backendUser)}
+                    />
+                  )}
+
+                  {activeSection === "summary" && (
+                    <SummarySectionEditor
+                      summary={resumeData.professionalSummary || ""}
+                      onChange={(val) => setResumeData((prev) => ({ ...prev, professionalSummary: val }))}
+                      resumeData={resumeData}
+                      idToken={idToken}
+                    />
+                  )}
+
+                  {activeSection === "experience" && (
+                    <ExperienceSectionEditor
+                      experience={resumeData.experience || []}
+                      onChange={(updated) => setResumeData((prev) => ({ ...prev, experience: updated }))}
+                      idToken={idToken}
+                    />
+                  )}
+
+                  {activeSection === "projects" && (
+                    <ProjectsSectionEditor
+                      projects={resumeData.projects || []}
+                      onChange={(updated) => setResumeData((prev) => ({ ...prev, projects: updated }))}
+                      availableGitHubProjects={userProjects}
+                      idToken={idToken}
+                    />
+                  )}
+
+                  {activeSection === "education" && (
+                    <EducationSectionEditor
+                      education={resumeData.education || []}
+                      onChange={(updated) => setResumeData((prev) => ({ ...prev, education: updated }))}
+                    />
+                  )}
+
+                  {activeSection === "skills" && (
+                    <SkillsSectionEditor
+                      skills={resumeData.skills}
+                      skillSections={resumeData.skillSections}
+                      onChangeSkills={(updatedSkills) =>
+                        setResumeData((prev) => ({ ...prev, skills: updatedSkills }))
+                      }
+                      onChangeSkillSections={(updatedSections) =>
+                        setResumeData((prev) => ({ ...prev, skillSections: updatedSections }))
+                      }
+                    />
+                  )}
+
+                  {activeSection === "achievements" && (
+                    <AchievementsSectionEditor
+                      achievements={resumeData.achievements || []}
+                      onChange={(updated) => setResumeData((prev) => ({ ...prev, achievements: updated }))}
+                    />
+                  )}
+
+                  {activeSection.startsWith("custom-") && (
+                    <CustomSectionEditor
+                      customSections={resumeData.customSections || config.customSections || []}
+                      onChange={(updated) => {
+                        setResumeData((prev) => ({
+                          ...prev,
+                          customSections: updated,
+                          config: {
+                            ...prev.config!,
+                            customSections: updated,
+                          },
+                        }));
+                      }}
+                    />
+                  )}
+                </div>
               )}
 
-              {activeSection === "summary" && (
-                <SummarySectionEditor
-                  summary={resumeData.professionalSummary || ""}
-                  onChange={(val) => setResumeData((prev) => ({ ...prev, professionalSummary: val }))}
-                  resumeData={resumeData}
-                  idToken={idToken}
-                />
+              {/* TAB 2: Design & Formatting */}
+              {rightTab === "design" && (
+                <div className="space-y-6">
+                  <ResumeDesignPanel config={config} onUpdateConfig={handleUpdateConfig} />
+                  <div className="border-t border-border/40 pt-4">
+                    <ResumeFormattingPanel config={config} onUpdateConfig={handleUpdateConfig} />
+                  </div>
+                </div>
               )}
 
-              {activeSection === "experience" && (
-                <ExperienceSectionEditor
-                  experience={resumeData.experience || []}
-                  onChange={(updated) => setResumeData((prev) => ({ ...prev, experience: updated }))}
-                  idToken={idToken}
-                />
+              {/* TAB 3: AI Resume Health Overview */}
+              {rightTab === "ai" && (
+                <div className="space-y-4">
+                  <div className="p-4 rounded-xl bg-gradient-to-r from-primary/10 to-transparent border border-primary/20">
+                    <div className="text-[11px] font-bold text-muted-foreground uppercase">
+                      ATS Readiness Score
+                    </div>
+                    <div className="text-2xl font-black font-mono text-foreground">
+                      {atsReport.score} <span className="text-xs text-muted-foreground font-normal">/ 100</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Status: <strong className="text-primary">{atsReport.label}</strong>
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <span className="text-xs font-bold text-muted-foreground uppercase">
+                      Audited Checks ({atsReport.passedCount}/{atsReport.totalCount})
+                    </span>
+                    <div className="space-y-1.5 text-xs">
+                      {atsReport.checks.map((chk) => (
+                        <div
+                          key={chk.id}
+                          className="p-2.5 rounded-lg border border-border/50 bg-background flex items-start gap-2"
+                        >
+                          {chk.passed ? (
+                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                          ) : (
+                            <div className="h-3.5 w-3.5 rounded-full border border-amber-500/60 shrink-0 mt-0.5" />
+                          )}
+                          <div className="min-w-0">
+                            <div className="font-semibold text-foreground">{chk.title}</div>
+                            <div className="text-[11px] text-muted-foreground">{chk.explanation}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <Button
+                    size="sm"
+                    onClick={() => setShowAiAssistantModal(true)}
+                    className="w-full text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" /> Open Full AI Assistant
+                  </Button>
+                </div>
               )}
 
-              {activeSection === "projects" && (
-                <ProjectsSectionEditor
-                  projects={resumeData.projects || []}
-                  onChange={(updated) => setResumeData((prev) => ({ ...prev, projects: updated }))}
-                  availableGitHubProjects={userProjects}
-                  idToken={idToken}
-                />
-              )}
+              {/* TAB 4: Tailor for Job */}
+              {rightTab === "tailor" && <JobTailorPanel data={resumeData} />}
 
-              {activeSection === "education" && (
-                <EducationSectionEditor
-                  education={resumeData.education || []}
-                  onChange={(updated) => setResumeData((prev) => ({ ...prev, education: updated }))}
-                />
-              )}
-
-              {activeSection === "skills" && (
-                <SkillsSectionEditor
-                  skills={resumeData.skills}
-                  skillSections={resumeData.skillSections}
-                  onChangeSkills={(updatedSkills) =>
-                    setResumeData((prev) => ({ ...prev, skills: updatedSkills }))
-                  }
-                  onChangeSkillSections={(updatedSections) =>
-                    setResumeData((prev) => ({ ...prev, skillSections: updatedSections }))
-                  }
-                />
-              )}
-
-              {activeSection === "achievements" && (
-                <AchievementsSectionEditor
-                  achievements={resumeData.achievements || []}
-                  onChange={(updated) => setResumeData((prev) => ({ ...prev, achievements: updated }))}
-                />
-              )}
-
-              {activeSection.startsWith("custom-") && (
-                <CustomSectionEditor
-                  customSections={resumeData.customSections || config.customSections || []}
-                  onChange={(updated) => {
-                    setResumeData((prev) => ({
-                      ...prev,
-                      customSections: updated,
-                      config: {
-                        ...prev.config!,
-                        customSections: updated,
-                      },
-                    }));
-                  }}
-                />
+              {/* TAB 5: Master Profile Sync */}
+              {rightTab === "sync" && (
+                <div className="space-y-4">
+                  <div className="p-4 rounded-xl bg-muted/40 border border-border/60 space-y-2">
+                    <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                      <span>Master Profile Connection Active</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Your resume draft inherits candidate facts from your Master Profile. Any edits you make here are resume-specific overrides and will not overwrite your Master Profile.
+                    </p>
+                    <Button
+                      size="sm"
+                      onClick={() => setShowSyncDialog(true)}
+                      className="text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 mt-1"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" /> Sync from Master Profile
+                    </Button>
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -549,33 +672,27 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
       <ResumeStatusBar
         isSaving={isSaving}
         lastSavedAt={lastSavedAt}
-        atsScore={atsScore}
-        completeness={completeness}
+        atsScore={atsReport.score}
+        completeness={completenessReport.score}
         estimatedPages={density.estimatedPages}
         isOverflowing={density.status === "overflowing"}
         onOptimizePage={handleOptimizeForOnePage}
-        onOpenQualityAssistant={() => setShowQualityAssistant(true)}
+        onOpenQualityAssistant={() => setShowAiAssistantModal(true)}
       />
 
-      {/* Career Mentor Modal */}
-      <CareerMentorModal
-        open={showCareerMentor}
-        onOpenChange={setShowCareerMentor}
-        data={resumeData}
-        targetRole={backendUser?.targetRole || "Full Stack Developer"}
-        onNavigateToRoadmap={onNavigateToRoadmap}
-      />
-
-      {/* Quality Assistant Modal */}
-      <ResumeQualityAssistant
-        open={showQualityAssistant}
-        onOpenChange={setShowQualityAssistant}
+      {/* AI Resume Assistant Dialog */}
+      <AiResumeAssistant
+        open={showAiAssistantModal}
+        onOpenChange={setShowAiAssistantModal}
         data={resumeData}
         config={config}
         onSelectSection={(secId) => {
           setActiveSection(secId);
+          setRightTab("edit");
           setMobileView("form");
         }}
+        onUpdateConfig={handleUpdateConfig}
+        onUpdateResume={(patch) => setResumeData((prev) => ({ ...prev, ...patch }))}
       />
 
       {/* Sync from Master Profile Confirmation Dialog */}

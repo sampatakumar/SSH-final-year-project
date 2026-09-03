@@ -103,6 +103,7 @@ describe("Resume Document Viewer & Storage Contract Suite", () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 502,
+      json: async () => ({ message: "Document storage service unavailable (HTTP 502). File preview cannot be loaded." }),
       blob: async () => new Blob([]),
     });
 
@@ -120,6 +121,56 @@ describe("Resume Document Viewer & Storage Contract Suite", () => {
       expect(screen.getByText("Unable to preview this document")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: /view extracted text/i })).toBeInTheDocument();
+    });
+  });
+
+  it("7. renders 'Original document is unavailable.' on 404 and preserves extracted text toggle", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({ message: "Original document is unavailable. Extracted text content may still be viewed." }),
+      blob: async () => new Blob([]),
+    });
+
+    const resume = {
+      _id: "res_103",
+      title: "Missing Binary Resume",
+      format: "PDF",
+      content: "Extracted Text for Missing Binary",
+      filePath: "/api/v1/resumes/res_103/file",
+    };
+
+    render(<ResumeDocumentViewer resume={resume} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Unable to preview this document")).toBeInTheDocument();
+      expect(screen.getByText(/Original document is unavailable/i)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /view extracted text/i })).toBeInTheDocument();
+    });
+  });
+
+  it("8. renders in-page preview notice for DOCX format with View Extracted Text option", async () => {
+    const mockBlob = new Blob(["PK mock docx data"], {
+      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    });
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      blob: async () => mockBlob,
+    });
+
+    const resume = {
+      _id: "res_104",
+      title: "Docx Resume",
+      format: "DOCX",
+      content: "Extracted Docx Text",
+      filePath: "/api/v1/resumes/res_104/file",
+    };
+
+    render(<ResumeDocumentViewer resume={resume} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/In-page preview not available for DOCX/i)).toBeInTheDocument();
     });
   });
 });

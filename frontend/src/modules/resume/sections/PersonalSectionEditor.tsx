@@ -95,7 +95,7 @@ export const PersonalSectionEditor: React.FC<PersonalSectionEditorProps> = ({
           <Input
             value={data.github || ""}
             onChange={(e) => onUpdate({ github: e.target.value })}
-            placeholder="https://github.com/username"
+            placeholder="https://github.com/your-username"
             className="text-xs h-9 bg-background"
           />
         </div>
@@ -107,7 +107,7 @@ export const PersonalSectionEditor: React.FC<PersonalSectionEditorProps> = ({
           <Input
             value={data.website || ""}
             onChange={(e) => onUpdate({ website: e.target.value })}
-            placeholder="https://janedoe.dev"
+            placeholder="https://your-portfolio.com"
             className="text-xs h-9 bg-background"
           />
         </div>

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { Download, FileText, AlertCircle, RefreshCw, Eye } from "lucide-react";
+import { Download, FileText, AlertCircle, RefreshCw, Eye, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { resolveResumeViewerUrl, getApiBaseUrl } from "@/lib/api";
-import { firebaseAuth } from "@/core/auth/firebase";
+import { resolveResumeViewerUrl } from "@/lib/api";
+import { getAuthToken, firebaseAuth } from "@/lib/firebase";
 
 export interface ResumeDocumentViewerProps {
   resume: {
@@ -34,18 +34,43 @@ export const ResumeDocumentViewer: React.FC<ResumeDocumentViewerProps> = ({ resu
         throw new Error("No readable document path is available for this resume.");
       }
 
-      const idToken = await firebaseAuth.currentUser?.getIdToken();
+      let idToken = await getAuthToken();
+      if (!idToken && firebaseAuth.currentUser) {
+        idToken = await firebaseAuth.currentUser.getIdToken();
+      }
+
+      const isBackendRoute = targetUrl.includes("/api/v1/") || !/^https?:\/\//i.test(targetUrl);
 
       const response = await fetch(targetUrl, {
         headers: {
-          ...(idToken && targetUrl.includes("/api/v1/") ? { Authorization: `Bearer ${idToken}` } : {}),
+          ...(idToken && isBackendRoute ? { Authorization: `Bearer ${idToken}` } : {}),
         },
         cache: "no-store",
       });
 
       if (!response.ok) {
+        let serverMessage = "";
+        try {
+          const json = await response.json();
+          serverMessage = json.message || json.error || "";
+        } catch {
+          // non-JSON error response
+        }
+
+        if (response.status === 404) {
+          throw new Error(
+            serverMessage || "Original document is unavailable."
+          );
+        }
+
+        if (response.status === 502 || response.status === 503) {
+          throw new Error(
+            serverMessage || `Document storage service unavailable (HTTP ${response.status}). File preview cannot be loaded.`
+          );
+        }
+
         throw new Error(
-          `Document storage service unavailable (HTTP ${response.status}). File preview cannot be loaded.`
+          serverMessage || `Document storage service unavailable (HTTP ${response.status}). File preview cannot be loaded.`
         );
       }
 
@@ -81,7 +106,17 @@ export const ResumeDocumentViewer: React.FC<ResumeDocumentViewerProps> = ({ resu
 
   const handleOpenExternal = () => {
     if (blobUrl) {
-      window.open(blobUrl, "_blank", "noopener,noreferrer");
+      if (resume.format === "PDF") {
+        window.open(blobUrl, "_blank", "noopener,noreferrer");
+      } else {
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        const ext = (resume.format || "doc").toLowerCase();
+        a.download = `${resume.title || "resume"}.${ext === "image" ? "png" : ext}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
     } else if (resume.filePath && resume.filePath.startsWith("https://")) {
       window.open(resume.filePath, "_blank", "noopener,noreferrer");
     }

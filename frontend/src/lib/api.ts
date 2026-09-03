@@ -20,6 +20,9 @@ export const resolveResumeViewerUrl = (resume: { _id?: string; filePath?: string
   if (rawPath.startsWith("https://") || rawPath.startsWith("http://")) {
     return rawPath;
   }
+  if (rawPath.startsWith("/api/v1/")) {
+    return `${getBackendOrigin()}${rawPath}`;
+  }
   if (resume._id) {
     return `${getApiBaseUrl()}/resumes/${encodeURIComponent(resume._id)}/file`;
   }

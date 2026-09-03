@@ -4,6 +4,7 @@ import rateLimit from "express-rate-limit";
 import { incrementDailyCounter } from "../../../core/database/models/analytics.models.js";
 import {
   createResume,
+  updateResume,
   deleteResume,
   getResumeFile,
   listResumes,
@@ -93,6 +94,33 @@ router.post("/", uploadLimiter, (req, res, next) => {
 		}
 	});
 });
+
+router.put("/:resumeId", uploadLimiter, (req, res, next) => {
+	resumeUpload.single("resumeFile")(req, res, (error) => {
+		if (error) {
+			if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
+				const maxMb = process.env.MAX_RESUME_SIZE_MB || 10;
+				return res.status(413).json({
+					success: false,
+					message: `Resume file is too large. Maximum size is ${maxMb} MB.`,
+					statusCode: 413
+				});
+			}
+			return res.status(400).json({
+				success: false,
+				message: error.message || "Unsupported resume format.",
+				statusCode: 400
+			});
+		}
+
+		try {
+			updateResume(req, res, next);
+		} catch (err) {
+			next(err);
+		}
+	});
+});
+
 router.delete("/:resumeId", deleteResume);
 
 export default router;

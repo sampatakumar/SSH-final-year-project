@@ -1,6 +1,7 @@
-import { createClient } from "@supabase/supabase-js";
+import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
+import { createClient } from "@supabase/supabase-js";
 import { env } from "../config/env.js";
 
 // Initialize Supabase Client
@@ -186,3 +187,101 @@ export const deleteResumeFromSupabaseStorage = async ({ bucketName, storagePath 
     throw error;
   }
 };
+
+// ==========================================
+// LOCAL FILESYSTEM RESUME STORAGE HELPERS
+// ==========================================
+
+export const getResumeLocalStorageDir = (ownerKey) => {
+  const safeOwnerKey = normalizeStorageSegment(ownerKey);
+  return path.join(process.cwd(), "uploads", "resumes", safeOwnerKey);
+};
+
+export const saveResumeToLocalStorage = async ({ buffer, originalFileName, mimeType, ownerKey }) => {
+  if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
+    throw new Error("Resume file buffer is required for local storage");
+  }
+
+  const safeOwnerKey = normalizeStorageSegment(ownerKey);
+  const safeFileName = sanitizeFileName(originalFileName);
+  const dir = getResumeLocalStorageDir(safeOwnerKey);
+
+  await fs.promises.mkdir(dir, { recursive: true });
+
+  const fileName = `${Date.now()}-${randomUUID()}-${safeFileName}`;
+  const fullPath = path.join(dir, fileName);
+  const relativePath = path.join("uploads", "resumes", safeOwnerKey, fileName);
+
+  await fs.promises.writeFile(fullPath, buffer);
+
+  return {
+    localFilePath: relativePath,
+    fileName,
+    contentType: mimeType || "application/octet-stream",
+    size: buffer.length,
+    storageProvider: "local"
+  };
+};
+
+export const readResumeFromLocalStorage = async ({ localFilePath, storedFileName, ownerKey }) => {
+  const candidatePaths = [];
+
+  if (localFilePath) {
+    candidatePaths.push(
+      path.isAbsolute(localFilePath)
+        ? localFilePath
+        : path.resolve(process.cwd(), localFilePath)
+    );
+  }
+
+  if (storedFileName && ownerKey) {
+    const safeOwnerKey = normalizeStorageSegment(ownerKey);
+    candidatePaths.push(path.join(process.cwd(), "uploads", "resumes", safeOwnerKey, storedFileName));
+  } else if (storedFileName) {
+    candidatePaths.push(path.join(process.cwd(), "uploads", "resumes", storedFileName));
+  }
+
+  for (const candidate of candidatePaths) {
+    try {
+      const stat = await fs.promises.stat(candidate);
+      if (stat.isFile()) {
+        const buffer = await fs.promises.readFile(candidate);
+        return {
+          buffer,
+          size: buffer.length,
+          filePath: candidate
+        };
+      }
+    } catch {
+      // try next candidate
+    }
+  }
+
+  return null;
+};
+
+export const deleteResumeFromLocalStorage = async ({ localFilePath, storedFileName, ownerKey }) => {
+  const candidatePaths = [];
+
+  if (localFilePath) {
+    candidatePaths.push(
+      path.isAbsolute(localFilePath)
+        ? localFilePath
+        : path.resolve(process.cwd(), localFilePath)
+    );
+  }
+
+  if (storedFileName && ownerKey) {
+    const safeOwnerKey = normalizeStorageSegment(ownerKey);
+    candidatePaths.push(path.join(process.cwd(), "uploads", "resumes", safeOwnerKey, storedFileName));
+  }
+
+  for (const candidate of candidatePaths) {
+    try {
+      await fs.promises.unlink(candidate);
+    } catch {
+      // ignore
+    }
+  }
+};
+

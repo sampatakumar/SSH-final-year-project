@@ -6,11 +6,10 @@ import {
   Maximize2,
   Minimize2,
   Sparkles,
-  Compass,
-  Check,
-  RefreshCw,
+  Target,
   Palette,
   Sliders,
+  Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,14 +19,15 @@ export interface ResumeEditorHeaderProps {
   onChangeTitle: (newTitle: string) => void;
   templateName: string;
   onBack: () => void;
-  onOpenCareerMentor: () => void;
-  onOpenSyncDialog: () => void;
+  onOpenAiAssistant: () => void;
+  onOpenTailor?: () => void;
+  onSaveAsVersion?: () => void;
   onExportPdf: () => void;
   isExportingPdf: boolean;
   isFullScreen: boolean;
   onToggleFullScreen: () => void;
-  activeLeftTab: "design" | "formatting" | null;
-  onToggleLeftTab: (tab: "design" | "formatting") => void;
+  activeRightTab?: string;
+  onSelectRightTab?: (tab: string) => void;
 }
 
 export const ResumeEditorHeader: React.FC<ResumeEditorHeaderProps> = ({
@@ -35,14 +35,15 @@ export const ResumeEditorHeader: React.FC<ResumeEditorHeaderProps> = ({
   onChangeTitle,
   templateName,
   onBack,
-  onOpenCareerMentor,
-  onOpenSyncDialog,
+  onOpenAiAssistant,
+  onOpenTailor,
+  onSaveAsVersion,
   onExportPdf,
   isExportingPdf,
   isFullScreen,
   onToggleFullScreen,
-  activeLeftTab,
-  onToggleLeftTab,
+  activeRightTab,
+  onSelectRightTab,
 }) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
 
@@ -90,45 +91,47 @@ export const ResumeEditorHeader: React.FC<ResumeEditorHeaderProps> = ({
         </div>
       </div>
 
-      {/* Center / Left Panel Toggles for Desktop */}
-      <div className="hidden lg:flex items-center bg-muted/60 p-0.5 rounded-xl border border-border/40 text-xs">
-        <button
-          type="button"
-          onClick={() => onToggleLeftTab("design")}
-          className={`px-3 py-1 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
-            activeLeftTab === "design"
-              ? "bg-card text-foreground shadow-xs"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Palette className="h-3.5 w-3.5 text-primary" /> Design & Template
-        </button>
-        <button
-          type="button"
-          onClick={() => onToggleLeftTab("formatting")}
-          className={`px-3 py-1 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
-            activeLeftTab === "formatting"
-              ? "bg-card text-foreground shadow-xs"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Sliders className="h-3.5 w-3.5 text-primary" /> Formatting & Spacing
-        </button>
-      </div>
-
       {/* Right: Actions */}
       <div className="flex items-center gap-2 shrink-0">
-        {/* AI Career Mentor Trigger */}
+        {/* Tailor for Job Action */}
+        {onOpenTailor && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onOpenTailor}
+            className="h-8 text-xs font-semibold bg-primary/5 border-primary/20 text-primary hover:bg-primary/10 gap-1.5 hidden sm:flex"
+            title="Tailor resume against job description"
+          >
+            <Target className="h-3.5 w-3.5" />
+            <span>Tailor for Job</span>
+          </Button>
+        )}
+
+        {/* AI Resume Assistant Trigger */}
         <Button
           size="sm"
           variant="outline"
-          onClick={onOpenCareerMentor}
+          onClick={onOpenAiAssistant}
           className="h-8 text-xs font-semibold bg-gradient-to-r from-primary/10 to-indigo-500/10 border-primary/30 text-primary hover:bg-primary/20 gap-1.5 shadow-2xs"
-          title="Open AI Career Mentor for technical guidance"
+          title="Open AI Resume Assistant"
         >
-          <Compass className="h-3.5 w-3.5 text-primary animate-pulse" />
-          <span className="hidden sm:inline">AI Career Mentor</span>
+          <Sparkles className="h-3.5 w-3.5 text-primary animate-pulse" />
+          <span className="hidden sm:inline">AI Resume Assistant</span>
         </Button>
+
+        {/* Save as Version */}
+        {onSaveAsVersion && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onSaveAsVersion}
+            className="h-8 text-xs font-medium text-muted-foreground hover:text-foreground gap-1.5 hidden md:flex"
+            title="Duplicate as new version"
+          >
+            <Copy className="h-3.5 w-3.5" />
+            <span>Save Version</span>
+          </Button>
+        )}
 
         {/* Full Screen Preview */}
         <Button

@@ -9,13 +9,14 @@ import { ResumeFormattingPanel } from "../modules/resume/builder/ResumeFormattin
 import { ResumeSectionsPanel } from "../modules/resume/builder/ResumeSectionsPanel";
 import { ResumeStatusBar } from "../modules/resume/builder/ResumeStatusBar";
 import { ResumeEditorHeader } from "../modules/resume/builder/ResumeEditorHeader";
-import { CareerMentorModal } from "../modules/resume/ai/CareerMentorModal";
-import { ResumeQualityAssistant } from "../modules/resume/ai/ResumeQualityAssistant";
+import { AiResumeAssistant } from "../modules/resume/ai/AiResumeAssistant";
+import { JobTailorPanel } from "../modules/resume/ai/JobTailorPanel";
 import { ProjectsSectionEditor } from "../modules/resume/sections/ProjectsSectionEditor";
 import { SummarySectionEditor } from "../modules/resume/sections/SummarySectionEditor";
 
 import { createDefaultBuilderConfig, TEMPLATE_REGISTRY } from "../modules/resume/templates/TemplateRegistry";
 import type { ResumeData, ResumeBuilderConfig } from "../modules/resume/templates/types";
+import { calculateAtsReadiness, calculateCompletenessScore } from "../modules/resume/services/resume-scoring.utils";
 
 const mockSampleResumeData: ResumeData = {
   name: "Sampatakumar S V",
@@ -117,20 +118,20 @@ describe("Resume Editor UX 2.0 Master Component Suite", () => {
           onChangeTitle={vi.fn()}
           templateName="ATS Classic"
           onBack={vi.fn()}
-          onOpenCareerMentor={vi.fn()}
-          onOpenSyncDialog={vi.fn()}
+          onOpenAiAssistant={vi.fn()}
+          onOpenTailor={vi.fn()}
+          onSaveAsVersion={vi.fn()}
           onExportPdf={vi.fn()}
           isExportingPdf={false}
           isFullScreen={false}
           onToggleFullScreen={vi.fn()}
-          activeLeftTab="design"
-          onToggleLeftTab={vi.fn()}
         />
       );
 
       expect(screen.getByText("Principal Architect Resume")).toBeInTheDocument();
       expect(screen.getByText("ATS Classic")).toBeInTheDocument();
-      expect(screen.getByText("AI Career Mentor")).toBeInTheDocument();
+      expect(screen.getByText("AI Resume Assistant")).toBeInTheDocument();
+      expect(screen.getByText("Tailor for Job")).toBeInTheDocument();
       expect(screen.getByText("Export PDF")).toBeInTheDocument();
     });
   });
@@ -251,33 +252,11 @@ describe("Resume Editor UX 2.0 Master Component Suite", () => {
     });
   });
 
-  // 6. Career Mentor Modal
-  describe("6. CareerMentorModal", () => {
-    it("renders role alignment, career readiness score, strengths, and roadmap button", () => {
+  // 6. AI Resume Assistant Modal
+  describe("6. AiResumeAssistant", () => {
+    it("renders ATS readiness heuristic, student completeness, and quality guidance", () => {
       render(
-        <CareerMentorModal
-          open={true}
-          onOpenChange={vi.fn()}
-          data={mockSampleResumeData}
-          targetRole="Full Stack Developer"
-          onNavigateToRoadmap={vi.fn()}
-        />
-      );
-
-      expect(screen.getByText("AI Career Mentor")).toBeInTheDocument();
-      expect(screen.getByText(/Career Readiness Score/i)).toBeInTheDocument();
-      expect(screen.getByText(/Verified Strengths/i)).toBeInTheDocument();
-      expect(screen.getByText(/Growth Opportunities/i)).toBeInTheDocument();
-      expect(screen.getByText(/Recommended Career Next Steps/i)).toBeInTheDocument();
-      expect(screen.getByText("View Career Roadmap")).toBeInTheDocument();
-    });
-  });
-
-  // 7. Resume Quality Assistant Modal
-  describe("7. ResumeQualityAssistant", () => {
-    it("renders ATS audit breakdown and quality checklist", () => {
-      render(
-        <ResumeQualityAssistant
+        <AiResumeAssistant
           open={true}
           onOpenChange={vi.fn()}
           data={mockSampleResumeData}
@@ -286,14 +265,39 @@ describe("Resume Editor UX 2.0 Master Component Suite", () => {
         />
       );
 
-      expect(screen.getByText("Smart Skill Hub ATS & Quality Assistant")).toBeInTheDocument();
-      expect(screen.getByText(/Quality Audit Breakdown/i)).toBeInTheDocument();
-      expect(screen.getByText("Contact Information")).toBeInTheDocument();
-      expect(screen.getByText("Technical Skills Matrix")).toBeInTheDocument();
+      expect(screen.getByText("AI Resume Assistant")).toBeInTheDocument();
+      expect(screen.getAllByText(/ATS Readiness/i)[0]).toBeInTheDocument();
+      expect(screen.getAllByText(/Completeness/i)[0]).toBeInTheDocument();
+      expect(screen.getAllByText(/Page Density/i)[0]).toBeInTheDocument();
+      expect(screen.getAllByText(/Content Quality/i)[0]).toBeInTheDocument();
     });
   });
 
-  // 8. Projects Section with GitHub Suggestions
+  // 7. JobTailorPanel
+  describe("7. JobTailorPanel", () => {
+    it("renders job description input and performs keyword extraction", () => {
+      render(<JobTailorPanel data={mockSampleResumeData} />);
+
+      expect(screen.getByText(/Tailor for Job Description/i)).toBeInTheDocument();
+      const textarea = screen.getByPlaceholderText(/Paste job description/i);
+      expect(textarea).toBeInTheDocument();
+
+      fireEvent.change(textarea, {
+        target: {
+          value: "We are hiring a Senior React and TypeScript Engineer with Docker experience.",
+        },
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: /Analyze & Match/i }));
+
+      expect(screen.getByText(/Keyword Match Index/i)).toBeInTheDocument();
+      expect(screen.getByText("react")).toBeInTheDocument();
+      expect(screen.getByText("typescript")).toBeInTheDocument();
+      expect(screen.getByText("docker")).toBeInTheDocument();
+    });
+  });
+
+  // 8. Projects Section with GitHub Suggestions & Deduplication
   describe("8. ProjectsSectionEditor with GitHub Intelligence", () => {
     it("displays Suggested from GitHub Intelligence banner and adds repo on click", () => {
       const onChange = vi.fn();
@@ -326,7 +330,7 @@ describe("Resume Editor UX 2.0 Master Component Suite", () => {
 
   // 9. Full Workspace Integration
   describe("9. ResumeEditor Main Workspace Integration", () => {
-    it("renders full-screen 3-zone editor with hero A4 canvas", async () => {
+    it("renders full-screen 3-zone editor with hero A4 canvas and contextual tabs", async () => {
       render(
         <ResumeEditor
           initialResume={mockSampleResumeData}
@@ -338,10 +342,12 @@ describe("Resume Editor UX 2.0 Master Component Suite", () => {
         expect(screen.getAllByText("ATS Classic")[0]).toBeInTheDocument();
       });
 
-      expect(screen.getByText("Design & Template")).toBeInTheDocument();
-      expect(screen.getByText("Formatting & Spacing")).toBeInTheDocument();
       expect(screen.getByText("Contact & Header")).toBeInTheDocument();
+      expect(screen.getAllByRole("button", { name: /Design/i })[0]).toBeInTheDocument();
+      expect(screen.getAllByRole("button", { name: /AI Health/i })[0]).toBeInTheDocument();
+      expect(screen.getAllByRole("button", { name: /Tailor/i })[0]).toBeInTheDocument();
       expect(screen.getByText(/ATS Readiness:/i)).toBeInTheDocument();
     });
   });
 });
+

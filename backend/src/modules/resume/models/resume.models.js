@@ -68,6 +68,11 @@ const resumeSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    localFilePath: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     builderConfig: {
       type: mongoose.Schema.Types.Mixed,
       default: {},

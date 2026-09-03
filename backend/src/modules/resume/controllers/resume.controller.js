@@ -8,6 +8,9 @@ import {
   getSupabaseResumeSignedReadUrl,
   resolveSupabaseResumeStorageLocation,
   uploadResumeToSupabaseStorage,
+  saveResumeToLocalStorage,
+  readResumeFromLocalStorage,
+  deleteResumeFromLocalStorage,
 } from "../../../utils/supabase-storage.js";
 import { ApiResponse } from "../../../core/errors/ApiResponse.js";
 import { ApiError, ResumeError } from "../../../core/errors/ApiError.js";
@@ -40,6 +43,7 @@ const inferMimeTypeFromResume = (resume) => {
       String(
         resume.originalFileName ||
           resume.storedFileName ||
+          resume.localFilePath ||
           resume.supabaseStoragePath ||
           resume.filePath ||
           ""
@@ -55,6 +59,7 @@ const inferMimeTypeFromResume = (resume) => {
   if (extension === ".docx") return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
   if (extension === ".doc") return "application/msword";
   if (extension === ".txt") return "text/plain; charset=utf-8";
+  if (extension === ".rtf") return "text/plain; charset=utf-8";
   if (extension === ".tex") return "application/x-tex";
   if (extension === ".png") return "image/png";
   if (extension === ".jpg" || extension === ".jpeg") return "image/jpeg";
@@ -79,7 +84,7 @@ const buildSignedResumeFileMeta = async (resume, traceId) => {
 
   if (!supabaseLocation.storagePath) {
     return {
-      filePath: "",
+      filePath: resume._id ? `/api/v1/resumes/${resume._id}/file` : "",
       signedUrlExpiresAt: ""
     };
   }
@@ -121,56 +126,129 @@ const buildSignedResumeFileMeta = async (resume, traceId) => {
 };
 
 const resolveResumeFileResponse = async (resume, traceId) => {
+  const mimeType = inferMimeTypeFromResume(resume);
+  const fileName = resume.originalFileName || resume.storedFileName || "resume";
+
+  // 1. Check local storage if marked as local or localFilePath / storedFileName is present
+  if (resume.localFilePath || resume.storageProvider === "local" || (!resume.supabaseStoragePath && resume.storedFileName)) {
+    try {
+      const localFile = await readResumeFromLocalStorage({
+        localFilePath: resume.localFilePath,
+        storedFileName: resume.storedFileName
+      });
+
+      if (localFile && localFile.buffer) {
+        console.info(`[resume-debug][${traceId}] getResumeFile:source-local`, {
+          resumeId: String(resume._id || ""),
+          localFilePath: resume.localFilePath,
+          bytes: localFile.buffer.length
+        });
+
+        return {
+          buffer: localFile.buffer,
+          contentType: mimeType,
+          fileName
+        };
+      }
+    } catch (localErr) {
+      console.warn(`[resume-debug][${traceId}] getResumeFile:source-local:failed`, {
+        resumeId: String(resume._id || ""),
+        localFilePath: resume.localFilePath,
+        error: localErr instanceof Error ? localErr.message : String(localErr)
+      });
+    }
+  }
+
+  // 2. Check Supabase Storage if storagePath exists
   const supabaseLocation = resolveSupabaseResumeStorageLocation(resume);
 
-  if (!supabaseLocation.storagePath) {
-    throw new ApiError(404, "Resume file is not available in Supabase Storage");
+  if (supabaseLocation.storagePath) {
+    try {
+      const supabaseFile = await downloadResumeFromSupabaseStorage(supabaseLocation);
+
+      console.info(`[resume-debug][${traceId}] getResumeFile:source-supabase`, {
+        resumeId: String(resume._id || ""),
+        supabaseStoragePath: supabaseLocation.storagePath,
+        supabaseStorageBucket: supabaseLocation.bucketName,
+        bytes: supabaseFile.buffer.length
+      });
+
+      return {
+        buffer: supabaseFile.buffer,
+        contentType: supabaseFile.contentType || mimeType,
+        fileName
+      };
+    } catch (error) {
+      console.warn(`[resume-debug][${traceId}] getResumeFile:source-supabase:failed`, {
+        resumeId: String(resume._id || ""),
+        supabaseStoragePath: supabaseLocation.storagePath,
+        error: error instanceof Error ? error.message : String(error)
+      });
+
+      // Try local fallback if available
+      if (resume.localFilePath || resume.storedFileName) {
+        const localFallback = await readResumeFromLocalStorage({
+          localFilePath: resume.localFilePath,
+          storedFileName: resume.storedFileName
+        });
+        if (localFallback && localFallback.buffer) {
+          return {
+            buffer: localFallback.buffer,
+            contentType: mimeType,
+            fileName
+          };
+        }
+      }
+
+      throw new ApiError(502, `Failed to read resume file from Supabase Storage: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
-  try {
-    const supabaseFile = await downloadResumeFromSupabaseStorage(supabaseLocation);
-
-    console.info(`[resume-debug][${traceId}] getResumeFile:source-supabase`, {
-      resumeId: String(resume._id || ""),
-      supabaseStoragePath: supabaseLocation.storagePath,
-      supabaseStorageBucket: supabaseLocation.bucketName,
-      bytes: supabaseFile.buffer.length
-    });
-
-    return {
-      buffer: supabaseFile.buffer,
-      contentType: supabaseFile.contentType || inferMimeTypeFromResume(resume),
-      fileName: resume.originalFileName || resume.storedFileName || "resume"
-    };
-  } catch (error) {
-    console.warn(`[resume-debug][${traceId}] getResumeFile:source-supabase:failed`, {
-      resumeId: String(resume._id || ""),
-      supabaseStoragePath: supabaseLocation.storagePath,
-      error: error instanceof Error ? error.message : String(error)
-    });
-
-    throw new ApiError(502, "Failed to read resume file from Supabase Storage");
-  }
+  // 3. If neither Supabase nor local storage has the file
+  throw new ApiError(404, "Original document is unavailable. Extracted text content may still be viewed.");
 };
 
-const resolveFileMeta = (file, supabaseUpload = null) => {
+const resolveFileMeta = (file, supabaseUpload = null, localUpload = null) => {
   if (!file) {
     return {};
   }
 
-  if (!supabaseUpload?.storagePath || !supabaseUpload?.bucketName) {
-    throw new ApiError(502, "Supabase Storage upload failed for the resume file");
+  if (supabaseUpload?.storagePath && supabaseUpload?.bucketName) {
+    return {
+      originalFileName: file.originalname,
+      storedFileName: supabaseUpload.fileName,
+      filePath: supabaseUpload.filePath,
+      mimeType: file.mimetype,
+      fileSize: file.size || file.buffer?.length || 0,
+      storageProvider: "supabase",
+      supabaseStoragePath: supabaseUpload.storagePath,
+      supabaseStorageBucket: supabaseUpload.bucketName,
+      localFilePath: localUpload?.localFilePath || ""
+    };
+  }
+
+  if (localUpload?.localFilePath) {
+    return {
+      originalFileName: file.originalname,
+      storedFileName: localUpload.fileName,
+      filePath: "",
+      localFilePath: localUpload.localFilePath,
+      mimeType: file.mimetype,
+      fileSize: file.size || file.buffer?.length || 0,
+      storageProvider: "local",
+      supabaseStoragePath: "",
+      supabaseStorageBucket: ""
+    };
   }
 
   return {
     originalFileName: file.originalname,
-    storedFileName: supabaseUpload.fileName,
-    filePath: supabaseUpload.filePath,
+    storedFileName: file.originalname,
+    filePath: "",
+    localFilePath: "",
     mimeType: file.mimetype,
     fileSize: file.size || file.buffer?.length || 0,
-    storageProvider: "supabase",
-    supabaseStoragePath: supabaseUpload.storagePath,
-    supabaseStorageBucket: supabaseUpload.bucketName
+    storageProvider: "local"
   };
 };
 
@@ -211,10 +289,16 @@ export const listResumes = asyncHandler(async (req, res) => {
         return plainResume;
       }
 
+      if (plainResume.localFilePath || plainResume.storageProvider === "local" || plainResume.storedFileName) {
+        plainResume.filePath = `/api/v1/resumes/${plainResume._id}/file`;
+        plainResume.storageProvider = plainResume.storageProvider || "local";
+        return plainResume;
+      }
+
       if (plainResume.filePath && plainResume.filePath.startsWith("supabase://")) {
         plainResume.filePath = `/api/v1/resumes/${plainResume._id}/file`;
       } else {
-        plainResume.filePath = plainResume.filePath || "";
+        plainResume.filePath = plainResume.filePath || (plainResume._id ? `/api/v1/resumes/${plainResume._id}/file` : "");
       }
 
       plainResume.storageProvider = plainResume.storageProvider || "unavailable";
@@ -270,6 +354,7 @@ export const createResume = asyncHandler(async (req, res) => {
 
   const user = req.user;
   let supabaseUpload = null;
+  let localUpload = null;
 
   if (req.file) {
     console.info(`[resume-debug][${traceId}] createResume:supabase-upload:start`, {
@@ -295,10 +380,30 @@ export const createResume = asyncHandler(async (req, res) => {
       });
     } catch (uploadError) {
       const errorMessage = uploadError instanceof Error ? uploadError.message : String(uploadError);
-      console.error(`[resume-debug][${traceId}] createResume:supabase-upload:error`, {
+      console.warn(`[resume-debug][${traceId}] createResume:supabase-upload:error, falling back to local storage:`, {
         error: errorMessage
       });
-      throw new ApiError(502, `Resume upload failed: ${errorMessage}`);
+
+      try {
+        localUpload = await saveResumeToLocalStorage({
+          buffer: req.file.buffer,
+          originalFileName: req.file.originalname,
+          mimeType: req.file.mimetype,
+          ownerKey: req.auth.uid
+        });
+
+        console.info(`[resume-debug][${traceId}] createResume:local-upload:response`, {
+          localFilePath: localUpload.localFilePath,
+          fileName: localUpload.fileName,
+          size: localUpload.size
+        });
+      } catch (localError) {
+        const localErrorMessage = localError instanceof Error ? localError.message : String(localError);
+        console.error(`[resume-debug][${traceId}] createResume:local-upload:error`, {
+          error: localErrorMessage
+        });
+        throw new ApiError(502, `Resume file storage failed: ${errorMessage}`);
+      }
     }
   }
 
@@ -314,13 +419,14 @@ export const createResume = asyncHandler(async (req, res) => {
       : "PDF"
     : parsed.data.format || "PDF";
 
-  const resolvedFileMeta = resolveFileMeta(req.file, supabaseUpload);
+  const resolvedFileMeta = resolveFileMeta(req.file, supabaseUpload, localUpload);
 
   console.info(`[resume-debug][${traceId}] createResume:resolved-file-meta`, {
     filePath: resolvedFileMeta.filePath,
     storageProvider: resolvedFileMeta.storageProvider,
     supabaseStoragePath: resolvedFileMeta.supabaseStoragePath,
-    supabaseStorageBucket: resolvedFileMeta.supabaseStorageBucket
+    supabaseStorageBucket: resolvedFileMeta.supabaseStorageBucket,
+    localFilePath: resolvedFileMeta.localFilePath
   });
 
   let parsedBuilderConfig = {};
@@ -346,7 +452,8 @@ export const createResume = asyncHandler(async (req, res) => {
     format: resume.format,
     filePath: resume.filePath,
     storageProvider: resume.storageProvider,
-    supabaseStoragePath: resume.supabaseStoragePath
+    supabaseStoragePath: resume.supabaseStoragePath,
+    localFilePath: resume.localFilePath
   });
 
   const responseResume = resume.toObject();
@@ -354,11 +461,86 @@ export const createResume = asyncHandler(async (req, res) => {
     const signedFileMeta = await buildSignedResumeFileMeta(responseResume, traceId);
     responseResume.filePath = signedFileMeta.filePath;
     responseResume.signedUrlExpiresAt = signedFileMeta.signedUrlExpiresAt;
+  } else if (responseResume.localFilePath || responseResume.storageProvider === "local" || responseResume.storedFileName) {
+    responseResume.filePath = `/api/v1/resumes/${responseResume._id}/file`;
   }
 
   return res
     .status(201)
     .json(new ApiResponse(201, { resume: responseResume }, "Resume created successfully"));
+});
+
+export const updateResume = asyncHandler(async (req, res) => {
+  const traceId = makeTraceId();
+  const user = req.user;
+  const { resumeId } = req.params;
+
+  const existing = await Resume.findOne({ _id: resumeId, owner: user._id });
+  if (!existing) {
+    throw new ApiError(404, "Resume not found");
+  }
+
+  const body = {
+    ...req.body,
+    sections: req.body.sections ? Number(req.body.sections) : undefined
+  };
+
+  let supabaseUpload = null;
+  let localUpload = null;
+
+  if (req.file) {
+    try {
+      supabaseUpload = await uploadResumeToSupabaseStorage({
+        buffer: req.file.buffer,
+        originalFileName: req.file.originalname,
+        mimeType: req.file.mimetype,
+        ownerKey: req.auth.uid
+      });
+    } catch (uploadError) {
+      try {
+        localUpload = await saveResumeToLocalStorage({
+          buffer: req.file.buffer,
+          originalFileName: req.file.originalname,
+          mimeType: req.file.mimetype,
+          ownerKey: req.auth.uid
+        });
+      } catch (localError) {
+        throw new ApiError(502, `Resume file storage failed: ${localError.message}`);
+      }
+    }
+  }
+
+  let parsedBuilderConfig = existing.builderConfig || {};
+  if (typeof body.builderConfig === "string") {
+    try { parsedBuilderConfig = JSON.parse(body.builderConfig); } catch {}
+  } else if (body.builderConfig) {
+    parsedBuilderConfig = body.builderConfig;
+  }
+
+  const resolvedFileMeta = req.file ? resolveFileMeta(req.file, supabaseUpload, localUpload) : {};
+
+  if (body.title) existing.title = body.title.trim();
+  if (body.content !== undefined) existing.content = body.content;
+  if (body.format) existing.format = body.format;
+  if (body.sections) existing.sections = body.sections;
+  existing.builderConfig = parsedBuilderConfig;
+
+  if (req.file) {
+    Object.assign(existing, resolvedFileMeta);
+  }
+
+  await existing.save();
+
+  const responseResume = existing.toObject();
+  if (resolveSupabaseResumeStorageLocation(responseResume).storagePath) {
+    const signedFileMeta = await buildSignedResumeFileMeta(responseResume, traceId);
+    responseResume.filePath = signedFileMeta.filePath;
+    responseResume.signedUrlExpiresAt = signedFileMeta.signedUrlExpiresAt;
+  } else if (responseResume.localFilePath || responseResume.storageProvider === "local" || responseResume.storedFileName) {
+    responseResume.filePath = `/api/v1/resumes/${responseResume._id}/file`;
+  }
+
+  return res.status(200).json(new ApiResponse(200, { resume: responseResume }, "Resume updated successfully"));
 });
 
 export const getResumeFile = asyncHandler(async (req, res) => {
@@ -377,7 +559,8 @@ export const getResumeFile = asyncHandler(async (req, res) => {
     title: resume.title,
     storedFileName: resume.storedFileName,
     storageProvider: resume.storageProvider,
-    supabaseStoragePath: resume.supabaseStoragePath
+    supabaseStoragePath: resume.supabaseStoragePath,
+    localFilePath: resume.localFilePath
   });
 
   const fileResponse = await resolveResumeFileResponse(resume, traceId);
@@ -405,6 +588,18 @@ export const deleteResume = asyncHandler(async (req, res) => {
       await deleteResumeFromSupabaseStorage(supabaseLocation);
     } catch {
       // ignore remote deletion failure to avoid blocking DB cleanup
+    }
+  }
+
+  if (deleted.localFilePath || deleted.storedFileName) {
+    try {
+      await deleteResumeFromLocalStorage({
+        localFilePath: deleted.localFilePath,
+        storedFileName: deleted.storedFileName,
+        ownerKey: req.auth?.uid
+      });
+    } catch {
+      // ignore local deletion failure to avoid blocking DB cleanup
     }
   }
 
@@ -537,8 +732,10 @@ export const uploadAndExtractResume = asyncHandler(async (req, res) => {
 
   const confidence = calculateExtractionConfidence(structuredParsed, extractedText);
 
-  // Upload to Supabase Storage if configured
+  // Upload to Supabase Storage if configured, or fall back to local disk storage
   let supabaseUpload = null;
+  let localUpload = null;
+
   try {
     supabaseUpload = await uploadResumeToSupabaseStorage({
       buffer: req.file.buffer,
@@ -547,7 +744,20 @@ export const uploadAndExtractResume = asyncHandler(async (req, res) => {
       ownerKey: req.auth.uid
     });
   } catch (uploadErr) {
-    console.warn(`[resume-debug][${traceId}] storage upload skipped:`, uploadErr?.message);
+    console.warn(`[resume-debug][${traceId}] storage upload skipped or failed, falling back to local storage:`, uploadErr?.message);
+  }
+
+  if (!supabaseUpload) {
+    try {
+      localUpload = await saveResumeToLocalStorage({
+        buffer: req.file.buffer,
+        originalFileName: req.file.originalname,
+        mimeType: req.file.mimetype,
+        ownerKey: req.auth.uid
+      });
+    } catch (localErr) {
+      console.warn(`[resume-debug][${traceId}] local storage save failed:`, localErr?.message);
+    }
   }
 
   const detectedFormat = req.file.originalname.toLowerCase().endsWith(".docx")
@@ -560,16 +770,7 @@ export const uploadAndExtractResume = asyncHandler(async (req, res) => {
     ? "IMAGE"
     : "PDF";
 
-  const resolvedFileMeta = supabaseUpload
-    ? resolveFileMeta(req.file, supabaseUpload)
-    : {
-        originalFileName: req.file.originalname,
-        storedFileName: req.file.originalname,
-        filePath: "",
-        mimeType: req.file.mimetype,
-        fileSize: req.file.size || req.file.buffer?.length || 0,
-        storageProvider: "local"
-      };
+  const resolvedFileMeta = resolveFileMeta(req.file, supabaseUpload, localUpload);
 
   const resume = await Resume.create({
     owner: user._id,
@@ -588,6 +789,8 @@ export const uploadAndExtractResume = asyncHandler(async (req, res) => {
     const signedFileMeta = await buildSignedResumeFileMeta(responseResume, traceId);
     responseResume.filePath = signedFileMeta.filePath;
     responseResume.signedUrlExpiresAt = signedFileMeta.signedUrlExpiresAt;
+  } else if (responseResume.localFilePath || responseResume.storageProvider === "local" || responseResume.storedFileName) {
+    responseResume.filePath = `/api/v1/resumes/${responseResume._id}/file`;
   }
 
   return res.status(200).json(
