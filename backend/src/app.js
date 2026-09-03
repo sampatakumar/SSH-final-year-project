@@ -102,7 +102,7 @@ app.use(apiHitTracker);
 app.get(["/", env.API_PREFIX], (_req, res) => {
   res.status(200).json({
     success: true,
-    message: "ResumeAI API Backend is running",
+    message: "Smart Skill Hub API Backend is running",
     healthCheck: `${env.API_PREFIX}/healthcheck`,
     timestamp: new Date().toISOString()
   });
