@@ -30,6 +30,7 @@
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "express-rate-limit": "^7.5.0",
+    "firebase-admin": "^14.3.0",
     "form-data": "^4.0.4",
     "groq-sdk": "^0.26.0",
     "helmet": "^8.1.0",

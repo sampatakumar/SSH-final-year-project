@@ -48,7 +48,7 @@ export const verifyFirebaseToken = asyncHandler(async (req, _res, next) => {
   const uid = decoded.sub || decoded.uid;
   const user = await User.findOne({ firebaseUid: uid });
 
-  if (!user && req.path !== "/firebase/sign-in") {
+  if (!user && req.path !== "/firebase/sign-in" && req.path !== "/send-verification-email") {
     throw new ApiError(404, "User not registered in the system. Please sign in first.");
   }
 

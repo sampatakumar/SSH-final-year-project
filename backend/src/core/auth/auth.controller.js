@@ -3,6 +3,9 @@ import { ApiError } from "../errors/ApiError.js";
 import { ApiResponse } from "../errors/ApiResponse.js";
 import { asyncHandler } from "../errors/asyncHandler.js";
 import { z } from "zod";
+import { getFirebaseAuth } from "../../config/firebaseAdmin.js";
+import { env } from "../../config/env.js";
+import { emailService } from "../../services/email/email.service.js";
 import {
   AchievementEntry,
   EducationEntry,
@@ -213,3 +216,111 @@ export const updateCurrentUser = asyncHandler(async (req, res) => {
 
   return res.status(200).json(new ApiResponse(200, { user }, "Profile updated successfully"));
 });
+
+export const sendVerificationEmail = asyncHandler(async (req, res) => {
+  const uid = req.auth?.uid;
+  const email = req.auth?.email;
+
+  if (!uid || !email) {
+    throw new ApiError(400, "Authenticated user must have an email address to send verification.");
+  }
+
+  // 1. Fetch user from Firebase Admin to check verification status and metadata
+  const auth = getFirebaseAuth();
+  const firebaseUserRecord = await auth.getUser(uid);
+
+  if (firebaseUserRecord.emailVerified) {
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        { alreadyVerified: true, email },
+        "Email address is already verified."
+      )
+    );
+  }
+
+  // 2. ActionCodeSettings pointing to the Smart Skill Hub frontend action handler
+  const actionCodeSettings = {
+    url: `${env.FRONTEND_URL}/auth/action`,
+    handleCodeInApp: true,
+  };
+
+  // 3. Generate secure verification link via Firebase Admin SDK
+  const verificationLink = await auth.generateEmailVerificationLink(
+    email,
+    actionCodeSettings
+  );
+
+  // 4. Extract user's first name
+  const displayName = req.auth.name || firebaseUserRecord.displayName || "";
+  const firstName = displayName.split(" ")[0] || "Developer";
+
+  // 5. Send custom Smart Skill Hub branded email
+  await emailService.sendVerificationEmail({
+    to: email,
+    firstName,
+    verificationLink,
+  });
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      { sent: true, email },
+      "Verification email sent successfully."
+    )
+  );
+});
+
+export const sendPasswordReset = asyncHandler(async (req, res) => {
+  const schema = z.object({
+    email: z.string().email("Please provide a valid email address"),
+  });
+
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    throw new ApiError(400, "Valid email address is required", parsed.error.issues);
+  }
+
+  const email = parsed.data.email.trim().toLowerCase();
+  const auth = getFirebaseAuth();
+
+  const actionCodeSettings = {
+    url: `${env.FRONTEND_URL}/auth/action`,
+    handleCodeInApp: true,
+  };
+
+  try {
+    // 1. Check if user exists in Firebase and get display name
+    const firebaseUserRecord = await auth.getUserByEmail(email);
+    const firstName = (firebaseUserRecord.displayName || "").split(" ")[0] || "Developer";
+
+    // 2. Generate secure password reset link via Firebase Admin SDK
+    const resetLink = await auth.generatePasswordResetLink(
+      email,
+      actionCodeSettings
+    );
+
+    // 3. Send custom password reset email
+    await emailService.sendPasswordResetEmail({
+      to: email,
+      firstName,
+      resetLink,
+    });
+  } catch (error) {
+    // If user is not found, do NOT expose user non-existence (prevent account enumeration)
+    if (error.code === "auth/user-not-found") {
+      console.log(`[PasswordReset] User not found for email: ${email}. Responding with generic success.`);
+    } else {
+      console.error("[PasswordReset] Error during password reset link generation:", error);
+    }
+  }
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      { sent: true },
+      "If an account exists with this email address, password reset instructions have been sent."
+    )
+  );
+});
+

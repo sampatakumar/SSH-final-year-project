@@ -204,8 +204,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (displayName.trim()) {
       await updateProfile(cred.user, { displayName: displayName.trim() });
     }
-    // Automatically dispatch email verification
-    await sendEmailVerification(cred.user);
+
+    // Automatically dispatch custom branded verification email via backend
+    try {
+      const token = await cred.user.getIdToken();
+      await apiRequest("/auth/send-verification-email", {
+        method: "POST",
+        token,
+      });
+    } catch (err) {
+      console.warn("[Auth] Failed to dispatch initial custom verification email:", err);
+    }
+
     // Note: Do NOT sync to MongoDB here; user must verify email first.
     return cred;
   };
@@ -214,7 +224,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!firebaseAuth.currentUser) {
       throw new Error("No authenticated user to send verification email to.");
     }
-    await sendEmailVerification(firebaseAuth.currentUser);
+    const token = await firebaseAuth.currentUser.getIdToken(true);
+    await apiRequest("/auth/send-verification-email", {
+      method: "POST",
+      token,
+    });
   };
 
   const reloadUser = async (): Promise<User | null> => {
@@ -237,7 +251,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const sendPasswordReset = async (email: string): Promise<void> => {
-    await sendPasswordResetEmail(firebaseAuth, email.trim());
+    await apiRequest("/auth/send-password-reset", {
+      method: "POST",
+      body: { email: email.trim().toLowerCase() },
+    });
   };
 
   const linkProvider = async (providerType: "google" | "github"): Promise<UserCredential> => {

@@ -11,6 +11,16 @@ const envSchema = z.object({
   MONGODB_URI: z.string().min(1, "MONGODB_URI is required"),
 
   FIREBASE_PROJECT_ID: z.string().min(1, "FIREBASE_PROJECT_ID is required"),
+  FIREBASE_CLIENT_EMAIL: z.string().optional().default(""),
+  FIREBASE_PRIVATE_KEY: z.string().optional().default(""),
+  FIREBASE_SERVICE_ACCOUNT_PATH: z.string().optional().default(""),
+
+  EMAIL_PROVIDER: z.enum(["resend", "smtp", "console", "mock"]).default("console"),
+  EMAIL_FROM: z.string().default("Smart Skill Hub <noreply@smartskillhub.com>"),
+  EMAIL_FROM_NAME: z.string().default("Smart Skill Hub"),
+  EMAIL_API_KEY: z.string().optional().default(""),
+  FIREBASE_CONTINUE_URL: z.string().optional().default(""),
+  APP_BASE_URL: z.string().optional().default(""),
 
   SUPABASE_URL: z.string().min(1, "SUPABASE_URL is required"),
   SUPABASE_SERVICE_ROLE_KEY: z.string()

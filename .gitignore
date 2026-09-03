@@ -20,7 +20,8 @@ node_modules/
 *.pfx
 *.p12
 service-account*.json
-firebase-adminsdk*.json
+*firebase-adminsdk*.json
+*-firebase-adminsdk-*.json
 
 # Production builds and outputs
 dist/
