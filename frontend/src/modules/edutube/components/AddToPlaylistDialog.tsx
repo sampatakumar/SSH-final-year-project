@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { useAuth } from "@/core/auth";
 import { EduTubeApi } from "../services/edutube.api";
 import type { EduTubeVideoItem } from "../types/edutube.types";
 
@@ -23,6 +24,7 @@ export const AddToPlaylistDialog: React.FC<AddToPlaylistDialogProps> = ({
   video,
   trigger,
 }) => {
+  const { authInitialized, firebaseUser } = useAuth();
   const [open, setOpen] = useState(false);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState("");
@@ -31,7 +33,7 @@ export const AddToPlaylistDialog: React.FC<AddToPlaylistDialogProps> = ({
   const { data, isLoading } = useQuery({
     queryKey: ["edutube", "playlists"],
     queryFn: () => EduTubeApi.getPlaylists(),
-    enabled: open,
+    enabled: open && authInitialized && Boolean(firebaseUser),
   });
 
   const playlists = data?.playlists || [];

@@ -19,6 +19,7 @@ import { EduTubeApi } from "../services/edutube.api";
 import { RecommendationCard } from "./RecommendationCard";
 import { LearningTrackDialog } from "./LearningTrackDialog";
 import { toast } from "sonner";
+import { useAuth } from "@/core/auth";
 import type { PersonalizedRecommendation } from "../types/edutube.types";
 
 export interface PersonalizedFeedProps {
@@ -26,11 +27,13 @@ export interface PersonalizedFeedProps {
 }
 
 export const PersonalizedFeed: React.FC<PersonalizedFeedProps> = ({ onWatch }) => {
+  const { authInitialized, firebaseUser } = useAuth();
   const queryClient = useQueryClient();
 
   const { data, isLoading, isError, error, isRefetching } = useQuery({
     queryKey: ["edutube", "recommendations"],
     queryFn: () => EduTubeApi.getPersonalizedRecommendations(),
+    enabled: authInitialized && Boolean(firebaseUser),
     staleTime: 1000 * 60 * 5, // 5 minutes fresh
   });
 

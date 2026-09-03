@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AddToPlaylistDialog } from "./AddToPlaylistDialog";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/core/auth";
 import { EduTubeApi } from "../services/edutube.api";
 import { toast } from "sonner";
 import type { PersonalizedRecommendation, FeedbackAction } from "../types/edutube.types";
@@ -30,6 +31,7 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
   video,
   onWatch,
 }) => {
+  const { authInitialized, firebaseUser } = useAuth();
   const [showWhy, setShowWhy] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const queryClient = useQueryClient();
@@ -37,6 +39,7 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
   const { data: savedStatus } = useQuery({
     queryKey: ["edutube", "saved", video.videoId],
     queryFn: () => EduTubeApi.isVideoSaved(video.videoId),
+    enabled: authInitialized && Boolean(firebaseUser) && Boolean(video.videoId),
   });
 
   const isSaved = savedStatus?.isSaved ?? false;

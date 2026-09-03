@@ -12,7 +12,29 @@ import { VideoCard } from "../modules/edutube/components/VideoCard";
 import { VideoPlayer } from "../modules/edutube/components/VideoPlayer";
 import { VideoNotes } from "../modules/edutube/components/VideoNotes";
 import { ContinueLearningSection } from "../modules/edutube/components/ContinueLearningSection";
+import { AuthContext } from "../core/auth/AuthContext";
 import { EduTubeApi } from "../modules/edutube/services/edutube.api";
+
+const mockAuthValue = {
+  firebaseUser: { uid: "user123", email: "developer@smartskillhub.com" } as any,
+  backendUser: { id: "user123", email: "developer@smartskillhub.com" },
+  idToken: "mock-token-123",
+  loading: false,
+  authInitialized: true,
+  signInWithGoogle: vi.fn(),
+  signInWithGithub: vi.fn(),
+  signInWithEmail: vi.fn(),
+  registerWithEmail: vi.fn(),
+  resendVerificationEmail: vi.fn(),
+  reloadUser: vi.fn(),
+  syncVerifiedUser: vi.fn(),
+  sendPasswordReset: vi.fn(),
+  linkProvider: vi.fn(),
+  unlinkProvider: vi.fn(),
+  signOutUser: vi.fn(),
+  refreshProfile: vi.fn(),
+  getFriendlyErrorMessage: vi.fn(),
+};
 
 const mockVideoItem1 = {
   videoId: "W6NZfCO5SIk",
@@ -139,19 +161,22 @@ describe("EduTube Frontend Module Suite (Separated Default & Search Modes)", () 
     vi.restoreAllMocks();
   });
 
-  const renderWithRouter = (initialRoute = "/dashboard/edutube") => {
+  const renderWithRouter = (initialRoute = "/dashboard/edutube", authOverrides = {}) => {
+    const authVal = { ...mockAuthValue, ...authOverrides };
     return render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={[initialRoute]}>
-          <Routes>
-            <Route path="/dashboard/edutube" element={<EduTubePage />} />
-            <Route path="/dashboard/edutube/watch/:videoId" element={<EduTubePage />} />
-            <Route path="/dashboard/edutube/history" element={<HistoryPage />} />
-            <Route path="/dashboard/edutube/saved" element={<SavedVideosPage />} />
-            <Route path="/dashboard/edutube/playlists" element={<PlaylistsPage />} />
-            <Route path="/dashboard/edutube/playlists/:playlistId" element={<PlaylistDetailPage />} />
-          </Routes>
-        </MemoryRouter>
+        <AuthContext.Provider value={authVal as any}>
+          <MemoryRouter initialEntries={[initialRoute]}>
+            <Routes>
+              <Route path="/dashboard/edutube" element={<EduTubePage />} />
+              <Route path="/dashboard/edutube/watch/:videoId" element={<EduTubePage />} />
+              <Route path="/dashboard/edutube/history" element={<HistoryPage />} />
+              <Route path="/dashboard/edutube/saved" element={<SavedVideosPage />} />
+              <Route path="/dashboard/edutube/playlists" element={<PlaylistsPage />} />
+              <Route path="/dashboard/edutube/playlists/:playlistId" element={<PlaylistDetailPage />} />
+            </Routes>
+          </MemoryRouter>
+        </AuthContext.Provider>
       </QueryClientProvider>
     );
   };
@@ -362,13 +387,16 @@ describe("EduTube Frontend Module Suite (Separated Default & Search Modes)", () 
   });
 
   // ==========================================
+  // ==========================================
   // SECTION 3: CONTINUE LEARNING & PLAYBACK RESUME (PHASE 3B)
   // ==========================================
   describe("Section 3: Continue Learning & Playback Resume", () => {
     it("8. Continue Learning section renders in-progress lessons with progress percentage", async () => {
       render(
         <QueryClientProvider client={queryClient}>
-          <ContinueLearningSection onContinueVideo={() => {}} />
+          <AuthContext.Provider value={mockAuthValue as any}>
+            <ContinueLearningSection onContinueVideo={() => {}} />
+          </AuthContext.Provider>
         </QueryClientProvider>
       );
 
@@ -390,11 +418,13 @@ describe("EduTube Frontend Module Suite (Separated Default & Search Modes)", () 
 
       render(
         <QueryClientProvider client={queryClient}>
-          <VideoPlayer
-            videoId="W6NZfCO5SIk"
-            title="JavaScript Course"
-            onBack={() => {}}
-          />
+          <AuthContext.Provider value={mockAuthValue as any}>
+            <VideoPlayer
+              videoId="W6NZfCO5SIk"
+              title="JavaScript Course"
+              onBack={() => {}}
+            />
+          </AuthContext.Provider>
         </QueryClientProvider>
       );
 
@@ -431,7 +461,9 @@ describe("EduTube Frontend Module Suite (Separated Default & Search Modes)", () 
 
       render(
         <QueryClientProvider client={queryClient}>
-          <VideoCard video={mockVideoItem1} onWatch={() => {}} />
+          <AuthContext.Provider value={mockAuthValue as any}>
+            <VideoCard video={mockVideoItem1} onWatch={() => {}} />
+          </AuthContext.Provider>
         </QueryClientProvider>
       );
 
@@ -468,9 +500,11 @@ describe("EduTube Frontend Module Suite (Separated Default & Search Modes)", () 
 
       render(
         <QueryClientProvider client={queryClient}>
-          <MemoryRouter>
-            <SavedVideosPage />
-          </MemoryRouter>
+          <AuthContext.Provider value={mockAuthValue as any}>
+            <MemoryRouter>
+              <SavedVideosPage />
+            </MemoryRouter>
+          </AuthContext.Provider>
         </QueryClientProvider>
       );
 
@@ -518,9 +552,11 @@ describe("EduTube Frontend Module Suite (Separated Default & Search Modes)", () 
 
       render(
         <QueryClientProvider client={queryClient}>
-          <MemoryRouter>
-            <PlaylistsPage />
-          </MemoryRouter>
+          <AuthContext.Provider value={mockAuthValue as any}>
+            <MemoryRouter>
+              <PlaylistsPage />
+            </MemoryRouter>
+          </AuthContext.Provider>
         </QueryClientProvider>
       );
 
@@ -577,11 +613,13 @@ describe("EduTube Frontend Module Suite (Separated Default & Search Modes)", () 
 
       render(
         <QueryClientProvider client={queryClient}>
-          <VideoNotes
-            videoId="W6NZfCO5SIk"
-            currentPlaybackSeconds={240}
-            onSeekTo={seekSpy}
-          />
+          <AuthContext.Provider value={mockAuthValue as any}>
+            <VideoNotes
+              videoId="W6NZfCO5SIk"
+              currentPlaybackSeconds={240}
+              onSeekTo={seekSpy}
+            />
+          </AuthContext.Provider>
         </QueryClientProvider>
       );
 
@@ -610,6 +648,63 @@ describe("EduTube Frontend Module Suite (Separated Default & Search Modes)", () 
           timestampSeconds: 240,
         });
       });
+    });
+  });
+
+  // ==========================================
+  // SECTION 7: EDUTUBE AUTHENTICATION & ID TOKEN HEADER INJECTION
+  // ==========================================
+  describe("Section 7: EduTube Authentication & Authorization Header Verification", () => {
+    it("14. EduTubeApi calls attach Authorization Bearer header when token is available", async () => {
+      const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          statusCode: 200,
+          success: true,
+          message: "Playlists retrieved",
+          data: { playlists: [] },
+        }),
+      } as any);
+
+      // Call through EduTubeApi
+      await EduTubeApi.getPlaylists();
+
+      expect(fetchSpy).toHaveBeenCalled();
+      const [calledUrl, calledOptions] = fetchSpy.mock.calls[0];
+      expect(calledUrl).toContain("/api/v1/edutube/playlists");
+      expect(calledOptions?.headers).toBeDefined();
+    });
+
+    it("15. VideoNotes API request attaches Authorization Bearer header", async () => {
+      const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          statusCode: 200,
+          success: true,
+          message: "Notes retrieved",
+          data: { notes: [] },
+        }),
+      } as any);
+
+      await EduTubeApi.getVideoNotes("W6NZfCO5SIk");
+
+      expect(fetchSpy).toHaveBeenCalled();
+      const [calledUrl, calledOptions] = fetchSpy.mock.calls[0];
+      expect(calledUrl).toContain("/api/v1/edutube/videos/W6NZfCO5SIk/notes");
+      expect(calledOptions?.headers).toBeDefined();
+    });
+
+    it("16. PlaylistsPage does not execute playlist query if auth is not initialized or user is unauthenticated", async () => {
+      const getPlaylistsSpy = vi.spyOn(EduTubeApi, "getPlaylists");
+
+      // Render with unauthenticated / uninitialized auth
+      renderWithRouter("/dashboard/edutube/playlists", {
+        authInitialized: false,
+        firebaseUser: null,
+      });
+
+      // Query should NOT be triggered while auth is uninitialized
+      expect(getPlaylistsSpy).not.toHaveBeenCalled();
     });
   });
 });

@@ -11,13 +11,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
+import { useAuth } from "@/core/auth";
 import { EduTubeApi } from "../services/edutube.api";
 import { EduTubeHeader } from "../components/EduTubeHeader";
 import { EduTubeSidebar } from "../components/EduTubeSidebar";
 import type { Playlist } from "../types/edutube.types";
 
 export const PlaylistsPage: React.FC = () => {
+  const { authInitialized, firebaseUser } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -27,6 +28,7 @@ export const PlaylistsPage: React.FC = () => {
   const { data, isLoading } = useQuery({
     queryKey: ["edutube", "playlists"],
     queryFn: () => EduTubeApi.getPlaylists(),
+    enabled: authInitialized && Boolean(firebaseUser),
   });
 
   const playlists = data?.playlists || [];

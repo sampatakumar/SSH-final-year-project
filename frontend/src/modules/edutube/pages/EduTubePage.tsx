@@ -10,6 +10,7 @@ import {
   Bookmark,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/core/auth";
 import { EduTubeApi } from "../services/edutube.api";
 import { EduTubeHeader } from "../components/EduTubeHeader";
 import { EduTubeSidebar } from "../components/EduTubeSidebar";
@@ -29,6 +30,7 @@ import type {
 } from "../types/edutube.types";
 
 export const EduTubePage: React.FC = () => {
+  const { authInitialized, firebaseUser } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const { videoId: routeVideoId } = useParams<{ videoId?: string }>();
   const navigate = useNavigate();
@@ -159,6 +161,7 @@ export const EduTubePage: React.FC = () => {
   const { data: statsData } = useQuery({
     queryKey: ["edutube", "stats"],
     queryFn: () => EduTubeApi.getLearningStats(),
+    enabled: authInitialized && Boolean(firebaseUser),
     staleTime: 1000 * 5,
   });
 

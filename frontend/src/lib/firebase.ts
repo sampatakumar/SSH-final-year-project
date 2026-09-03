@@ -1,1 +1,1 @@
-export { firebaseAuth, googleProvider } from "../core/auth/firebase";
+export { firebaseAuth, googleProvider, getAuthToken, waitForAuthReady } from "../core/auth/firebase";

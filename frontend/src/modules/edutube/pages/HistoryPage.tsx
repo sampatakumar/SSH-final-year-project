@@ -17,16 +17,19 @@ import {
 import { toast } from "sonner";
 import { EduTubeApi } from "../services/edutube.api";
 import { EduTubeHeader } from "../components/EduTubeHeader";
+import { useAuth } from "@/core/auth";
 import { EduTubeSidebar } from "../components/EduTubeSidebar";
 import type { WatchHistoryItem } from "../types/edutube.types";
 
 export const HistoryPage: React.FC = () => {
+  const { authInitialized, firebaseUser } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   const { data, isLoading } = useQuery({
     queryKey: ["edutube", "history"],
     queryFn: () => EduTubeApi.getHistory({ limit: 50 }),
+    enabled: authInitialized && Boolean(firebaseUser),
   });
 
   const historyItems = data?.items || [];

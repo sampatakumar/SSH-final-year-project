@@ -5,4 +5,4 @@ export {
   getFriendlyAuthErrorMessage,
 } from "./AuthContext";
 export type { BackendUser, AuthContextValue } from "./AuthContext";
-export { firebaseAuth, googleProvider, githubProvider, EmailAuthProvider } from "./firebase";
+export { firebaseAuth, googleProvider, githubProvider, EmailAuthProvider, getAuthToken, waitForAuthReady } from "./firebase";

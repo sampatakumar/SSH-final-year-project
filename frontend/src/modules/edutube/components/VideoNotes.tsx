@@ -4,6 +4,7 @@ import { StickyNote, Plus, Trash2, Edit2, Check, X, Clock, Play } from "lucide-r
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { useAuth } from "@/core/auth";
 import { EduTubeApi } from "../services/edutube.api";
 import type { VideoNote } from "../types/edutube.types";
 
@@ -18,6 +19,7 @@ export const VideoNotes: React.FC<VideoNotesProps> = ({
   currentPlaybackSeconds = 0,
   onSeekTo,
 }) => {
+  const { authInitialized, firebaseUser } = useAuth();
   const queryClient = useQueryClient();
   const [isAdding, setIsAdding] = useState(false);
   const [content, setContent] = useState("");
@@ -28,7 +30,7 @@ export const VideoNotes: React.FC<VideoNotesProps> = ({
   const { data, isLoading } = useQuery({
     queryKey: ["edutube", "notes", videoId],
     queryFn: () => EduTubeApi.getVideoNotes(videoId),
-    enabled: Boolean(videoId),
+    enabled: authInitialized && Boolean(firebaseUser) && Boolean(videoId),
   });
 
   const notes = data?.notes || [];

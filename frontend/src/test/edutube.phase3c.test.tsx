@@ -81,6 +81,29 @@ const mockFeedData: PersonalizedFeedData = {
   cached: false,
 };
 
+import { AuthContext } from "../core/auth/AuthContext";
+
+const mockAuthValue = {
+  firebaseUser: { uid: "user123", email: "developer@smartskillhub.com" } as any,
+  backendUser: { id: "user123", email: "developer@smartskillhub.com" },
+  idToken: "mock-token-123",
+  loading: false,
+  authInitialized: true,
+  signInWithGoogle: vi.fn(),
+  signInWithGithub: vi.fn(),
+  signInWithEmail: vi.fn(),
+  registerWithEmail: vi.fn(),
+  resendVerificationEmail: vi.fn(),
+  reloadUser: vi.fn(),
+  syncVerifiedUser: vi.fn(),
+  sendPasswordReset: vi.fn(),
+  linkProvider: vi.fn(),
+  unlinkProvider: vi.fn(),
+  signOutUser: vi.fn(),
+  refreshProfile: vi.fn(),
+  getFriendlyErrorMessage: vi.fn(),
+};
+
 const renderWithProviders = (ui: React.ReactNode) => {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -90,7 +113,9 @@ const renderWithProviders = (ui: React.ReactNode) => {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>{ui}</MemoryRouter>
+      <AuthContext.Provider value={mockAuthValue as any}>
+        <MemoryRouter>{ui}</MemoryRouter>
+      </AuthContext.Provider>
     </QueryClientProvider>
   );
 };

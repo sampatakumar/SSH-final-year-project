@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Play, Clock, Sparkles, BookOpen, CheckCircle2, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/core/auth";
 import { EduTubeApi } from "../services/edutube.api";
 import { formatPublishedDate } from "../utils/edutube.utils";
 import type { ContinueLearningItem, EduTubeVideoItem } from "../types/edutube.types";
@@ -14,9 +15,11 @@ export interface ContinueLearningSectionProps {
 export const ContinueLearningSection: React.FC<ContinueLearningSectionProps> = ({
   onContinueVideo,
 }) => {
+  const { authInitialized, firebaseUser } = useAuth();
   const { data, isLoading } = useQuery({
     queryKey: ["edutube", "continue-learning"],
     queryFn: () => EduTubeApi.getContinueLearning(6),
+    enabled: authInitialized && Boolean(firebaseUser),
     staleTime: 1000 * 30, // 30s
   });
 

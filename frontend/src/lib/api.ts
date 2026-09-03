@@ -1,4 +1,4 @@
-import { firebaseAuth } from "./firebase";
+import { firebaseAuth, getAuthToken } from "./firebase";
 
 const DEFAULT_API_BASE_URL = "http://localhost:8000/api/v1";
 
@@ -47,7 +47,7 @@ export async function apiRequest<T>(
     const token =
       options.token !== undefined
         ? options.token
-        : (await firebaseAuth.currentUser?.getIdToken() || null);
+        : await getAuthToken();
 
     const response = await fetch(`${getApiBaseUrl()}${path}`, {
       method: options.method ?? "GET",

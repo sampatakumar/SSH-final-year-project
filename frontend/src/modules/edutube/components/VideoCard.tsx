@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Play, Bookmark, BookmarkCheck, Award, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { useAuth } from "@/core/auth";
 import { formatPublishedDate, getBestThumbnailUrl } from "../utils/edutube.utils";
 import { EduTubeApi } from "../services/edutube.api";
 import type { EduTubeVideoItem } from "../types/edutube.types";
@@ -13,6 +14,7 @@ export interface VideoCardProps {
 }
 
 export const VideoCard: React.FC<VideoCardProps> = ({ video, onWatch }) => {
+  const { authInitialized, firebaseUser } = useAuth();
   const queryClient = useQueryClient();
   const thumbnailUrl = getBestThumbnailUrl(video.thumbnail);
   const timeAgo = formatPublishedDate(video.publishedAt);
@@ -21,6 +23,7 @@ export const VideoCard: React.FC<VideoCardProps> = ({ video, onWatch }) => {
   const { data: savedData } = useQuery({
     queryKey: ["edutube", "is-saved", video.videoId],
     queryFn: () => EduTubeApi.isVideoSaved(video.videoId),
+    enabled: authInitialized && Boolean(firebaseUser) && Boolean(video.videoId),
     staleTime: 1000 * 60,
   });
 

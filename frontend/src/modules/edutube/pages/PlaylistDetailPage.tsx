@@ -17,10 +17,12 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { EduTubeApi } from "../services/edutube.api";
 import { EduTubeHeader } from "../components/EduTubeHeader";
+import { useAuth } from "@/core/auth";
 import { EduTubeSidebar } from "../components/EduTubeSidebar";
 import type { Playlist, PlaylistVideo } from "../types/edutube.types";
 
 export const PlaylistDetailPage: React.FC = () => {
+  const { authInitialized, firebaseUser } = useAuth();
   const { playlistId } = useParams<{ playlistId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -28,7 +30,7 @@ export const PlaylistDetailPage: React.FC = () => {
   const { data, isLoading } = useQuery({
     queryKey: ["edutube", "playlist", playlistId],
     queryFn: () => EduTubeApi.getPlaylist(playlistId!),
-    enabled: Boolean(playlistId),
+    enabled: authInitialized && Boolean(firebaseUser) && Boolean(playlistId),
   });
 
   const playlist = data?.playlist;

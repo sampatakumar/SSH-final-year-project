@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { useAuth } from "@/core/auth";
 import { EduTubeApi } from "../services/edutube.api";
 import { formatViews, formatPublishedDate } from "../utils/edutube.utils";
 import { AddToPlaylistDialog } from "./AddToPlaylistDialog";
@@ -37,6 +38,7 @@ export const VideoDetails: React.FC<VideoDetailsProps> = ({
   onSelectRelatedVideo,
   onSeekTo,
 }) => {
+  const { authInitialized, firebaseUser } = useAuth();
   const queryClient = useQueryClient();
   const [video, setVideo] = useState<EduTubeVideoDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -50,7 +52,7 @@ export const VideoDetails: React.FC<VideoDetailsProps> = ({
   const { data: savedData } = useQuery({
     queryKey: ["edutube", "is-saved", videoId],
     queryFn: () => EduTubeApi.isVideoSaved(videoId),
-    enabled: Boolean(videoId),
+    enabled: authInitialized && Boolean(firebaseUser) && Boolean(videoId),
   });
 
   const isSaved = Boolean(savedData?.isSaved);

@@ -7,16 +7,19 @@ import { Input } from "@/components/ui/input";
 import { EduTubeApi } from "../services/edutube.api";
 import { EduTubeHeader } from "../components/EduTubeHeader";
 import { EduTubeSidebar } from "../components/EduTubeSidebar";
+import { useAuth } from "@/core/auth";
 import { VideoCard } from "../components/VideoCard";
 import type { EduTubeVideoItem } from "../types/edutube.types";
 
 export const SavedVideosPage: React.FC = () => {
+  const { authInitialized, firebaseUser } = useAuth();
   const [filterText, setFilterText] = useState("");
   const navigate = useNavigate();
 
   const { data, isLoading } = useQuery({
     queryKey: ["edutube", "saved"],
     queryFn: () => EduTubeApi.getSavedVideos({ limit: 100 }),
+    enabled: authInitialized && Boolean(firebaseUser),
   });
 
   const savedList = data?.items || [];
