@@ -1,0 +1,385 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Merriweather:wght@700;800&family=Source+Serif+4:wght@400;500;600&display=swap');
+
+@font-face {
+  font-family: 'Noto Serif';
+  src: url('/fonts/NotoSerif-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Noto Serif';
+  src: url('/fonts/NotoSerif-Italic.ttf') format('truetype');
+  font-weight: 400;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: 'Noto Serif';
+  src: url('/fonts/NotoSerif-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Noto Serif';
+  src: url('/fonts/NotoSerif-BoldItalic.ttf') format('truetype');
+  font-weight: 700;
+  font-style: italic;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+
+    /* Neomorphic Soft Off-White Base */
+    --background: 214 28% 92%;
+    --foreground: 222 47% 12%;
+
+    --card: 214 28% 92%;
+    --card-foreground: 222 47% 12%;
+
+    --popover: 214 28% 92%;
+    --popover-foreground: 222 47% 12%;
+
+    --primary: 174 84% 34%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 214 24% 88%;
+    --secondary-foreground: 222 47% 18%;
+
+    --muted: 214 20% 88%;
+    --muted-foreground: 215 16% 45%;
+
+    --accent: 174 72% 38%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 350 84% 54%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 20% 85%;
+    --input: 214 20% 85%;
+    --ring: 174 84% 34%;
+
+    --radius: 1rem;
+
+    --sidebar-background: 214 28% 91%;
+    --sidebar-foreground: 215 20% 38%;
+    --sidebar-primary: 174 84% 34%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 214 24% 87%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 214 20% 84%;
+    --sidebar-ring: 174 84% 34%;
+
+    /* Neomorphic Dual Shadow Variables - Light Theme */
+    --neo-shadow-raised: 6px 6px 14px rgba(163, 177, 198, 0.6), -6px -6px 14px rgba(255, 255, 255, 0.85);
+    --neo-shadow-raised-sm: 3px 3px 8px rgba(163, 177, 198, 0.5), -3px -3px 8px rgba(255, 255, 255, 0.85);
+    --neo-shadow-raised-lg: 10px 10px 24px rgba(163, 177, 198, 0.65), -10px -10px 24px rgba(255, 255, 255, 0.9);
+    --neo-shadow-pressed: inset 4px 4px 8px rgba(163, 177, 198, 0.6), inset -4px -4px 8px rgba(255, 255, 255, 0.85);
+    --neo-shadow-pressed-sm: inset 2px 2px 5px rgba(163, 177, 198, 0.5), inset -2px -2px 5px rgba(255, 255, 255, 0.85);
+    --neo-shadow-convex: linear-gradient(145deg, #f0f4f9, #d6dce5);
+
+    /* Neomorphic Scrollbar Colors */
+    --neo-scrollbar-track: rgba(163, 177, 198, 0.25);
+    --neo-scrollbar-thumb: rgba(163, 177, 198, 0.7);
+    --neo-scrollbar-thumb-hover: hsl(174 84% 34%);
+
+    --gradient-primary: linear-gradient(135deg, hsl(174 84% 34%), hsl(199 89% 43%));
+    --gradient-hero: radial-gradient(circle at 50% 0%, hsl(214 30% 96%) 0%, hsl(214 28% 90%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(214 28% 94%), hsl(214 28% 89%));
+    --glow-primary: 0 4px 20px -2px hsl(174 84% 34% / 0.25);
+    --glow-strong: 0 10px 40px -4px hsl(174 84% 34% / 0.35);
+  }
+
+  .dark {
+    color-scheme: dark;
+
+    /* Smart Skill Hub Dark-First Architecture */
+    --background: 216 27% 5%;       /* #0B0D10 */
+    --foreground: 216 33% 97%;      /* #F5F7FA */
+
+    --card: 215 21% 11%;            /* #161B22 */
+    --card-foreground: 216 33% 97%; /* #F5F7FA */
+
+    --popover: 216 21% 14%;         /* #1C222B */
+    --popover-foreground: 216 33% 97%;
+
+    --primary: 239 84% 67%;         /* #6366F1 Indigo Accent */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 214 20% 8%;        /* #11151A */
+    --secondary-foreground: 216 13% 65%; /* #9AA4B2 */
+
+    --muted: 216 21% 14%;           /* #1C222B */
+    --muted-foreground: 220 13% 46%; /* #667085 */
+
+    --accent: 235 94% 74%;          /* #818CF8 */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;       /* #EF4444 */
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 71% 45%;         /* #22C55E */
+    --warning: 38 92% 50%;          /* #F59E0B */
+    --info: 199 89% 48%;            /* #38BDF8 */
+
+    --border: 214 17% 18%;          /* #262D36 */
+    --input: 214 17% 18%;           /* #262D36 */
+    --ring: 239 84% 67%;            /* #6366F1 */
+
+    --sidebar-background: 216 27% 5%; /* #0B0D10 */
+    --sidebar-foreground: 216 13% 65%; /* #9AA4B2 */
+    --sidebar-primary: 239 84% 67%;   /* #6366F1 */
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 215 21% 11%;    /* #161B22 */
+    --sidebar-accent-foreground: 216 33% 97%;
+    --sidebar-border: 214 17% 18%;    /* #262D36 */
+    --sidebar-ring: 239 84% 67%;
+
+    /* Standardized Shadows */
+    --neo-shadow-raised: 0 4px 12px rgba(0, 0, 0, 0.45);
+    --neo-shadow-raised-sm: 0 2px 6px rgba(0, 0, 0, 0.35);
+    --neo-shadow-raised-lg: 0 8px 24px rgba(0, 0, 0, 0.55);
+    --neo-shadow-pressed: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+    --neo-shadow-pressed-sm: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+    --neo-shadow-convex: linear-gradient(145deg, #161B22, #11151A);
+
+    /* Clean Scrollbar */
+    --neo-scrollbar-track: #0B0D10;
+    --neo-scrollbar-thumb: #262D36;
+    --neo-scrollbar-thumb-hover: #6366F1;
+
+    --gradient-primary: linear-gradient(135deg, #6366F1, #818CF8);
+    --gradient-hero: radial-gradient(circle at 50% 0%, #161B22 0%, #0B0D10 100%);
+    --gradient-card: linear-gradient(145deg, #161B22, #11151A);
+    --glow-primary: 0 4px 20px -2px rgba(99, 102, 241, 0.3);
+    --glow-strong: 0 8px 32px -4px rgba(99, 102, 241, 0.45);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border/40;
+    scrollbar-width: thin;
+    scrollbar-color: var(--neo-scrollbar-thumb) var(--neo-scrollbar-track);
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    background-image: var(--gradient-hero);
+    overflow-x: hidden;
+    min-height: 100vh;
+    text-rendering: optimizeLegibility;
+    transition: background-color 250ms cubic-bezier(0.4, 0, 0.2, 1), color 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  #root {
+    width: 100%;
+    min-height: 100vh;
+    margin: 0;
+  }
+
+  /* Global WebKit Neomorphic Scrollbar Customization */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--background));
+    box-shadow: var(--neo-shadow-pressed-sm);
+    border-radius: 9999px;
+    margin: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--neo-scrollbar-thumb);
+    box-shadow: var(--neo-shadow-raised-sm);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+    transition: all 250ms ease;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--neo-scrollbar-thumb-hover);
+    box-shadow: var(--neo-shadow-raised), 0 0 12px var(--neo-scrollbar-thumb-hover);
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
+
+@layer utilities {
+  /* Neomorphism Utility Classes */
+  .neo-raised {
+    background-color: hsl(var(--background));
+    box-shadow: var(--neo-shadow-raised);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+  }
+
+  .neo-raised-sm {
+    background-color: hsl(var(--background));
+    box-shadow: var(--neo-shadow-raised-sm);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .neo-raised-lg {
+    background-color: hsl(var(--background));
+    box-shadow: var(--neo-shadow-raised-lg);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .neo-pressed {
+    background-color: hsl(var(--background));
+    box-shadow: var(--neo-shadow-pressed);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+
+  .neo-pressed-sm {
+    background-color: hsl(var(--background));
+    box-shadow: var(--neo-shadow-pressed-sm);
+  }
+
+  .neo-card {
+    background-color: hsl(var(--card));
+    box-shadow: var(--neo-shadow-raised);
+    border-radius: var(--radius);
+    border: 1px solid hsl(var(--border) / 0.4);
+    transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .neo-card:hover {
+    box-shadow: var(--neo-shadow-raised-lg);
+    transform: translateY(-2px);
+  }
+
+  .neo-button {
+    background-color: hsl(var(--background));
+    box-shadow: var(--neo-shadow-raised-sm);
+    border: 1px solid hsl(var(--border) / 0.3);
+    transition: all 200ms ease;
+  }
+
+  .neo-button:hover {
+    box-shadow: var(--neo-shadow-raised);
+  }
+
+  .neo-button:active {
+    box-shadow: var(--neo-shadow-pressed-sm);
+    transform: scale(0.98);
+  }
+
+  .neo-input {
+    background-color: hsl(var(--background));
+    box-shadow: var(--neo-shadow-pressed);
+    border: 1px solid hsl(var(--border) / 0.4);
+    transition: all 200ms ease;
+  }
+
+  .neo-input:focus {
+    box-shadow: var(--neo-shadow-pressed), 0 0 0 2px hsl(var(--primary) / 0.4);
+  }
+
+  .page-shell {
+    width: min(100%, var(--page-max, 96rem));
+    margin-inline: auto;
+    padding-inline: clamp(1rem, 2.5vw, 2rem);
+    padding-top: clamp(1.25rem, 2.5vw, 2rem);
+    padding-bottom: clamp(4.5rem, 8vw, 7rem);
+  }
+
+  .page-shell-sm { --page-max: 64rem; }
+  .page-shell-md { --page-max: 72rem; }
+  .page-shell-lg { --page-max: 84rem; }
+  .page-shell-xl { --page-max: 90rem; }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: hsl(var(--background));
+    box-shadow: var(--neo-shadow-pressed-sm);
+    border-radius: 9999px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--neo-scrollbar-thumb);
+    box-shadow: var(--neo-shadow-raised-sm);
+    border-radius: 9999px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--neo-scrollbar-thumb-hover);
+    box-shadow: var(--neo-shadow-raised), 0 0 10px var(--neo-scrollbar-thumb-hover);
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: var(--gradient-primary);
+  }
+
+  .glow-primary {
+    box-shadow: var(--glow-primary);
+  }
+
+  .glow-strong {
+    box-shadow: var(--glow-strong);
+  }
+
+  /* Glass to Neomorphism compatibility mappings */
+  .glass {
+    background-color: hsl(var(--background));
+    box-shadow: var(--neo-shadow-raised-sm);
+    border: 1px solid hsl(var(--border) / 0.5);
+    transition: background-color 220ms ease, border-color 220ms ease, box-shadow 220ms ease, transform 220ms ease;
+  }
+
+  .glass-card {
+    background-color: hsl(var(--card));
+    box-shadow: var(--neo-shadow-raised);
+    border: 1px solid hsl(var(--border) / 0.5);
+    border-radius: 1.25rem;
+    transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .glass-card:hover {
+    box-shadow: var(--neo-shadow-raised-lg);
+    transform: translateY(-2px);
+  }
+
+  .grid-pattern {
+    background-image:
+      linear-gradient(hsl(var(--border) / 0.3) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--border) / 0.3) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

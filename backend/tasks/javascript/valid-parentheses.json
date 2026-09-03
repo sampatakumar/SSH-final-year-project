@@ -1,0 +1,80 @@
+{
+  "id": "valid-parentheses",
+  "language": "javascript",
+  "title": "Valid Parentheses",
+  "functionName": "isValid",
+  "difficulty": "Medium",
+  "category": "Stacks",
+  "description": "Given a string `s` containing just the characters `'('`, `')'`, `'{'`, `'}'`, `'['` and `']'`, determine if the input string is valid.\n\nAn input string is valid if:\n1. Open brackets must be closed by the same type of brackets.\n2. Open brackets must be closed in the correct order.\n3. Every close bracket has a corresponding open bracket of the same type.",
+  "examples": [
+    {
+      "input": "isValid(\"()\")",
+      "output": "true"
+    },
+    {
+      "input": "isValid(\"()[]{}\")",
+      "output": "true"
+    },
+    {
+      "input": "isValid(\"(]\")",
+      "output": "false"
+    },
+    {
+      "input": "isValid(\"([)]\")",
+      "output": "false"
+    }
+  ],
+  "starterCode": "/**\n * @param {string} s\n * @return {boolean}\n */\nfunction isValid(s) {\n  // Write your code here\n}\n",
+  "tests": [
+    {
+      "id": 1,
+      "name": "Sample Test 1: Simple parenthesis",
+      "input": ["()"],
+      "expected": true,
+      "isSample": true
+    },
+    {
+      "id": 2,
+      "name": "Sample Test 2: Multiple matching bracket types",
+      "input": ["()[]{}"],
+      "expected": true,
+      "isSample": true
+    },
+    {
+      "id": 3,
+      "name": "Sample Test 3: Mismatched bracket types",
+      "input": ["(]"],
+      "expected": false,
+      "isSample": true
+    },
+    {
+      "id": 4,
+      "name": "Nested valid brackets",
+      "input": ["{[]}"],
+      "expected": true,
+      "isSample": false
+    },
+    {
+      "id": 5,
+      "name": "Interleaved brackets (invalid order)",
+      "input": ["([)]"],
+      "expected": false,
+      "isSample": false
+    },
+    {
+      "id": 6,
+      "name": "Single opening bracket",
+      "input": ["["],
+      "expected": false,
+      "isSample": false
+    },
+    {
+      "id": 7,
+      "name": "Single closing bracket",
+      "input": ["]"],
+      "expected": false,
+      "isSample": false
+    }
+  ],
+  "points": 25
+}

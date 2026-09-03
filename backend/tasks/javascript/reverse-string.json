@@ -1,0 +1,60 @@
+{
+  "id": "reverse-string",
+  "language": "javascript",
+  "title": "Reverse String",
+  "functionName": "reverseString",
+  "difficulty": "Easy",
+  "category": "Strings",
+  "description": "Write a function `reverseString(str)` that accepts a string and returns a new string with the characters in reverse order.",
+  "examples": [
+    {
+      "input": "reverseString(\"hello\")",
+      "output": "\"olleh\"",
+      "explanation": "Reverse of hello is olleh."
+    },
+    {
+      "input": "reverseString(\"JavaScript\")",
+      "output": "\"tpircSavaJ\"",
+      "explanation": "Reverse of JavaScript is tpircSavaJ."
+    }
+  ],
+  "starterCode": "/**\n * @param {string} str\n * @return {string}\n */\nfunction reverseString(str) {\n  // Write your code here\n}\n",
+  "tests": [
+    {
+      "id": 1,
+      "name": "Sample Test: hello",
+      "input": ["hello"],
+      "expected": "olleh",
+      "isSample": true
+    },
+    {
+      "id": 2,
+      "name": "Sample Test: JavaScript",
+      "input": ["JavaScript"],
+      "expected": "tpircSavaJ",
+      "isSample": true
+    },
+    {
+      "id": 3,
+      "name": "Empty string",
+      "input": [""],
+      "expected": "",
+      "isSample": false
+    },
+    {
+      "id": 4,
+      "name": "Single character",
+      "input": ["x"],
+      "expected": "x",
+      "isSample": false
+    },
+    {
+      "id": 5,
+      "name": "String with spaces and punctuation",
+      "input": ["Hello, World!"],
+      "expected": "!dlroW ,olleH",
+      "isSample": false
+    }
+  ],
+  "points": 10
+}

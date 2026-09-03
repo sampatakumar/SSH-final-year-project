@@ -1,0 +1,1 @@
+export * from "../modules/resume/services/generatePortfolio.js";

@@ -1,0 +1,67 @@
+{
+  "id": "add-two-numbers",
+  "language": "javascript",
+  "title": "Add Two Numbers",
+  "functionName": "add",
+  "difficulty": "Easy",
+  "category": "Math & Basics",
+  "description": "Write a function `add(a, b)` that takes two numbers as arguments and returns their sum.",
+  "examples": [
+    {
+      "input": "add(2, 3)",
+      "output": "5",
+      "explanation": "2 + 3 = 5"
+    },
+    {
+      "input": "add(-5, 8)",
+      "output": "3",
+      "explanation": "-5 + 8 = 3"
+    }
+  ],
+  "starterCode": "/**\n * @param {number} a\n * @param {number} b\n * @return {number}\n */\nfunction add(a, b) {\n  // Write your code here\n}\n",
+  "tests": [
+    {
+      "id": 1,
+      "name": "Sample Test: Positive numbers",
+      "input": [2, 3],
+      "expected": 5,
+      "isSample": true
+    },
+    {
+      "id": 2,
+      "name": "Sample Test: Mixed positive and negative",
+      "input": [-5, 8],
+      "expected": 3,
+      "isSample": true
+    },
+    {
+      "id": 3,
+      "name": "Large numbers",
+      "input": [1000000, 2500000],
+      "expected": 3500000,
+      "isSample": false
+    },
+    {
+      "id": 4,
+      "name": "Two zeros",
+      "input": [0, 0],
+      "expected": 0,
+      "isSample": false
+    },
+    {
+      "id": 5,
+      "name": "Both negative numbers",
+      "input": [-15, -35],
+      "expected": -50,
+      "isSample": false
+    },
+    {
+      "id": 6,
+      "name": "Floating point numbers",
+      "input": [0.5, 0.25],
+      "expected": 0.75,
+      "isSample": false
+    }
+  ],
+  "points": 10
+}
