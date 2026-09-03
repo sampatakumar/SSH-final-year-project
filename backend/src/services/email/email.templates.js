@@ -89,8 +89,11 @@ export const getVerificationEmailTemplate = ({ firstName = "Developer", verifica
               <p style="margin: 0 0 16px 0; font-size: 14px; line-height: 1.6; color: #94a3b8;">
                 Welcome to Smart Skill Hub.
               </p>
+              <p style="margin: 0 0 16px 0; font-size: 14px; line-height: 1.6; color: #94a3b8;">
+                Your account is almost ready.
+              </p>
               <p style="margin: 0 0 24px 0; font-size: 14px; line-height: 1.6; color: #94a3b8;">
-                You're one step away from accessing your personalized learning, skill analytics, coding sandbox, GitHub intelligence, resume builder, and career development workspace.
+                Verify your email address to unlock your personalized learning journey, skill tracking, coding assessments, GitHub Intelligence, EduTube, Resume AI, portfolios, analytics, and Smart Mentor.
               </p>
 
               <!-- CTA Button Container -->
@@ -117,7 +120,7 @@ export const getVerificationEmailTemplate = ({ firstName = "Developer", verifica
               <!-- Security Notice -->
               <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #1e293b;">
                 <p style="margin: 0 0 6px 0; font-size: 12px; color: #64748b; line-height: 1.5;">
-                  🔒 <strong>Security Notice:</strong> This verification link is intended only for the account associated with this email address. If you did not sign up for Smart Skill Hub, you can safely ignore this email.
+                  🔒 <strong>Security Notice:</strong> If you did not create a Smart Skill Hub account, you can safely ignore this email.
                 </p>
               </div>
             </td>
@@ -130,7 +133,7 @@ export const getVerificationEmailTemplate = ({ firstName = "Developer", verifica
                 Smart Skill Hub
               </p>
               <p style="margin: 0; font-size: 11px; color: #475569;">
-                AI-powered developer growth & intelligence platform
+                AI-powered developer growth platform
               </p>
             </td>
           </tr>
@@ -148,16 +151,18 @@ Hi ${firstName},
 
 Welcome to Smart Skill Hub.
 
-You're one step away from accessing your personalized learning, skill analytics, coding sandbox, GitHub intelligence, resume builder, and career development workspace.
+Your account is almost ready.
+
+Verify your email address to unlock your personalized learning journey, skill tracking, coding assessments, GitHub Intelligence, EduTube, Resume AI, portfolios, analytics, and Smart Mentor.
 
 To verify your email address, please click or visit the following link:
 ${verificationLink}
 
 Security Notice:
-This verification link is intended only for the account associated with this email address. If you did not sign up for Smart Skill Hub, you can safely ignore this email.
+If you did not create a Smart Skill Hub account, you can safely ignore this email.
 
 Smart Skill Hub
-AI-powered developer growth & intelligence platform`;
+AI-powered developer growth platform`;
 
   return { html, text, subject: "Verify your Smart Skill Hub account" };
 };

@@ -100,12 +100,12 @@ describe("Frontend Custom Email Action & Verification Flow Suite", () => {
         );
         expect(screen.getByText("Email Verified")).toBeInTheDocument();
         expect(screen.getByText("Welcome to Smart Skill Hub!")).toBeInTheDocument();
-        expect(screen.getByRole("button", { name: /Enter Dashboard/i })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /Continue to Smart Skill Hub/i })).toBeInTheDocument();
       });
 
-      // Clicking enter dashboard navigates to /dashboard
-      fireEvent.click(screen.getByRole("button", { name: /Enter Dashboard/i }));
-      expect(await screen.findByTestId("dashboard-page")).toBeInTheDocument();
+      // Clicking continue navigates to /login or /dashboard
+      fireEvent.click(screen.getByRole("button", { name: /Continue to Smart Skill Hub/i }));
+      expect(await screen.findByTestId("login-page")).toBeInTheDocument();
     });
 
     it("handles invalid or expired action codes with helpful error UI", async () => {

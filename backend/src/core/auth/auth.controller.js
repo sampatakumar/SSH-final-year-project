@@ -225,11 +225,16 @@ export const sendVerificationEmail = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Authenticated user must have an email address to send verification.");
   }
 
+  const domain = email.split("@")[1] || "unknown";
+  console.log(`[EmailVerification:Diagnostic] Verification request received for domain: @${domain}`);
+
   // 1. Fetch user from Firebase Admin to check verification status and metadata
   const auth = getFirebaseAuth();
   const firebaseUserRecord = await auth.getUser(uid);
+  console.log(`[EmailVerification:Diagnostic] User lookup in Firebase Project: ${env.FIREBASE_PROJECT_ID} (uid: ${uid}, emailVerified: ${Boolean(firebaseUserRecord.emailVerified)})`);
 
   if (firebaseUserRecord.emailVerified) {
+    console.log(`[EmailVerification:Diagnostic] User is already verified. Returning safe response.`);
     return res.status(200).json(
       new ApiResponse(
         200,
@@ -246,21 +251,40 @@ export const sendVerificationEmail = asyncHandler(async (req, res) => {
   };
 
   // 3. Generate secure verification link via Firebase Admin SDK
-  const verificationLink = await auth.generateEmailVerificationLink(
-    email,
-    actionCodeSettings
-  );
+  let verificationLink;
+  try {
+    verificationLink = await auth.generateEmailVerificationLink(
+      email,
+      actionCodeSettings
+    );
+    console.log(`[EmailVerification:Diagnostic] Action link generated successfully via Firebase Admin SDK`);
+  } catch (linkError) {
+    console.error(`[EmailVerification:Diagnostic] Failed to generate action link:`, linkError.message);
+    throw new ApiError(500, "Failed to generate email verification link. Please try again later.");
+  }
 
   // 4. Extract user's first name
   const displayName = req.auth.name || firebaseUserRecord.displayName || "";
   const firstName = displayName.split(" ")[0] || "Developer";
 
-  // 5. Send custom Smart Skill Hub branded email
-  await emailService.sendVerificationEmail({
-    to: email,
-    firstName,
-    verificationLink,
-  });
+  // 5. Send custom Smart Skill Hub branded email via Resend / configured provider
+  try {
+    console.log(`[EmailVerification:Diagnostic] Invoking email service (Configured Provider: ${env.EMAIL_PROVIDER})`);
+    const sendResult = await emailService.sendVerificationEmail({
+      to: email,
+      firstName,
+      verificationLink,
+    });
+    console.log(`[EmailVerification:Diagnostic] Email service result:`, {
+      provider: env.EMAIL_PROVIDER,
+      success: sendResult.success,
+      isMock: Boolean(sendResult.mock),
+      providerId: sendResult.id || null,
+    });
+  } catch (emailError) {
+    console.error(`[EmailVerification:Diagnostic] Email delivery failed:`, emailError.message);
+    throw new ApiError(500, "We couldn't send the verification email right now. Please try again later.");
+  }
 
   return res.status(200).json(
     new ApiResponse(
@@ -282,6 +306,9 @@ export const sendPasswordReset = asyncHandler(async (req, res) => {
   }
 
   const email = parsed.data.email.trim().toLowerCase();
+  const domain = email.split("@")[1] || "unknown";
+  console.log(`[PasswordReset:Diagnostic] Request received for domain: @${domain}`);
+
   const auth = getFirebaseAuth();
 
   const actionCodeSettings = {
@@ -292,6 +319,7 @@ export const sendPasswordReset = asyncHandler(async (req, res) => {
   try {
     // 1. Check if user exists in Firebase and get display name
     const firebaseUserRecord = await auth.getUserByEmail(email);
+    console.log(`[PasswordReset:Diagnostic] User lookup succeeded in Firebase Project: ${env.FIREBASE_PROJECT_ID} (uid: ${firebaseUserRecord.uid})`);
     const firstName = (firebaseUserRecord.displayName || "").split(" ")[0] || "Developer";
 
     // 2. Generate secure password reset link via Firebase Admin SDK
@@ -299,19 +327,27 @@ export const sendPasswordReset = asyncHandler(async (req, res) => {
       email,
       actionCodeSettings
     );
+    console.log(`[PasswordReset:Diagnostic] Action link generated successfully via Firebase Admin SDK`);
 
     // 3. Send custom password reset email
-    await emailService.sendPasswordResetEmail({
+    console.log(`[PasswordReset:Diagnostic] Invoking email service (Configured Provider: ${env.EMAIL_PROVIDER})`);
+    const sendResult = await emailService.sendPasswordResetEmail({
       to: email,
       firstName,
       resetLink,
     });
+    console.log(`[PasswordReset:Diagnostic] Email service result:`, {
+      provider: env.EMAIL_PROVIDER,
+      success: sendResult.success,
+      isMock: Boolean(sendResult.mock),
+      providerId: sendResult.id || null,
+    });
   } catch (error) {
     // If user is not found, do NOT expose user non-existence (prevent account enumeration)
     if (error.code === "auth/user-not-found") {
-      console.log(`[PasswordReset] User not found for email: ${email}. Responding with generic success.`);
+      console.log(`[PasswordReset:Diagnostic] User not found in Firebase Auth for domain: @${domain}. Suppressing error to prevent enumeration.`);
     } else {
-      console.error("[PasswordReset] Error during password reset link generation:", error);
+      console.error(`[PasswordReset:Diagnostic] Failure during password reset workflow: [Category: ${error.code || error.name || 'UNKNOWN'}] - ${error.message}`);
     }
   }
 

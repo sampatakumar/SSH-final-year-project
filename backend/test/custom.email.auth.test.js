@@ -88,6 +88,18 @@ describe("Smart Skill Hub Custom Email Auth System", () => {
       const res = await request(app).post("/api/v1/auth/send-verification-email");
       expect(res.status).toBe(401);
     });
+
+    it("verifies template copy contains exact requested text", () => {
+      const template = getVerificationEmailTemplate({
+        firstName: "Grace",
+        verificationLink: "https://smartskillhub.com/auth/action?mode=verifyEmail&oobCode=grace_123",
+      });
+
+      expect(template.html).toContain("Your account is almost ready.");
+      expect(template.html).toContain("Verify your email address to unlock your personalized learning journey");
+      expect(template.html).toContain("If you did not create a Smart Skill Hub account, you can safely ignore this email.");
+      expect(template.html).toContain("AI-powered developer growth platform");
+    });
   });
 
   // ==========================================

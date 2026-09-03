@@ -257,10 +257,16 @@ export default function AuthActionPage() {
 
               <div className="pt-4 w-full">
                 <Button
-                  onClick={() => navigate("/dashboard")}
+                  onClick={() => {
+                    if (firebaseAuth.currentUser) {
+                      navigate("/dashboard", { replace: true });
+                    } else {
+                      navigate("/login", { replace: true });
+                    }
+                  }}
                   className="w-full h-12 text-xs font-black uppercase tracking-wider gap-2 bg-gradient-to-r from-primary to-cyan-500 hover:opacity-95 shadow-neo-raised transition-all"
                 >
-                  <span>Enter Dashboard</span>
+                  <span>Continue to Smart Skill Hub</span>
                   <ArrowRight className="w-4 h-4" />
                 </Button>
               </div>

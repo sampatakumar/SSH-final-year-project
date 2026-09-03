@@ -30,8 +30,8 @@ export const emailService = {
       provider: env.EMAIL_PROVIDER,
     };
 
-    // 1. Resend Provider
-    if (env.EMAIL_PROVIDER === "resend" && env.EMAIL_API_KEY) {
+    // 1. Resend Provider (Only execute real external HTTP in non-test mode)
+    if (env.NODE_ENV !== "test" && env.EMAIL_PROVIDER === "resend" && env.EMAIL_API_KEY) {
       try {
         const response = await axios.post(
           "https://api.resend.com/emails",
