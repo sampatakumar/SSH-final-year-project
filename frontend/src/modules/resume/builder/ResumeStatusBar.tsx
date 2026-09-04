@@ -36,10 +36,11 @@ export const ResumeStatusBar: React.FC<ResumeStatusBarProps> = ({
             <Check className="h-3.5 w-3.5" /> Saved {lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
         ) : (
-          <span className="flex items-center gap-1 text-emerald-500 font-medium">
-            <Check className="h-3.5 w-3.5" /> All changes saved
+          <span className="flex items-center gap-1 text-muted-foreground/70 font-medium">
+            <AlertTriangle className="h-3.5 w-3.5 text-amber-400" /> Not yet saved
           </span>
         )}
+
       </div>
 
       {/* Center / Right: Metrics & Quality Trigger */}

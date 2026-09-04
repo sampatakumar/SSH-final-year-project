@@ -1,13 +1,47 @@
-import type { ResumeData, ResumeBuilderConfig, TemplateId } from "../templates/types";
+import type { ResumeData, ResumeBuilderConfig, TemplateId, Project } from "../templates/types";
 import { createDefaultBuilderConfig, DEFAULT_SECTION_ORDER } from "../templates/TemplateRegistry";
 import {
   adaptMasterProfileToResume,
   mergeProfileWithSavedResume,
+  normalizeProjectKey,
   type MasterProfileData,
   type UserProjectItem,
 } from "./resume-profile-adapter";
 
-export { adaptMasterProfileToResume, mergeProfileWithSavedResume };
+export { adaptMasterProfileToResume, mergeProfileWithSavedResume, normalizeProjectKey };
+
+export const dedupeProjectsList = (list: any[] = []): Project[] => {
+  const seen = new Map<string, Project>();
+  for (const p of list) {
+    if (!p) continue;
+    const rawName = String(p.name || p.title || "").trim();
+    const normKey = normalizeProjectKey(rawName);
+    if (!rawName || !normKey) continue;
+
+    if (!seen.has(normKey)) {
+      seen.set(normKey, {
+        name: rawName,
+        technologies: Array.isArray(p.technologies) ? p.technologies.join(", ") : String(p.technologies || p.stack || ""),
+        githubUrl: String(p.githubUrl || "").trim(),
+        demoUrl: String(p.demoUrl || "").trim(),
+        bullets: Array.isArray(p.bullets) ? p.bullets : (p.description ? [p.description] : []),
+      });
+    } else {
+      const existing = seen.get(normKey)!;
+      const incomingTech = Array.isArray(p.technologies) ? p.technologies.join(", ") : String(p.technologies || p.stack || "");
+      if (incomingTech && incomingTech.length > (existing.technologies?.length || 0)) {
+        existing.technologies = incomingTech;
+      }
+      if (!existing.githubUrl && p.githubUrl) existing.githubUrl = String(p.githubUrl).trim();
+      if (!existing.demoUrl && p.demoUrl) existing.demoUrl = String(p.demoUrl).trim();
+      const incomingBullets = Array.isArray(p.bullets) ? p.bullets : (p.description ? [p.description] : []);
+      if (incomingBullets.length > (existing.bullets?.length || 0)) {
+        existing.bullets = incomingBullets;
+      }
+    }
+  }
+  return Array.from(seen.values());
+};
 
 export const normalizeResumeData = (
   raw?: any,
@@ -71,7 +105,7 @@ export const normalizeResumeData = (
     professionalSummary: typeof raw.professionalSummary === "string" ? raw.professionalSummary : undefined,
     education: Array.isArray(raw.education) ? raw.education : [],
     experience: Array.isArray(raw.experience) ? raw.experience : [],
-    projects: Array.isArray(raw.projects) ? raw.projects : [],
+    projects: Array.isArray(raw.projects) ? dedupeProjectsList(raw.projects) : [],
     achievements: Array.isArray(raw.achievements) ? raw.achievements : [],
     skills: raw.skills || { languages: [], frameworks: [], tools: [], libraries: [] },
     skillSections: Array.isArray(raw.skillSections) ? raw.skillSections : [],
@@ -85,4 +119,3 @@ export const normalizeResumeData = (
 
   return normalized;
 };
-

@@ -25,6 +25,8 @@ import { ResumeExtractionReviewDialog } from "@/components/resume/ResumeExtracti
 import { type ResumeUploadExtractionResponse } from "./services/resume.api";
 import type { Achievement, Education, Experience, Project, ResumeData } from "@/components/resume/ResumeTypes";
 import { getRenderableSkillLines } from "@/components/resume/skillFormat";
+import { generateResumePdfBlob as generateUnifiedPdfBlob } from "./services/pdf-export.service";
+import { createDefaultBuilderConfig } from "./templates/TemplateRegistry";
 import jsPDF from "jspdf";
 
 // ==========================================
@@ -315,182 +317,10 @@ const Resumes = () => {
     return { layout: optimized.layout, headerScale: optimized.fontScaling, lineHeight: optimized.lineHeight, sectionGap: optimized.sectionGap, maxProjectBullets: optimized.maxProjectBullets, skillFormat: optimized.skillFormat };
   };
 
-  const generateResumePdfBlobFallback = async (data: ResumeData, config: PreviewLayoutConfig) => {
-    resumeDebug("generateResumePdfBlob:start", {
-      name: data.name,
-      config,
-      educationCount: data.education?.length ?? 0,
-      experienceCount: data.experience?.length ?? 0,
-      projectCount: data.projects?.length ?? 0,
-      achievementCount: data.achievements?.length ?? 0,
-      skillLineCount: getRenderableSkillLines(data).length
-    });
-
-    const layout = config.layout || "COMPACT"; const headerScale = config.headerScale ?? 1; const sectionGap = config.sectionGap ?? 15; const lineHeightFactor = config.lineHeight ?? 1.15; const maxProjectBullets = config.maxProjectBullets ?? 3;
-    const doc = new jsPDF({ unit: "pt", format: "letter" }); await ensurePdfSerifFont(doc);
-    let y = 36; const left = 36; const contentWidth = 540; const centerX = doc.internal.pageSize.getWidth() / 2; const lineBase = Math.round(13 * lineHeightFactor);
-
-    const writeLine = (text: string, x = left, lh = lineBase) => { y = ensurePdfY(doc, y); doc.text(text, x, y); y += lh; };
-    const writeWrapped = (text: string, x = left, w = contentWidth, lh = lineBase) => { doc.splitTextToSize(text, w).forEach((line: string) => writeLine(line, x, lh)); };
-    const writeLeftRight = (leftText: string, rightText?: string, lh = lineBase) => {
-      const right = (rightText ?? "").trim(); const rightWidth = right ? doc.getTextWidth(right) : 0; const leftWidth = right ? Math.max(140, contentWidth - rightWidth - 12) : contentWidth;
-      const leftLines = doc.splitTextToSize(leftText || "", leftWidth);
-      if (!leftLines.length && right) { y = ensurePdfY(doc, y); doc.text(right, left + contentWidth, y, { align: "right" }); y += lh; return; }
-      leftLines.forEach((line: string, i: number) => { y = ensurePdfY(doc, y); doc.text(line, left, y); if (i === 0 && right) doc.text(right, left + contentWidth, y, { align: "right" }); y += lh; });
-    };
-    const writeSectionTitle = (title: string) => { y += Math.round(sectionGap * 0.55); y = ensurePdfY(doc, y); doc.setFont(pdfSerifFontFamily, "bold"); doc.setFontSize(12 * headerScale); doc.text(title.toUpperCase(), left, y); y += 7; y = ensurePdfY(doc, y); doc.setLineWidth(0.8); doc.line(left, y, left + contentWidth, y); y += 11; doc.setFont(pdfSerifFontFamily, "normal"); doc.setFontSize(10.5); };
-    
-    // Writers
-    const writeProfessionalSummarySection = () => { if (!data.professionalSummary?.trim()) return; writeSectionTitle("Professional Summary"); doc.setFont(pdfSerifFontFamily, "normal"); doc.setFontSize(10); writeWrapped(data.professionalSummary, left, contentWidth, lineBase); };
-    doc.setFont(pdfSerifFontFamily, "bold"); doc.setFontSize(22 * headerScale); y = ensurePdfY(doc, y); doc.text(data.name || "Candidate", centerX, y, { align: "center" }); y += 24;
-    doc.setFont(pdfSerifFontFamily, "normal"); doc.setFontSize(10);
-    const contactItems: Array<{ label: string; url?: string }> = [
-      data.phone ? { label: data.phone } : null,
-      data.email ? { label: data.email, url: `mailto:${data.email}` } : null,
-      data.linkedin ? { label: "LinkedIn", url: data.linkedin } : null,
-      data.github ? { label: "GitHub", url: data.github } : null
-    ].filter(Boolean) as Array<{ label: string; url?: string }>;
-    if (contactItems.length) {
-      const separator = " | ";
-      const separatorWidth = doc.getTextWidth(separator);
-      const itemWidths = contactItems.map((item) => doc.getTextWidth(item.label));
-      const totalWidth = itemWidths.reduce((sum, width) => sum + width, 0) + (contactItems.length - 1) * separatorWidth;
-      let cursorX = centerX - totalWidth / 2;
-
-      y = ensurePdfY(doc, y);
-      contactItems.forEach((item, index) => {
-        if (item.url) {
-          const jsPdfDoc = doc as jsPDF & {
-            textWithLink: (text: string, x: number, y: number, options: { url: string }) => number;
-          };
-          jsPdfDoc.textWithLink(item.label, cursorX, y, { url: item.url });
-        } else {
-          doc.text(item.label, cursorX, y);
-        }
-        cursorX += itemWidths[index];
-        if (index < contactItems.length - 1) {
-          doc.text(separator, cursorX, y);
-          cursorX += separatorWidth;
-        }
-      });
-      y += lineBase + 2;
-    }
-    
-    const writeEducationSection = () => { if (!data.education?.length) return; writeSectionTitle("Education"); data.education.forEach((item) => { doc.setFont(pdfSerifFontFamily, "bold"); writeLeftRight(item.school || "", item.location || "", lineBase); doc.setFont(pdfSerifFontFamily, "italic"); writeLeftRight([item.degree, item.grade].filter(Boolean).join(" - "), item.date || "", lineBase); doc.setFont(pdfSerifFontFamily, "normal"); y += 3; }); };
-    const writeExperienceSection = () => { if (!data.experience?.length) return; writeSectionTitle("Experience"); data.experience.forEach((item) => { doc.setFont(pdfSerifFontFamily, "bold"); doc.setFontSize(10.8 * headerScale); writeLeftRight(item.role || "", item.date || "", lineBase); doc.setFont(pdfSerifFontFamily, "italic"); doc.setFontSize(10.2 * headerScale); writeLeftRight(item.company || "", item.location || "", lineBase); doc.setFont(pdfSerifFontFamily, "normal"); doc.setFontSize(10 * headerScale); item.bullets.forEach((b) => writeWrapped(`- ${b}`, left + 14, contentWidth - 14, lineBase)); y += 2; }); };
-    const writeProjectsSection = () => {
-      if (!data.projects?.length) return;
-      writeSectionTitle("Projects");
-
-      data.projects.forEach((item) => {
-        const links = [
-          item.demoUrl ? { label: "Live", url: item.demoUrl } : null,
-          item.githubUrl ? { label: "GitHub", url: item.githubUrl } : null
-        ].filter(Boolean) as Array<{ label: string; url: string }>;
-
-        doc.setFont(pdfSerifFontFamily, "italic");
-        doc.setFontSize(10.2 * headerScale);
-        const separator = " | ";
-        const separatorWidth = doc.getTextWidth(separator);
-        const tokenWidths = links.map((entry) => doc.getTextWidth(entry.label));
-        const linksTotalWidth =
-          tokenWidths.reduce((sum, width) => sum + width, 0) +
-          Math.max(0, links.length - 1) * separatorWidth;
-        const reservedRightWidth = links.length ? linksTotalWidth + 12 : 0;
-
-        doc.setFont(pdfSerifFontFamily, "bold");
-        doc.setFontSize(10.8 * headerScale);
-        y = ensurePdfY(doc, y);
-
-        const nameText = item.name || "";
-        const nameMaxWidth = Math.max(170, contentWidth - reservedRightWidth);
-        const nameLines = doc.splitTextToSize(nameText, nameMaxWidth);
-
-        if (!nameLines.length && links.length) {
-          let cursorX = left + contentWidth - linksTotalWidth;
-          doc.setFont(pdfSerifFontFamily, "italic");
-          doc.setFontSize(10.2 * headerScale);
-          links.forEach((entry, index) => {
-            const jsPdfDoc = doc as jsPDF & {
-              textWithLink: (text: string, x: number, y: number, options: { url: string }) => number;
-            };
-            jsPdfDoc.textWithLink(entry.label, cursorX, y, { url: entry.url });
-            cursorX += tokenWidths[index];
-            if (index < links.length - 1) {
-              doc.text(separator, cursorX, y);
-              cursorX += separatorWidth;
-            }
-          });
-          y += lineBase;
-        } else {
-          nameLines.forEach((line: string, lineIndex: number) => {
-            y = ensurePdfY(doc, y);
-            doc.setFont(pdfSerifFontFamily, "bold");
-            doc.setFontSize(10.8 * headerScale);
-            doc.text(line, left, y);
-
-            if (lineIndex === 0 && links.length) {
-              let cursorX = left + contentWidth - linksTotalWidth;
-              doc.setFont(pdfSerifFontFamily, "italic");
-              doc.setFontSize(10.2 * headerScale);
-              links.forEach((entry, index) => {
-                const jsPdfDoc = doc as jsPDF & {
-                  textWithLink: (text: string, x: number, y: number, options: { url: string }) => number;
-                };
-                jsPdfDoc.textWithLink(entry.label, cursorX, y, { url: entry.url });
-                cursorX += tokenWidths[index];
-                if (index < links.length - 1) {
-                  doc.text(separator, cursorX, y);
-                  cursorX += separatorWidth;
-                }
-              });
-            }
-
-            y += lineBase;
-          });
-        }
-
-        if (item.technologies) {
-          doc.setFont(pdfSerifFontFamily, "italic");
-          doc.setFontSize(10.2 * headerScale);
-          writeWrapped(item.technologies, left, contentWidth, lineBase);
-        }
-
-        if (links.length) {
-          // keep style reset consistent after link drawing
-          doc.setFont(pdfSerifFontFamily, "italic");
-          doc.setFontSize(10.2 * headerScale);
-        }
-
-        doc.setFont(pdfSerifFontFamily, "normal");
-        doc.setFontSize(10 * headerScale);
-        item.bullets.slice(0, maxProjectBullets).forEach((b) => writeWrapped(`- ${b}`, left + 14, contentWidth - 14, lineBase));
-        y += 2;
-      });
-    };
-    const writeAchievementsSection = () => { if (!data.achievements?.length) return; writeSectionTitle("Achievements"); data.achievements.forEach((item) => { doc.setFont(pdfSerifFontFamily, "bold"); doc.setFontSize(10.8 * headerScale); writeLeftRight(item.title || "", item.date || "", lineBase); doc.setFont(pdfSerifFontFamily, "normal"); doc.setFontSize(10 * headerScale); item.bullets.forEach((b) => writeWrapped(`- ${b}`, left + 14, contentWidth - 14, lineBase)); y += 2; }); };
-    const writeSkillsSection = () => { const skillLines = getRenderableSkillLines(data); if (!skillLines.length) return; writeSectionTitle("Skills"); doc.setFont(pdfSerifFontFamily, "normal"); doc.setFontSize(10 * headerScale); skillLines.forEach((line) => { writeWrapped(line.label ? `${line.label}: ${line.value}` : line.value, left, contentWidth, lineBase); }); doc.setFont(pdfSerifFontFamily, "normal"); };
-
-    const exhaustiveWithoutExperience = layout !== "COMPACT" && !(data.experience && data.experience.length > 0);
-    const writers = exhaustiveWithoutExperience ? [writeProfessionalSummarySection, writeEducationSection, writeSkillsSection, writeProjectsSection, writeAchievementsSection, writeExperienceSection] : [writeProfessionalSummarySection, writeEducationSection, writeExperienceSection, writeProjectsSection, writeAchievementsSection, writeSkillsSection];
-    writers.forEach((w) => w());
-
-    const totalPages = doc.getNumberOfPages();
-    if (totalPages > 1) { for (let page = totalPages; page >= 2; page -= 1) doc.deletePage(page); }
-    const pdfArrayBuffer = doc.output("arraybuffer");
-    const blob = new Blob([pdfArrayBuffer], { type: "application/pdf" });
-
-    resumeDebug("generateResumePdfBlob:done", {
-      totalPagesBeforeTrim: totalPages,
-      finalPageCount: doc.getNumberOfPages(),
-      blobSize: blob.size,
-      blobType: blob.type
-    });
-
-    return blob;
+  const generateResumePdfBlob = async (data: ResumeData, _config?: PreviewLayoutConfig) => {
+    const builderConfig = (data as any).config || createDefaultBuilderConfig("ats-classic");
+    return generateUnifiedPdfBlob(data as any, builderConfig);
   };
-
-  const generateResumePdfBlob = async (data: ResumeData, config: PreviewLayoutConfig) => generateResumePdfBlobFallback(data, config);
   const countWrappedLines = async (text: string) => { const doc = new jsPDF({ unit: "pt", format: "letter" }); await ensurePdfSerifFont(doc); doc.setFont(pdfSerifFontFamily, "normal"); doc.setFontSize(PROJECT_BULLET_FONT_SIZE); return doc.splitTextToSize(text, PROJECT_BULLET_WRAP_WIDTH).length; };
   const getProjectExtensionBudget = async (projectIndex: number, bulletIndex: number, projectRowsOverride: ProjectRow[] = projectRows) => {
     const snapshot = buildResumeDataSnapshot(projectRowsOverride);

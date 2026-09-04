@@ -31,6 +31,7 @@ vi.mock("../src/modules/resume/models/resume.models.js", () => ({
 
 vi.mock("../src/modules/resume/models/project.models.js", () => ({
   Project: {
+    find: vi.fn().mockResolvedValue([]),
     findOne: vi.fn().mockResolvedValue(null),
     create: vi.fn().mockImplementation((payload) => Promise.resolve({ _id: "proj_123", ...payload }))
   }

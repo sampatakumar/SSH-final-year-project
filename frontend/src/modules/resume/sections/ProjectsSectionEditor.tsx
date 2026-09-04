@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { apiRequest } from "@/lib/api";
 import type { Project } from "../templates/types";
 import type { UserProjectItem } from "../services/resume-profile-adapter";
+import { normalizeProjectKey } from "../services/resume-profile-adapter";
 
 export interface ProjectsSectionEditorProps {
   projects: Project[];
@@ -54,9 +55,10 @@ export const ProjectsSectionEditor: React.FC<ProjectsSectionEditorProps> = ({
 
   // Add from GitHub Suggestion
   const handleAddFromGitHub = (ghProj: UserProjectItem) => {
-    // Check if already in projects
+    // Check if already in projects using normalized project key
+    const ghKey = normalizeProjectKey(ghProj.title);
     const alreadyExists = projects.some(
-      (p) => p.name.toLowerCase() === ghProj.title.toLowerCase()
+      (p) => normalizeProjectKey(p.name) === ghKey
     );
     if (alreadyExists) {
       toast.info(`"${ghProj.title}" is already in your projects list.`);

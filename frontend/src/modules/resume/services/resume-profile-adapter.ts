@@ -57,6 +57,14 @@ export interface UserProjectItem {
   demoUrl?: string;
 }
 
+export function normalizeProjectKey(title: string = ""): string {
+  return String(title || "")
+    .split(/[—–\-|:]/)[0]
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
 /**
  * Convert Master Profile & Projects into a canonical Normalized Resume Data object.
  * Does not invent data. Safe against null/undefined fields.
@@ -143,30 +151,41 @@ export function adaptMasterProfileToResume(
     : [];
 
   // 5. Projects Mapping (from User Projects collection with strict deduplication)
-  const seenProjectTitles = new Set<string>();
-  const projects: Project[] = [];
+  const seenProjectKeys = new Map<string, Project>();
 
   if (Array.isArray(userProjects)) {
     for (const proj of userProjects) {
-      const name = String(proj.title || "").trim();
-      const normKey = name.toLowerCase();
-      if (!name || seenProjectTitles.has(normKey)) continue;
+      const rawName = String(proj.title || "").trim();
+      const normKey = normalizeProjectKey(rawName);
+      if (!rawName || !normKey) continue;
 
-      seenProjectTitles.add(normKey);
       const technologies = Array.isArray(proj.stack) ? proj.stack.filter(Boolean).join(", ") : "";
       const bullets = proj.description
         ? [proj.description.trim()]
-        : ["Engineered application components with modular architecture and clean code practices."];
+        : []; // Never invent bullet text — empty bullets are valid
 
-      projects.push({
-        name,
+      const currentProj: Project = {
+        name: rawName,
         technologies,
         githubUrl: String(proj.githubUrl || "").trim(),
         demoUrl: String(proj.demoUrl || "").trim(),
         bullets,
-      });
+      };
+
+      if (!seenProjectKeys.has(normKey)) {
+        seenProjectKeys.set(normKey, currentProj);
+      } else {
+        const existing = seenProjectKeys.get(normKey)!;
+        if (!existing.technologies && technologies) existing.technologies = technologies;
+        if (!existing.githubUrl && currentProj.githubUrl) existing.githubUrl = currentProj.githubUrl;
+        if (!existing.demoUrl && currentProj.demoUrl) existing.demoUrl = currentProj.demoUrl;
+        if ((!existing.bullets || existing.bullets.length === 0 || !existing.bullets[0]) && bullets.length > 0) {
+          existing.bullets = bullets;
+        }
+      }
     }
   }
+  const projects: Project[] = Array.from(seenProjectKeys.values());
 
   // 6. Skills Mapping
   const dedupeStringList = (items: string[] = []) => {
@@ -292,18 +311,27 @@ export function mergeProfileWithSavedResume(
     return profileResume;
   }
 
-  // Deduplicate saved projects by normalized title
+  // Deduplicate saved projects by normalized title key and merge richest content
   const dedupeProjects = (list: Project[]): Project[] => {
-    const seen = new Set<string>();
-    const out: Project[] = [];
+    const seen = new Map<string, Project>();
     for (const p of list) {
-      const key = String(p.name || "").trim().toLowerCase();
-      if (key && !seen.has(key)) {
-        seen.add(key);
-        out.push(p);
+      const rawName = String(p.name || "").trim();
+      const normKey = normalizeProjectKey(rawName);
+      if (!rawName || !normKey) continue;
+
+      if (!seen.has(normKey)) {
+        seen.set(normKey, { ...p, name: rawName });
+      } else {
+        const existing = seen.get(normKey)!;
+        if (!existing.technologies && p.technologies) existing.technologies = p.technologies;
+        if (!existing.githubUrl && p.githubUrl) existing.githubUrl = p.githubUrl;
+        if (!existing.demoUrl && p.demoUrl) existing.demoUrl = p.demoUrl;
+        if ((!existing.bullets || existing.bullets.length === 0 || !existing.bullets[0]) && p.bullets?.length) {
+          existing.bullets = p.bullets;
+        }
       }
     }
-    return out;
+    return Array.from(seen.values());
   };
 
   const rawSavedProjects = Array.isArray(savedResume.projects) ? savedResume.projects : [];

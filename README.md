@@ -265,12 +265,23 @@ Interactive DSA and algorithmic practice module:
 
 ---
 
-## 16. Resume AI
+## 16. Resume AI 2.0 (Interactive Canvas & Multi-Template Architecture)
 
-Complete master profile and resume building toolset:
-- **Extraction**: Upload PDF, DOCX, TXT, or scanned images (OCR via `tesseract.js`).
-- **Tailoring**: Paste target job description to compute keyword match percentage and receive AI-optimized bullet suggestions.
-- **Preview & Export**: Real-time rendering of ATS-compatible A4 templates with client-side PDF export.
+Comprehensive master profile and professional resume engineering subsystem:
+- **Multi-Format Extraction**: Upload PDF, DOCX, TXT, or scanned images (OCR via `tesseract.js`) with automatic field normalization.
+- **Interactive A4 WYSIWYG Canvas**: Real-time 794px × 1123px paper canvas with live inline text editing, section drag-and-drop reordering, and item arrangement.
+- **5 Industry-Standard ATS Templates**:
+  - **ATS Classic**: Traditional monochrome single-column layout with serif typography and clean dividers.
+  - **Modern Developer**: Tech-focused layout featuring pill badges for skills, accent color headers, and GitHub/LinkedIn icons.
+  - **Minimal Clean**: Lightweight, airy design with generous whitespace and subtle divider lines.
+  - **Two Column Compact**: Structured 35%/65% split layout with a dark sidebar for contact, skills, and education.
+  - **Compact One-Page**: Ultra-dense typography and tight vertical spacing with 1-page auto-optimization.
+- **High-Fidelity Vector PDF & Native Print Engine**:
+  - Direct browser print integration via isolated print iframes with `@media print` A4 pagination.
+  - Generates 100% vector selectable, copyable, and searchable text (`Ctrl+F`).
+  - True PDF hyperlink annotations for Email (`mailto:`), Phone (`tel:`), LinkedIn, GitHub, Portfolio, Live Demos, and Repository Code.
+- **AI Job Tailoring**: Compute keyword match percentages against target job descriptions and receive AI-optimized experience bullet points with one-click adoption.
+- **Real-Time Scoring & Density Metrics**: Live ATS readiness analysis (0–100%), document completeness tracking, and density analyzers.
 
 ---
 
@@ -510,7 +521,7 @@ npm test
 cd frontend
 npm test
 ```
-*Executes all 20 test suites (147 tests) including component rendering, route protection, and state management tests.*
+*Executes all 27 test suites (209 tests) including interactive canvas WYSIWYG, vector PDF consistency, 5 ATS visual templates, route protection, and state management tests.*
 
 ---
 

@@ -931,26 +931,70 @@ export const applyExtractedProfileToUser = asyncHandler(async (req, res) => {
 
   await user.save();
 
-  // If projects were extracted, seed user's projects in MongoDB
+  // If projects were extracted, seed user's projects in MongoDB with deduplication
   if (Array.isArray(data.projects) && data.projects.length > 0) {
-    for (const proj of data.projects) {
-      if (proj.title && proj.title.trim()) {
-        const stackArr = Array.isArray(proj.stack)
-          ? proj.stack
-          : (typeof proj.stack === "string" ? proj.stack.split(/[,/|]/).map((s) => s.trim()).filter(Boolean) : []);
+    const normalizeProjectKey = (title = "") => {
+      return String(title || "")
+        .split(/[—–\-|:]/)[0]
+        .replace(/[^a-zA-Z0-9]/g, "")
+        .toLowerCase()
+        .trim();
+    };
 
-        const existingProj = await Project.findOne({ owner: user._id, title: proj.title.trim() });
-        if (!existingProj) {
-          await Project.create({
-            owner: user._id,
-            title: proj.title.trim(),
-            description: proj.description || "",
-            stack: stackArr,
-            date: proj.date || "",
-            githubUrl: proj.githubUrl || "",
-            demoUrl: proj.demoUrl || ""
-          });
+    const existingProjects = typeof Project?.find === "function"
+      ? await Project.find({ owner: user._id })
+      : [];
+    const processedKeys = new Set(existingProjects.map((p) => normalizeProjectKey(p.title)).filter(Boolean));
+
+    for (const proj of data.projects) {
+      const rawTitle = String(proj.title || "").trim();
+      const normKey = normalizeProjectKey(rawTitle);
+      if (!rawTitle || !normKey) continue;
+
+      const stackArr = Array.isArray(proj.stack)
+        ? proj.stack.map((s) => String(s).trim()).filter(Boolean)
+        : (typeof proj.stack === "string" ? proj.stack.split(/[,/|]/).map((s) => s.trim()).filter(Boolean) : []);
+
+      const existingMatch = existingProjects.find((ep) => normalizeProjectKey(ep.title) === normKey);
+
+      if (existingMatch) {
+        // Enrich existing project if incoming data has more details
+        let modified = false;
+        if (!existingMatch.description && proj.description) {
+          existingMatch.description = proj.description;
+          modified = true;
         }
+        if ((!existingMatch.stack || existingMatch.stack.length === 0) && stackArr.length > 0) {
+          existingMatch.stack = stackArr;
+          modified = true;
+        }
+        if (!existingMatch.githubUrl && proj.githubUrl) {
+          existingMatch.githubUrl = proj.githubUrl;
+          modified = true;
+        }
+        if (!existingMatch.demoUrl && proj.demoUrl) {
+          existingMatch.demoUrl = proj.demoUrl;
+          modified = true;
+        }
+        if (!existingMatch.date && proj.date) {
+          existingMatch.date = proj.date;
+          modified = true;
+        }
+        if (modified) {
+          await existingMatch.save();
+        }
+      } else if (!processedKeys.has(normKey)) {
+        processedKeys.add(normKey);
+        const created = await Project.create({
+          owner: user._id,
+          title: rawTitle,
+          description: proj.description || "",
+          stack: stackArr,
+          date: proj.date || "",
+          githubUrl: proj.githubUrl || "",
+          demoUrl: proj.demoUrl || ""
+        });
+        existingProjects.push(created);
       }
     }
   }

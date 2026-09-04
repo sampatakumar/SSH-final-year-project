@@ -383,3 +383,84 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* ==========================================================================
+   RESUME AI DEDICATED A4 PRINT STYLES
+   ========================================================================== */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  body, html {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide app chrome, navigation, sidebars, buttons, toolbars ONLY (not resume content) */
+  body > header,
+  #root > header,
+  .app-header,
+  .editor-header,
+  .app-sidebar,
+  nav:not(#resume-a4-page-1 *):not(#print-root *),
+  aside:not(#resume-a4-page-1 *):not(#print-root *),
+  footer:not(#resume-a4-page-1 *):not(#print-root *),
+  button,
+  .no-print,
+  [data-no-print="true"],
+  [role="dialog"],
+  [role="tooltip"] {
+    display: none !important;
+  }
+
+  /* Reset workspace containers to let A4 canvas flow naturally */
+  .custom-scrollbar,
+  div[class*="overflow-"] {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  /* A4 Resume Canvas Exact Print Target */
+  #resume-a4-page-1,
+  [id^="resume-a4-page-"],
+  #print-root {
+    position: static !important;
+    transform: none !important;
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 auto !important;
+    width: 210mm !important;
+    min-height: 297mm !important;
+    background: #ffffff !important;
+    box-sizing: border-box !important;
+    page-break-after: always;
+  }
+
+  /* Ensure resume header and all resume sections in all 5 templates are ALWAYS visible in print */
+  #resume-a4-page-1 header,
+  [id^="resume-a4-page-"] header,
+  #print-root header,
+  #resume-a4-page-1 aside,
+  #print-root aside,
+  header#canvas-section-personal,
+  #canvas-section-personal,
+  [id^="canvas-section-"] {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  #resume-a4-page-1 header,
+  #print-root header {
+    display: block !important;
+  }
+}
+
+

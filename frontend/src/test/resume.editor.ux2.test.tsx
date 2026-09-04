@@ -347,7 +347,40 @@ describe("Resume Editor UX 2.0 Master Component Suite", () => {
       expect(screen.getAllByRole("button", { name: /AI Health/i })[0]).toBeInTheDocument();
       expect(screen.getAllByRole("button", { name: /Tailor/i })[0]).toBeInTheDocument();
       expect(screen.getByText(/ATS Readiness:/i)).toBeInTheDocument();
+
+      // Verify A4 page element is mounted with exact top-left containing block alignment (no left overhang)
+      const a4Page = document.getElementById("resume-a4-page-1");
+      expect(a4Page).toBeInTheDocument();
+      expect(a4Page?.style.position).toBe("absolute");
+      expect(a4Page?.style.left).toBe("0px");
+      expect(a4Page?.style.top).toBe("0px");
+      expect(a4Page?.style.transformOrigin).toBe("top left");
+    });
+
+    it("supports collapsing and expanding left and right panels", async () => {
+      render(
+        <ResumeEditor
+          initialResume={mockSampleResumeData}
+          onBack={vi.fn()}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getAllByText("ATS Classic")[0]).toBeInTheDocument();
+      });
+
+      // Collapse left panel
+      const collapseLeftBtn = screen.getByTitle(/Collapse Sections panel/i);
+      expect(collapseLeftBtn).toBeInTheDocument();
+      fireEvent.click(collapseLeftBtn);
+
+      // Expand left button should appear
+      const expandLeftBtn = screen.getByTitle(/Expand Sections panel/i);
+      expect(expandLeftBtn).toBeInTheDocument();
+      fireEvent.click(expandLeftBtn);
+      expect(screen.getByText("Contact & Header")).toBeInTheDocument();
     });
   });
 });
+
 

@@ -118,4 +118,16 @@ export interface ResumeTemplateProps {
   config: ResumeBuilderConfig;
   className?: string;
   isPdfMode?: boolean;
+  isInteractive?: boolean;
+  selectedSection?: string;
+  selectedItemId?: string;
+  onSelectSection?: (sectionId: string, itemId?: string) => void;
+  onDirectEdit?: (fieldPath: string, newValue: any) => void;
+  onSectionAction?: (
+    action: "moveUp" | "moveDown" | "duplicate" | "hide" | "delete" | "ai" | "edit" | "addItem",
+    sectionId: string,
+    itemId?: string
+  ) => void;
+  onReorderSections?: (sourceSectionId: string, targetSectionId: string) => void;
+  onReorderItems?: (sectionId: string, sourceIndex: number, targetIndex: number) => void;
 }

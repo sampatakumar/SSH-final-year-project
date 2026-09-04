@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Upload,
@@ -69,6 +69,17 @@ export const ResumeUploadDropzone: React.FC<ResumeUploadDropzoneProps> = ({
     return true;
   };
 
+  const isMountedRef = useRef(true);
+  const timersRef = useRef<NodeJS.Timeout[]>([]);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      timersRef.current.forEach((t) => clearTimeout(t));
+    };
+  }, []);
+
   const processUpload = async (file: File) => {
     setSelectedFile(file);
     setErrorMessage("");
@@ -77,29 +88,37 @@ export const ResumeUploadDropzone: React.FC<ResumeUploadDropzoneProps> = ({
     setProgress(25);
 
     try {
-      setTimeout(() => {
+      const t1 = setTimeout(() => {
+        if (!isMountedRef.current) return;
         setStatus("ANALYZING");
         setStatusMessage("Analyzing document structure...");
         setProgress(55);
       }, 600);
+      timersRef.current.push(t1);
 
-      setTimeout(() => {
+      const t2 = setTimeout(() => {
+        if (!isMountedRef.current) return;
         setStatus("EXTRACTING");
         setStatusMessage("Extracting structured profile with AI...");
         setProgress(85);
       }, 1300);
+      timersRef.current.push(t2);
 
       const result = await ResumeApi.uploadAndExtract(file);
 
+      if (!isMountedRef.current) return;
       setProgress(100);
       setStatus("READY");
       setStatusMessage("Resume analyzed successfully!");
       toast.success("Resume analyzed successfully! Review your extracted details.");
       
-      setTimeout(() => {
+      const t3 = setTimeout(() => {
+        if (!isMountedRef.current) return;
         onExtracted(result);
       }, 400);
+      timersRef.current.push(t3);
     } catch (err: any) {
+      if (!isMountedRef.current) return;
       console.error("Resume upload error:", err);
       setStatus("ERROR");
       const message =

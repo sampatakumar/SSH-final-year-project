@@ -122,7 +122,7 @@ describe("Resume Builder UX & Template Upgrade Suite", () => {
       render(<ResumeTemplateRenderer data={mockSampleResume} config={config} />);
 
       expect(screen.getByText("Morgan Freeman")).toBeInTheDocument();
-      expect(screen.getByText("About")).toBeInTheDocument();
+      expect(screen.getByText("Summary")).toBeInTheDocument();
     });
 
     it("renders Two Column template with sidebar and main content", () => {
@@ -131,7 +131,7 @@ describe("Resume Builder UX & Template Upgrade Suite", () => {
 
       expect(screen.getByText("Morgan Freeman")).toBeInTheDocument();
       expect(screen.getByText("Contact")).toBeInTheDocument();
-      expect(screen.getByText("Profile")).toBeInTheDocument();
+      expect(screen.getByText("Summary")).toBeInTheDocument();
     });
 
     it("renders Compact template with streamlined 1-page structure", () => {

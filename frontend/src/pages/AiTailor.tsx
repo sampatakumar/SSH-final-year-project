@@ -15,10 +15,10 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useAuth } from "@/core/auth";
 import { apiRequest } from "@/lib/api";
-import JakeResumePreview from "@/components/resume/JakeResumePreview";
-import { jsPDF } from "jspdf";
 import type { Achievement, Education, Experience, Project, ResumeData } from "@/components/resume/ResumeTypes";
 import { getRenderableSkillLines } from "@/components/resume/skillFormat";
+import { generateResumePdfBlob as generateUnifiedPdfBlob } from "@/modules/resume/services/pdf-export.service";
+import { createDefaultBuilderConfig } from "@/modules/resume/templates/TemplateRegistry";
 
 // ==========================================
 // TYPES & INTERFACES
@@ -137,54 +137,9 @@ const aiTailorDebug = (event: string, payload?: unknown) => {
 };
 
 // ==========================================
-// PDF GENERATION LOGIC
-// ==========================================
-const ensurePdfY = (doc: jsPDF, y: number) => {
-  if (y > doc.internal.pageSize.getHeight() - 20) { doc.addPage(); return 36; }
-  return y;
-};
-
-const pdfSerifFontFamily = "times";
-const ensurePdfSerifFont = async (doc: jsPDF) => {
-  // jsPDF natively supports 'times' across all clients so we don't need to bloat the download with TTFs
-};
-
 const generateResumePdfBlob = async (data: ResumeData) => {
-  const doc = new jsPDF({ unit: "pt", format: "letter" });
-  await ensurePdfSerifFont(doc);
-  let y = 36; const left = 36; const contentWidth = 540; const centerX = doc.internal.pageSize.getWidth() / 2;
-
-  const writeLine = (text: string, x = left, lh = 14) => { y = ensurePdfY(doc, y); doc.text(text, x, y); y += lh; };
-  const writeWrapped = (text: string, x = left, w = contentWidth, lh = 14) => doc.splitTextToSize(text, w).forEach((line: string) => writeLine(line, x, lh));
-  const writeLeftRight = (leftText: string, rightText?: string, lh = 14) => {
-    const right = (rightText ?? "").trim();
-    const rightWidth = right ? doc.getTextWidth(right) : 0;
-    const leftWidth = right ? Math.max(140, contentWidth - rightWidth - 12) : contentWidth;
-    const leftLines = doc.splitTextToSize(leftText || "", leftWidth);
-    if (!leftLines.length && right) { y = ensurePdfY(doc, y); doc.text(right, left + contentWidth, y, { align: "right" }); y += lh; return; }
-    leftLines.forEach((line: string, i: number) => { y = ensurePdfY(doc, y); doc.text(line, left, y); if (i === 0 && right) doc.text(right, left + contentWidth, y, { align: "right" }); y += lh; });
-  };
-  const writeSectionTitle = (title: string) => {
-    y += 10; y = ensurePdfY(doc, y); doc.setFont(pdfSerifFontFamily, "bold"); doc.setFontSize(11.5); doc.text(title.toUpperCase(), left, y);
-    y += 8; y = ensurePdfY(doc, y); doc.setLineWidth(0.8); doc.line(left, y, left + contentWidth, y);
-    y += 12; doc.setFont(pdfSerifFontFamily, "normal"); doc.setFontSize(10);
-  };
-
-  doc.setFont(pdfSerifFontFamily, "bold"); doc.setFontSize(22); y = ensurePdfY(doc, y); doc.text(data.name || "Candidate", centerX, y, { align: "center" }); y += 22;
-  doc.setFont(pdfSerifFontFamily, "normal"); doc.setFontSize(10);
-
-  const contactLine = [data.phone, data.email, data.linkedin, data.github].filter(Boolean).join(" | ");
-  if (contactLine) { doc.splitTextToSize(contactLine, contentWidth).forEach((line: string) => { y = ensurePdfY(doc, y); doc.text(line, centerX, y, { align: "center" }); y += 13; }); y += 2; }
-
-  if (data.education?.length) { writeSectionTitle("Education"); data.education.forEach((item) => { doc.setFont(pdfSerifFontFamily, "bold"); writeLeftRight(item.school || "", item.location || "", 13); doc.setFont(pdfSerifFontFamily, "italic"); writeLeftRight([item.degree, item.grade].filter(Boolean).join(" - "), item.date || "", 13); doc.setFont(pdfSerifFontFamily, "normal"); y += 2; }); }
-  if (data.experience?.length) { writeSectionTitle("Experience"); data.experience.forEach((item) => { doc.setFont(pdfSerifFontFamily, "bold"); doc.setFontSize(10.5); writeLeftRight(item.role || "", item.date || "", 13); doc.setFont(pdfSerifFontFamily, "italic"); doc.setFontSize(10); writeLeftRight(item.company || "", item.location || "", 12); doc.setFont(pdfSerifFontFamily, "normal"); doc.setFontSize(9.7); item.bullets.forEach((b) => writeWrapped(`- ${b}`, left + 14, contentWidth - 14, 12)); y += 1; }); }
-  if (data.projects?.length) { writeSectionTitle("Projects"); data.projects.forEach((item) => { doc.setFont(pdfSerifFontFamily, "bold"); doc.setFontSize(10.5); writeLeftRight(item.name || "", item.date || "", 13); if (item.technologies) { doc.setFont(pdfSerifFontFamily, "italic"); doc.setFontSize(10); writeWrapped(item.technologies, left, contentWidth, 11); } doc.setFont(pdfSerifFontFamily, "normal"); doc.setFontSize(9.7); item.bullets.forEach((b) => writeWrapped(`- ${b}`, left + 14, contentWidth - 14, 12)); y += 2; }); }
-  if (data.achievements?.length) { writeSectionTitle("Achievements"); data.achievements.forEach((item) => { doc.setFont(pdfSerifFontFamily, "bold"); doc.setFontSize(10.5); writeLeftRight(item.title || "", item.date || "", 13); doc.setFont(pdfSerifFontFamily, "normal"); doc.setFontSize(9.7); item.bullets.forEach((b) => writeWrapped(`- ${b}`, left + 14, contentWidth - 14, 12)); y += 1; }); }
-  
-  const skillLines = getRenderableSkillLines(data);
-  if (skillLines.length) { writeSectionTitle("Skills"); doc.setFont(pdfSerifFontFamily, "normal"); doc.setFontSize(9.7); skillLines.forEach((line) => { writeWrapped(line.label ? `${line.label}: ${line.value}` : line.value, left, contentWidth, 12); }); }
-
-  return new Blob([doc.output("arraybuffer")], { type: "application/pdf" });
+  const config = createDefaultBuilderConfig("ats-classic");
+  return generateUnifiedPdfBlob(data as any, config);
 };
 
 const buildBaseResumeData = (user: BackendUserShape | null): ResumeData => ({

@@ -7,9 +7,12 @@ import {
   Minimize2,
   Sparkles,
   Target,
-  Palette,
-  Sliders,
   Copy,
+  Undo2,
+  Redo2,
+  Check,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +31,11 @@ export interface ResumeEditorHeaderProps {
   onToggleFullScreen: () => void;
   activeRightTab?: string;
   onSelectRightTab?: (tab: string) => void;
+  canUndo?: boolean;
+  onUndo?: () => void;
+  canRedo?: boolean;
+  onRedo?: () => void;
+  autosaveStatus?: "saving" | "saved" | "error" | "idle";
 }
 
 export const ResumeEditorHeader: React.FC<ResumeEditorHeaderProps> = ({
@@ -44,13 +52,18 @@ export const ResumeEditorHeader: React.FC<ResumeEditorHeaderProps> = ({
   onToggleFullScreen,
   activeRightTab,
   onSelectRightTab,
+  canUndo = false,
+  onUndo,
+  canRedo = false,
+  onRedo,
+  autosaveStatus = "idle",
 }) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
 
   return (
     <header className="h-13 bg-card border-b border-border/50 px-4 flex items-center justify-between shrink-0 select-none z-20 gap-3">
-      {/* Left: Navigation & Inline Title */}
-      <div className="flex items-center gap-3 min-w-0">
+      {/* Left: Navigation, Inline Title, Template Tag & Autosave Indicator */}
+      <div className="flex items-center gap-2.5 min-w-0">
         <Button
           variant="ghost"
           size="icon"
@@ -77,7 +90,7 @@ export const ResumeEditorHeader: React.FC<ResumeEditorHeaderProps> = ({
             <button
               type="button"
               onClick={() => setIsEditingTitle(true)}
-              className="flex items-center gap-1.5 text-xs font-bold text-foreground hover:text-primary transition-colors truncate max-w-[180px] sm:max-w-[260px] group"
+              className="flex items-center gap-1.5 text-xs font-bold text-foreground hover:text-primary transition-colors truncate max-w-[160px] sm:max-w-[220px] group"
               title="Click to rename resume"
             >
               <span className="truncate">{resumeTitle || "Untitled Resume"}</span>
@@ -88,7 +101,48 @@ export const ResumeEditorHeader: React.FC<ResumeEditorHeaderProps> = ({
           <span className="hidden md:inline-flex text-[10px] font-semibold font-mono px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 shrink-0">
             {templateName}
           </span>
+
+          {/* Autosave Status Badge */}
+          <div className="hidden lg:flex items-center gap-1 text-[11px] text-muted-foreground font-medium pl-1 border-l border-border/50">
+            {autosaveStatus === "saving" && (
+              <span className="inline-flex items-center gap-1 text-amber-500">
+                <Loader2 className="h-3 w-3 animate-spin" /> Saving...
+              </span>
+            )}
+            {autosaveStatus === "saved" && (
+              <span className="inline-flex items-center gap-1 text-emerald-500">
+                <Check className="h-3 w-3" /> Saved
+              </span>
+            )}
+            {autosaveStatus === "error" && (
+              <span className="inline-flex items-center gap-1 text-rose-500">
+                <AlertCircle className="h-3 w-3" /> Save failed
+              </span>
+            )}
+          </div>
         </div>
+      </div>
+
+      {/* Center/Middle: Document History Undo / Redo */}
+      <div className="flex items-center bg-muted/40 rounded-lg p-0.5 border border-border/60">
+        <button
+          type="button"
+          onClick={onUndo}
+          disabled={!canUndo}
+          className="p-1.5 hover:bg-card hover:text-foreground rounded text-muted-foreground transition-colors disabled:opacity-30 disabled:pointer-events-none"
+          title="Undo (Ctrl+Z)"
+        >
+          <Undo2 className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={onRedo}
+          disabled={!canRedo}
+          className="p-1.5 hover:bg-card hover:text-foreground rounded text-muted-foreground transition-colors disabled:opacity-30 disabled:pointer-events-none"
+          title="Redo (Ctrl+Shift+Z / Ctrl+Y)"
+        >
+          <Redo2 className="h-3.5 w-3.5" />
+        </button>
       </div>
 
       {/* Right: Actions */}
