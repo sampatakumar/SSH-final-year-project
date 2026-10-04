@@ -29,7 +29,7 @@ const fileFilter = (_req, file, callback) => {
     ".webp",
   ]);
 
-  if (!allowedMimeTypes.has(file.mimetype) && !allowedExtensions.has(extension)) {
+  if (!allowedMimeTypes.has(file.mimetype) || !allowedExtensions.has(extension)) {
     callback(new Error("This file type isn't supported. Please upload a PDF, DOCX, TXT, or RTF resume."));
     return;
   }

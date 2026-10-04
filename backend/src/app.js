@@ -50,9 +50,9 @@ const isOriginAllowed = (origin) => {
     return true;
   }
 
-  // Automatically allow Vercel frontend deployments and local dev servers
+  // Allow explicit Vercel frontend deployments and local dev servers
   if (
-    /\.vercel\.app$/i.test(normalized) ||
+    /^https:\/\/[a-z0-9-]+-smart-skill-hub\.vercel\.app$/i.test(normalized) ||
     /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(normalized)
   ) {
     return true;
@@ -65,11 +65,11 @@ const defaultCspDirectives = helmet.contentSecurityPolicy.getDefaultDirectives()
 
 app.use(
   helmet({
-    // Allow the frontend app origin to embed PDF files served by this backend.
+    // Restrict embedding of PDFs/resources to frontend URL or self
     contentSecurityPolicy: {
       directives: {
         ...defaultCspDirectives,
-        "frame-ancestors": ["'self'", "*"]
+        "frame-ancestors": ["'self'", env.FRONTEND_URL || "http://localhost:8081"]
       }
     },
     xFrameOptions: false,

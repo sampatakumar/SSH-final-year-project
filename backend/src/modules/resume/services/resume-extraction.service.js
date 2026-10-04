@@ -335,9 +335,14 @@ export const extractResumeRawText = async (resume) => {
     return "";
   }
 
+  const baseUploadDir = path.resolve(process.cwd(), "uploads", "resumes");
   const absoluteFilePath = path.isAbsolute(filePath)
-    ? filePath
-    : path.join(process.cwd(), filePath.replace(/^\//, ""));
+    ? path.resolve(filePath)
+    : path.resolve(process.cwd(), filePath.replace(/^\//, ""));
+
+  if (!absoluteFilePath.startsWith(baseUploadDir)) {
+    return "";
+  }
   const extension = path.extname(absoluteFilePath).toLowerCase();
 
   if (extension === ".txt" || extension === ".tex") {

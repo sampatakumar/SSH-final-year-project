@@ -31,8 +31,12 @@ router.use(verifyFirebaseToken);
 router.get("/", listResumes);
 router.get("/:resumeId/file", getResumeFile);
 
-router.post("/upload", uploadLimiter, (req, res, next) => {
-	resumeUpload.single("resumeFile")(req, res, (error) => {
+const handleResumeUpload = (req, res, next) => {
+	resumeUpload.fields([
+		{ name: "resumeFile", maxCount: 1 },
+		{ name: "resume", maxCount: 1 },
+		{ name: "file", maxCount: 1 }
+	])(req, res, (error) => {
 		if (error) {
 			if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
 				const maxMb = process.env.MAX_RESUME_SIZE_MB || 10;
@@ -49,6 +53,18 @@ router.post("/upload", uploadLimiter, (req, res, next) => {
 			});
 		}
 
+		if (req.files) {
+			req.file = req.files["resumeFile"]?.[0] || req.files["resume"]?.[0] || req.files["file"]?.[0];
+		}
+
+		if (!req.file) {
+			return res.status(400).json({
+				success: false,
+				message: "No resume file received. Please provide a PDF, DOCX, or TXT file.",
+				statusCode: 400
+			});
+		}
+
 		res.on("finish", () => {
 			if (res.statusCode >= 200 && res.statusCode < 300) {
 				incrementDailyCounter("resumesUploaded", 1);
@@ -57,7 +73,9 @@ router.post("/upload", uploadLimiter, (req, res, next) => {
 
 		uploadAndExtractResume(req, res, next);
 	});
-});
+};
+
+router.post("/upload", uploadLimiter, handleResumeUpload);
 
 router.post("/:resumeId/extract", extractResumeById);
 router.post("/apply-profile", applyExtractedProfileToUser);

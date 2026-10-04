@@ -8,8 +8,10 @@ const ensureAdminMiddleware = (req, res, next) => {
   verifyFirebaseToken(req, res, (error) => {
     if (error) return next(error);
     
-    // Strict admin check
-    if (req.auth?.email !== "sampatakumarsv@gmail.com") {
+    const adminEmail = process.env.ADMIN_EMAIL || "sampatakumarsv@gmail.com";
+    const isRoleAdmin = req.user?.role === "admin" || req.auth?.email === adminEmail;
+
+    if (!isRoleAdmin) {
       return res.status(403).json({ success: false, error: "Access Denied: Admins Only" });
     }
     

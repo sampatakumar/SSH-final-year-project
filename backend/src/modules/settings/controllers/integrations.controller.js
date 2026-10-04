@@ -96,7 +96,8 @@ export const handleGitHubCallback = asyncHandler(async (req, res) => {
  * Manually trigger synchronization of GitHub repositories and signals
  */
 export const syncGitHub = asyncHandler(async (req, res) => {
-  const result = await settingsService.syncGitHubData(req.user._id);
+  const username = req.body?.username || req.query?.username;
+  const result = await settingsService.syncGitHubData(req.user._id, null, username);
   return res.status(200).json(
     new ApiResponse(200, result, "GitHub repositories and intelligence synchronized successfully")
   );

@@ -256,25 +256,40 @@ export class SettingsService {
   /**
    * Synchronize GitHub Profile, Repositories, and Intelligence Signals
    */
-  async syncGitHubData(ownerId, explicitToken = null) {
-    const settings = await UserSettings.findOne({ owner: ownerId });
-    if (!settings?.githubIntegration?.connected) {
-      throw new ApiError(400, "GitHub is not connected.");
-    }
-
-    const username = settings.githubIntegration.githubUsername;
+  async syncGitHubData(ownerId, explicitToken = null, providedUsername = null) {
+    let settings = await UserSettings.findOne({ owner: ownerId });
+    const username = providedUsername || settings?.githubIntegration?.githubUsername;
     if (!username) {
-      throw new ApiError(400, "GitHub username not found in settings.");
+      throw new ApiError(400, "GitHub username is required.");
     }
 
-    // Set status to syncing
-    await UserSettings.updateOne(
-      { owner: ownerId },
-      { $set: { "githubIntegration.syncStatus": "syncing", "githubIntegration.syncError": "" } }
-    );
+    // Auto-connect and update settings if provided username
+    if (!settings?.githubIntegration?.connected || settings.githubIntegration.githubUsername !== username) {
+      settings = await UserSettings.findOneAndUpdate(
+        { owner: ownerId },
+        {
+          $set: {
+            "githubIntegration.connected": true,
+            "githubIntegration.githubUsername": username,
+            "githubIntegration.syncStatus": "syncing",
+            "githubIntegration.syncError": "",
+          },
+        },
+        { upsert: true, new: true }
+      );
+      await User.findByIdAndUpdate(ownerId, {
+        $set: { githubUrl: `https://github.com/${username}` },
+      }).catch(() => null);
+    } else {
+      // Set status to syncing
+      await UserSettings.updateOne(
+        { owner: ownerId },
+        { $set: { "githubIntegration.syncStatus": "syncing", "githubIntegration.syncError": "" } }
+      );
+    }
 
     try {
-      const token = explicitToken || decryptToken(settings.githubIntegration.accessTokenEncrypted);
+      const token = explicitToken || decryptToken(settings?.githubIntegration?.accessTokenEncrypted);
       const profileData = await fetchGitHubProfileData(username);
 
       // Save into canonical GitHubAnalysis model

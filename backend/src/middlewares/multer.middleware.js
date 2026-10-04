@@ -16,7 +16,7 @@ const fileFilter = (_req, file, callback) => {
   ]);
   const allowedExtensions = new Set([".pdf", ".docx", ".doc", ".txt", ".tex", ".png", ".jpg", ".jpeg", ".webp"]);
 
-  if (!allowedMimeTypes.has(file.mimetype) && !allowedExtensions.has(extension)) {
+  if (!allowedMimeTypes.has(file.mimetype) || !allowedExtensions.has(extension)) {
     callback(new Error("Only PDF, DOCX, DOC, TXT, TEX, and image files are allowed"));
     return;
   }

@@ -51,7 +51,10 @@ const writeProjectFiles = async (workspaceDir, filesMap) => {
   const entries = Object.entries(filesMap || {});
 
   for (const [relativePath, content] of entries) {
-    const absolutePath = path.join(workspaceDir, relativePath);
+    const absolutePath = path.resolve(workspaceDir, relativePath);
+    if (!absolutePath.startsWith(workspaceDir)) {
+      throw new Error(`Invalid file path: Directory traversal detected (${relativePath})`);
+    }
     await mkdir(path.dirname(absolutePath), { recursive: true });
     await writeFile(absolutePath, String(content || ""), "utf8");
   }

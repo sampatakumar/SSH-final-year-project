@@ -24,6 +24,7 @@ const mentorLimiter = rateLimit({
 });
 
 router.get("/context", verifyFirebaseToken, getMentorContext);
+router.get("/insights", verifyFirebaseToken, getMentorContext);
 router.post("/refresh-context", verifyFirebaseToken, refreshMentorContext);
 router.post("/chat", verifyFirebaseToken, mentorLimiter, handleMentorChat);
 router.post("/chat/stream", verifyFirebaseToken, mentorLimiter, handleMentorChatStream);

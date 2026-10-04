@@ -225,20 +225,28 @@ export const saveResumeToLocalStorage = async ({ buffer, originalFileName, mimeT
 
 export const readResumeFromLocalStorage = async ({ localFilePath, storedFileName, ownerKey }) => {
   const candidatePaths = [];
+  const baseUploadDir = path.resolve(process.cwd(), "uploads", "resumes");
 
   if (localFilePath) {
-    candidatePaths.push(
-      path.isAbsolute(localFilePath)
-        ? localFilePath
-        : path.resolve(process.cwd(), localFilePath)
-    );
+    const resolvedPath = path.isAbsolute(localFilePath)
+      ? path.resolve(localFilePath)
+      : path.resolve(process.cwd(), localFilePath);
+    if (resolvedPath.startsWith(baseUploadDir)) {
+      candidatePaths.push(resolvedPath);
+    }
   }
 
   if (storedFileName && ownerKey) {
     const safeOwnerKey = normalizeStorageSegment(ownerKey);
-    candidatePaths.push(path.join(process.cwd(), "uploads", "resumes", safeOwnerKey, storedFileName));
+    const resolvedPath = path.resolve(baseUploadDir, safeOwnerKey, storedFileName);
+    if (resolvedPath.startsWith(baseUploadDir)) {
+      candidatePaths.push(resolvedPath);
+    }
   } else if (storedFileName) {
-    candidatePaths.push(path.join(process.cwd(), "uploads", "resumes", storedFileName));
+    const resolvedPath = path.resolve(baseUploadDir, storedFileName);
+    if (resolvedPath.startsWith(baseUploadDir)) {
+      candidatePaths.push(resolvedPath);
+    }
   }
 
   for (const candidate of candidatePaths) {

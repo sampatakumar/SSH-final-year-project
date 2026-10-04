@@ -11,12 +11,15 @@ const router = Router();
 
 // Publicly list supported benchmark roles
 router.get("/roles", getAvailableRoles);
+router.get("/target-roles", getAvailableRoles);
 
 // Authenticated gap analysis operations
 router.use(verifyFirebaseToken);
 
 router.get("/", getUserGaps);
+router.get("/analysis", getUserGaps);
 router.post("/analyze", analyzeGaps);
+router.post("/analysis", analyzeGaps);
 router.get("/role/:role", getRoleGaps);
 
 export default router;
