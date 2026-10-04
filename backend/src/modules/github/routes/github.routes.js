@@ -27,6 +27,7 @@ const githubLimiter = rateLimit({
 // Profile Analysis (public or with optional/required auth)
 router.get("/profile/:username", githubLimiter, analyzeProfile);
 router.post("/analyze", githubLimiter, analyzeProfile);
+router.post("/sync", githubLimiter, analyzeProfile);
 router.post("/ai/insights", githubLimiter, getAIInsights);
 router.get("/compare", githubLimiter, compareProfiles);
 router.get("/evidence/:username", githubLimiter, getSkillEvidence);
@@ -46,5 +47,6 @@ router.post("/mentor/readme", githubLimiter, generateProjectReadme);
 
 // Authenticated user-specific analysis
 router.get("/latest", verifyFirebaseToken, getLatestUserAnalysis);
+router.get("/analysis", verifyFirebaseToken, getLatestUserAnalysis);
 
 export default router;
