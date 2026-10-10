@@ -42,7 +42,8 @@ const envSchema = z.object({
   GITHUB_OAUTH_CALLBACK_URL: z.string().optional().default(""),
   FRONTEND_URL: z.string().optional().default("http://localhost:8081"),
   YOUTUBE_API_KEY: z.string().optional().default(""),
-  MAX_RESUME_SIZE_MB: z.coerce.number().default(10)
+  MAX_RESUME_SIZE_MB: z.coerce.number().default(10),
+  EDUTUBE_MIN_DURATION_SECONDS: z.coerce.number().default(120)
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -12,6 +12,7 @@ import {
   ThumbsUp,
   GraduationCap,
   Percent,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -45,15 +46,18 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
   const isSaved = savedStatus?.isSaved ?? false;
 
   const saveMutation = useMutation({
-    mutationFn: () =>
-      isSaved
-        ? EduTubeApi.unsaveVideo(video.videoId)
-        : EduTubeApi.saveVideo({
-            videoId: video.videoId,
-            title: video.title,
-            thumbnail: video.thumbnail?.high || video.thumbnail?.default || "",
-            channelTitle: video.channelTitle,
-          }),
+    mutationFn: async () => {
+      if (isSaved) {
+        await EduTubeApi.unsaveVideo(video.videoId);
+      } else {
+        await EduTubeApi.saveVideo({
+          videoId: video.videoId,
+          title: video.title,
+          thumbnail: video.thumbnail?.high || video.thumbnail?.default || "",
+          channelTitle: video.channelTitle,
+        });
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["edutube", "saved"] });
       queryClient.invalidateQueries({ queryKey: ["edutube", "saved", video.videoId] });
@@ -135,6 +139,16 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
               </Badge>
             )}
           </div>
+        </div>
+
+        {/* Duration / Quality Gate Indicator */}
+        <div className="absolute bottom-2 right-2 flex items-center gap-1">
+          {(video.verifiedDurationSeconds || video.duration?.formatted) && (
+            <span className="px-1.5 py-0.5 rounded bg-black/85 text-[10px] font-bold text-white flex items-center gap-1 backdrop-blur-sm">
+              <Clock className="h-2.5 w-2.5 text-primary" />
+              {video.duration?.formatted || `${Math.round((video.verifiedDurationSeconds || 120) / 60)}m`}
+            </span>
+          )}
         </div>
       </div>
 

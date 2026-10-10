@@ -363,3 +363,75 @@ export const saveTrackAsPlaylist = asyncHandler(async (req, res) => {
   );
 });
 
+// ==========================================
+// PHASE 3D: RECOMMENDATION MODEL TRAINING & EVALUATION
+// ==========================================
+
+export const logRecommendationImpression = asyncHandler(async (req, res) => {
+  const { impressions } = req.body;
+  const { recommendationTrainingPipelineService } = await import(
+    "../services/recommendation-engine/training-pipeline.service.js"
+  );
+
+  const formatted = Array.isArray(impressions)
+    ? impressions.map((imp) => ({ ...imp, owner: req.user._id }))
+    : [{ ...req.body, owner: req.user._id }];
+
+  const logged = await recommendationTrainingPipelineService.logImpressionBatch(formatted);
+  return res.status(201).json(
+    new ApiResponse(201, { count: logged.length }, "Impressions recorded successfully")
+  );
+});
+
+export const getModelEvaluation = asyncHandler(async (req, res) => {
+  const { RecommendationModelRegistry } = await import(
+    "../models/recommendationModelRegistry.models.js"
+  );
+  const { recommendationRankingService } = await import(
+    "../services/recommendation-engine/ranking-service.js"
+  );
+
+  const models = await RecommendationModelRegistry.find().sort({ createdAt: -1 }).lean();
+  const activeVersion = recommendationRankingService.activeModelVersion;
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        activeModelVersion: activeVersion,
+        isMlDeployed: recommendationRankingService.isMlDeployed,
+        models,
+      },
+      "Recommendation model evaluation registry"
+    )
+  );
+});
+
+export const runModelExperiment = asyncHandler(async (req, res) => {
+  const { version = `ranker_gbm_v${Date.now()}`, weights = {} } = req.body;
+  const { recommendationTrainingPipelineService } = await import(
+    "../services/recommendation-engine/training-pipeline.service.js"
+  );
+
+  const report = await recommendationTrainingPipelineService.runOfflineExperimentAndDeploy(
+    version,
+    weights
+  );
+
+  return res.status(200).json(
+    new ApiResponse(200, report, "Model training and evaluation experiment finished")
+  );
+});
+
+export const rollbackModel = asyncHandler(async (req, res) => {
+  const { recommendationTrainingPipelineService } = await import(
+    "../services/recommendation-engine/training-pipeline.service.js"
+  );
+
+  const result = await recommendationTrainingPipelineService.rollbackToBaseline();
+  return res.status(200).json(
+    new ApiResponse(200, result, "Successfully rolled back to deterministic baseline ranker")
+  );
+});
+
+

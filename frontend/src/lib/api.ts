@@ -420,4 +420,131 @@ export const SmartSkillApi = {
     (await apiRequest<{ user1: GitHubProfileAnalysis; user2: GitHubProfileAnalysis }>(
       `/github/compare?user1=${encodeURIComponent(user1)}&user2=${encodeURIComponent(user2)}`
     )).data,
+
+  // Dashboard Intelligence & Adaptive Skill Loop
+  getDashboardIntelligence: async () =>
+    (await apiRequest<DashboardIntelligenceData>("/dashboard/intelligence")).data,
+
+  getAdaptiveLoop: async () =>
+    (await apiRequest<any>("/skills/adaptive/loop")).data,
+
+  recordAdaptiveAssessment: async (payload: {
+    skill: string;
+    taskId?: string;
+    score: number;
+    maxScore?: number;
+    testCasesPassed?: number;
+    testCasesTotal?: number;
+    assessmentType?: string;
+  }) =>
+    (await apiRequest<any>("/skills/adaptive/assess", {
+      method: "POST",
+      body: payload,
+    })).data,
+
+  logRecommendationImpressions: async (impressions: any[]) =>
+    (await apiRequest<{ count: number }>("/edutube/recommendations/impression", {
+      method: "POST",
+      body: { impressions },
+    })).data,
 };
+
+export interface DashboardIntelligenceData {
+  overview: {
+    targetRole: string;
+    empiricalMastery: {
+      score: number | null;
+      isEmpirical: boolean;
+      testedSkillsCount: number;
+      calculation: string;
+    };
+    readinessEstimate: {
+      score: number;
+      isEstimate: boolean;
+      totalSkillsEvaluated: number;
+      calculation: string;
+    };
+    studyTimeThisWeek: {
+      hours: number;
+      minutes: number;
+      calculation: string;
+    };
+    consistencyStreakDays: number;
+    careerGoalProgress: {
+      targetRole: string;
+      progressPercent: number;
+      metSkillsCount: number;
+      totalRequiredSkillsCount: number;
+    };
+  };
+  learningConsistency: {
+    streakDays: number;
+    weeklyStudyHours: number;
+    dailyTrends: Array<{
+      day: string;
+      date: string;
+      videosCompleted: number;
+      codingSolved: number;
+    }>;
+  };
+  skillVisualization: {
+    total: number;
+    strongSkills: Array<{ name: string; score: number; level: string; sources?: string[] }>;
+    improvingSkills: Array<{ name: string; score: number; level: string; sources?: string[] }>;
+    weakSkills: Array<{ name: string; score: number; level: string; sources?: string[] }>;
+    prerequisiteGaps: Array<{
+      skill: string;
+      priority: string;
+      currentScore: number;
+      targetScore: number;
+      reason: string;
+      blocksTechnologies: string[];
+      isPrerequisiteBlocker: boolean;
+    }>;
+  };
+  recentAssessments: Array<{
+    skill: string;
+    score: number;
+    previousScore: number;
+    scoreDelta: number;
+    assessmentType: string;
+    taskId?: string;
+    testCasesPassed?: number;
+    testCasesTotal?: number;
+    date: string;
+  }>;
+  dailyLearningPlan: Array<{
+    id: string;
+    type: string;
+    title: string;
+    targetSkill: string;
+    estimatedMinutes: number;
+    completed: boolean;
+    actionUrl: string;
+    explanation: string;
+  }>;
+  nextRecommendedAction: {
+    title: string;
+    targetSkill: string;
+    estimatedMinutes: number;
+    actionUrl: string;
+    reasoning: string;
+  };
+  topEduTubeRecommendations: Array<{
+    videoId: string;
+    title: string;
+    channelTitle: string;
+    thumbnail: string;
+    verifiedDurationSeconds: number;
+    durationFormatted: string;
+    educationalScore: number;
+    whyRecommended: string[];
+    qualityGatePassed: boolean;
+  }>;
+  roadmapSummary: {
+    totalItems: number;
+    completedItems: number;
+  };
+  generatedAt: string;
+}
+

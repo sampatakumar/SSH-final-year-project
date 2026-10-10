@@ -16,6 +16,7 @@ export interface EduTubeVideoItem {
   title: string;
   description: string;
   thumbnail: EduTubeThumbnail;
+  thumbnailUrl?: string;
   channelId: string;
   channelTitle: string;
   publishedAt: string;
@@ -24,6 +25,12 @@ export interface EduTubeVideoItem {
   educationalScore?: number;
   educationalSignals?: string[];
   liveBroadcastContent?: string;
+  verifiedDurationSeconds?: number;
+  duration?: {
+    raw?: string;
+    seconds?: number;
+    formatted?: string;
+  };
 }
 
 export interface EduTubeVideoDetail {
@@ -176,6 +183,7 @@ export interface PersonalizedRecommendation extends EduTubeVideoItem {
   personalizationScore: number;
   whyRecommended: string[];
   topic?: string;
+  recommendationScore?: number;
 }
 
 export interface PersonalizedFeedData {

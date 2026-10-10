@@ -4,6 +4,8 @@ import {
   evaluateSkills,
   getSkillProfile,
   getSkillHistory,
+  getAdaptiveLoop,
+  recordAdaptiveAssessment,
 } from "../controllers/skills.controller.js";
 import { getUserGaps, getRoleGaps } from "../../gaps/controllers/gaps.controller.js";
 import { getRecommendations, getRecommendationRoadmap } from "../../recommendations/controllers/recommendations.controller.js";
@@ -23,6 +25,10 @@ router.use(verifyFirebaseToken);
 router.post("/evaluate", evaluationLimiter, evaluateSkills);
 router.get("/profile", getSkillProfile);
 router.get("/history", getSkillHistory);
+
+// Adaptive Skill Development Loop
+router.get("/adaptive/loop", getAdaptiveLoop);
+router.post("/adaptive/assess", recordAdaptiveAssessment);
 
 // Compatibility aliases for legacy/variant route patterns
 router.get("/gaps", getUserGaps);

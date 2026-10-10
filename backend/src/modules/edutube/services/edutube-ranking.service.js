@@ -46,7 +46,7 @@ const NON_EDUCATIONAL_PENALTIES = [
   { term: "shorts", weight: -20 },
 ];
 
-const PROVEN_EDUCATIONAL_CHANNELS = [
+export const PROVEN_EDUCATIONAL_CHANNELS = [
   "freecodecamp",
   "traversy media",
   "programming with mosh",

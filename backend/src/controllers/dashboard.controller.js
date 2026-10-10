@@ -7,6 +7,14 @@ import {
 } from "../services/deployToCloudflare.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { dashboardIntelligenceService } from "../services/dashboard-intelligence.service.js";
+
+export const getDashboardIntelligenceController = asyncHandler(async (req, res) => {
+  const result = await dashboardIntelligenceService.getDashboardIntelligence(req.user._id);
+  return res.status(200).json(
+    new ApiResponse(200, result, "Dashboard intelligence metrics retrieved successfully")
+  );
+});
 
 export const getDashboardSummary = asyncHandler(async (req, res) => {
   const user = req.user;

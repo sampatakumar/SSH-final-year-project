@@ -10,6 +10,9 @@ import {
 } from "../models/index.js";
 import { ApiError } from "../../../core/errors/ApiError.js";
 
+import { recommendationPipelineService } from "./recommendation-engine/recommendation-pipeline.service.js";
+import { recommendationTrainingPipelineService } from "./recommendation-engine/training-pipeline.service.js";
+
 // 15-minute recommendation cache
 const RECOMMENDATION_CACHE = new Map();
 const RECOMMENDATION_CACHE_TTL_MS = 15 * 60 * 1000;
@@ -48,10 +51,11 @@ export class EduTubeRecommendationService {
   invalidateCache(ownerId) {
     const key = `edutube:recommendations:${ownerId.toString()}`;
     RECOMMENDATION_CACHE.delete(key);
+    recommendationPipelineService.invalidateCache(ownerId);
   }
 
   /**
-   * Main Personalized Recommendation Pipeline (Phase 3C)
+   * Main Personalized Recommendation Pipeline (Upgraded Phase 3C Modular Engine)
    *
    * @param {string|mongoose.Types.ObjectId} ownerId - Authenticated user MongoDB ID
    * @param {object} options - Options including forceRefresh
@@ -65,188 +69,13 @@ export class EduTubeRecommendationService {
       }
     }
 
-    // 1. Gather grounded user context
-    const context = await edutubeLearningIntentService.gatherUserLearningContext(ownerId);
-
-    // 2. Generate structured learning intent (Groq or deterministic fallback)
-    const intent = await edutubeLearningIntentService.generateLearningIntent(context);
-
-    // Set of IDs to filter out (completed or dismissed)
-    const completedSet = new Set(context.completedVideoIds || []);
-    const notInterestedSet = new Set(context.notInterestedVideos || []);
-    const seenVideoIds = new Set();
-
-    // 3. Helper to query YouTube candidates and enrich with personalization scores
-    const fetchAndEnrichSection = async (queriesWithReason, maxPerSection = 6) => {
-      const candidateList = [];
-
-      for (const item of queriesWithReason) {
-        if (!item.query?.trim()) continue;
-
-        try {
-          const searchRes = await edutubeSearchService.searchVideos({
-            q: item.query.trim(),
-            maxResults: 6,
-          });
-
-          for (const video of searchRes.items || []) {
-            if (completedSet.has(video.videoId)) continue;
-            if (notInterestedSet.has(video.videoId)) continue;
-            if (seenVideoIds.has(video.videoId)) continue;
-
-            seenVideoIds.add(video.videoId);
-
-            // Compute personalization score
-            const baseEduScore = video.educationalScore ?? 80;
-            const boostMatch = context.boostedTopics.some((t) =>
-              video.title.toLowerCase().includes(t.toLowerCase())
-            )
-              ? 10
-              : 0;
-
-            const gapBonus = item.isGap ? 15 : 0;
-            const roadmapBonus = item.isRoadmap ? 10 : 0;
-            const projectBonus = item.isProject ? 12 : 0;
-
-            const personalizationScore = Math.min(
-              100,
-              Math.max(
-                40,
-                Math.round(baseEduScore * 0.5 + 30 + boostMatch + gapBonus + roadmapBonus + projectBonus)
-              )
-            );
-
-            // Compile grounded reasons
-            const whyRecommended = [item.reason];
-            if (context.targetRole && !item.isRoadmap) {
-              whyRecommended.push(`Aligned with your ${context.targetRole} career goals`);
-            }
-            if (boostMatch > 0) {
-              whyRecommended.push("Based on your positive learning preferences");
-            }
-
-            candidateList.push({
-              ...video,
-              personalizationScore,
-              whyRecommended,
-              topic: item.topic || item.query,
-            });
-
-            if (candidateList.length >= maxPerSection) break;
-          }
-        } catch (err) {
-          console.warn(`[edutube-rec] Candidate search failed for "${item.query}":`, err.message);
-        }
-
-        if (candidateList.length >= maxPerSection) break;
-      }
-
-      // Sort candidate list by personalizationScore descending
-      return candidateList.sort((a, b) => b.personalizationScore - a.personalizationScore);
-    };
-
-    // 4. Build Queries for each section
-
-    // Section A: For You (Top Intent Goals + Career)
-    const forYouQueries = [
-      ...intent.learningGoals.map((g) => ({
-        query: g.searchQuery,
-        topic: g.topic,
-        reason: g.reason,
-        isGap: true,
-      })),
-      ...intent.careerTrack.queries.map((q) => ({
-        query: q,
-        topic: intent.careerTrack.role,
-        reason: `Targeted milestone for ${intent.careerTrack.role}`,
-        isRoadmap: true,
-      })),
-    ];
-
-    // Section B: Close Your Skill Gaps
-    const skillGapQueries = context.skillGaps.map((gap) => ({
-      query: `${gap.skill} full course tutorial`,
-      topic: gap.skill,
-      reason: `Addresses your identified ${gap.skill} skill gap (${gap.priority} priority)`,
-      isGap: true,
-    }));
-
-    // Section C: Your Career Path
-    const careerQueries = intent.careerTrack.queries.map((q) => ({
-      query: q,
-      topic: intent.careerTrack.role,
-      reason: `Essential milestone for ${intent.careerTrack.role} path`,
-      isRoadmap: true,
-    }));
-
-    // Section D: Based On Your Learning (History)
-    const historyQueries = intent.historyNextSteps.map((h) => ({
-      query: h.searchQuery,
-      topic: h.topic,
-      reason: h.reason,
-    }));
-
-    // Section E: Learn Through Projects
-    const projectQueries = intent.projectIdeas.map((p) => ({
-      query: p.searchQuery,
-      topic: p.title,
-      reason: p.reason,
-      isProject: true,
-    }));
-
-    // Section F: Trending in Your Stack
-    const dominantTech = context.githubLanguages[0] || context.topSkills[0]?.skill || "JavaScript";
-    const trendingQueries = [
-      {
-        query: `${dominantTech} best practices 2026 course`,
-        topic: dominantTech,
-        reason: `Highly rated in ${dominantTech} engineering community`,
-      },
-    ];
-
-    // 5. Execute parallel section generation
-    const [
-      personalized,
-      skillGaps,
-      careerPath,
-      basedOnHistory,
-      projectLearning,
-      trending,
-    ] = await Promise.all([
-      fetchAndEnrichSection(forYouQueries, 6),
-      fetchAndEnrichSection(skillGapQueries, 6),
-      fetchAndEnrichSection(careerQueries, 6),
-      fetchAndEnrichSection(historyQueries, 6),
-      fetchAndEnrichSection(projectQueries, 6),
-      fetchAndEnrichSection(trendingQueries, 6),
-    ]);
-
-    const result = {
-      personalized,
-      skillGaps,
-      careerPath,
-      basedOnHistory,
-      projectLearning,
-      trending,
-      learningContext: {
-        targetRole: context.targetRole,
-        topSkills: context.topSkills.slice(0, 5),
-        skillGaps: context.skillGaps.slice(0, 5),
-        completedCount: context.completedVideoIds.length,
-        historyCount: context.recentHistory.length,
-      },
-      generatedAt: new Date().toISOString(),
-      cached: false,
-    };
-
-    // Cache the assembled recommendations
-    this.setCachedRecommendations(ownerId, result);
-
-    return result;
+    const feed = await recommendationPipelineService.executePipeline(ownerId, { forceRefresh });
+    this.setCachedRecommendations(ownerId, feed);
+    return feed;
   }
 
   /**
-   * Record user recommendation feedback and invalidate recommendation cache.
+   * Record user recommendation feedback, invalidate cache, and log training event.
    */
   async recordFeedback(ownerId, { videoId, action, topic = "" }) {
     if (!videoId?.trim()) {
@@ -262,6 +91,16 @@ export class EduTubeRecommendationService {
       action,
       topic: topic.trim(),
     });
+
+    // Also record training impression event
+    recommendationTrainingPipelineService
+      .logImpression({
+        owner: ownerId,
+        videoId: videoId.trim(),
+        action,
+        queryTopic: topic.trim(),
+      })
+      .catch(() => {});
 
     // Invalidate user recommendation cache
     this.invalidateCache(ownerId);

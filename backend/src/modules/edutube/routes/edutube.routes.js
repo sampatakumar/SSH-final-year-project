@@ -46,6 +46,10 @@ import {
   recordRecommendationFeedback,
   generateLearningTrack,
   saveTrackAsPlaylist,
+  logRecommendationImpression,
+  getModelEvaluation,
+  runModelExperiment,
+  rollbackModel,
 } from "../controllers/edutube.controller.js";
 
 const router = Router();
@@ -116,5 +120,13 @@ router.post("/recommendations/refresh", verifyFirebaseToken, refreshPersonalized
 router.post("/recommendations/feedback", verifyFirebaseToken, recordRecommendationFeedback);
 router.post("/tracks/generate", verifyFirebaseToken, generateLearningTrack);
 router.post("/tracks/save-as-playlist", verifyFirebaseToken, saveTrackAsPlaylist);
+
+// ==========================================
+// 4. PHASE 3D: RECOMMENDATION MODEL TRAINING & EVALUATION
+// ==========================================
+router.post("/recommendations/impression", verifyFirebaseToken, logRecommendationImpression);
+router.get("/models/evaluation", verifyFirebaseToken, getModelEvaluation);
+router.post("/models/experiment", verifyFirebaseToken, runModelExperiment);
+router.post("/models/rollback", verifyFirebaseToken, rollbackModel);
 
 export default router;

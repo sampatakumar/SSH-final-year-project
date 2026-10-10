@@ -4,3 +4,5 @@ export * from "./edutubeSavedVideo.models.js";
 export * from "./edutubePlaylist.models.js";
 export * from "./edutubeVideoNote.models.js";
 export * from "./edutubeRecommendationFeedback.models.js";
+export * from "./recommendationImpression.models.js";
+export * from "./recommendationModelRegistry.models.js";

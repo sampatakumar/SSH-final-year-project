@@ -254,6 +254,46 @@ export class YouTubeService {
 
     return normalized;
   }
+
+  /**
+   * Retrieve full video details for multiple videos in batch (up to 50 per request).
+   * Enforces authoritative YouTube video metadata (duration, embeddability, statistics).
+   */
+  async videosListBatch(videoIds = []) {
+    if (!Array.isArray(videoIds) || videoIds.length === 0) return [];
+    const cleanIds = Array.from(
+      new Set(videoIds.map((id) => String(id || "").trim()).filter(Boolean))
+    );
+    if (cleanIds.length === 0) return [];
+
+    const chunks = [];
+    for (let i = 0; i < cleanIds.length; i += 50) {
+      chunks.push(cleanIds.slice(i, i + 50));
+    }
+
+    const results = [];
+    for (const chunk of chunks) {
+      try {
+        const rawData = await this.#request("videos", {
+          part: "snippet,contentDetails,statistics,status",
+          id: chunk.join(","),
+        });
+
+        if (rawData?.items && Array.isArray(rawData.items)) {
+          for (const item of rawData.items) {
+            const normalized = normalizeVideoDetail(item);
+            if (normalized) {
+              results.push(normalized);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn(`[youtube-service] videosListBatch warning for chunk: ${err.message}`);
+      }
+    }
+
+    return results;
+  }
 }
 
 export const youtubeService = new YouTubeService();
