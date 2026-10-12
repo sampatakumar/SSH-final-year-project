@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { User, Sparkles, Cpu, Copy, Check, CheckCircle2 } from "lucide-react";
+import { User, Sparkles, Cpu, Copy, Check, CheckCircle2, Terminal } from "lucide-react";
 import { toast } from "sonner";
 import { MentorActionCard } from "./MentorActionCard";
 import type { MentorMessageItem } from "../types/smartMentor.types";
@@ -11,6 +11,7 @@ interface MentorMessageProps {
 export const MentorMessage: React.FC<MentorMessageProps> = ({ message }) => {
   const isUser = message.role === "user";
   const [copied, setCopied] = useState(false);
+  const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(message.content);
@@ -19,65 +20,185 @@ export const MentorMessage: React.FC<MentorMessageProps> = ({ message }) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Basic formatting renderer for structured markdown
+  const handleCopySnippet = (snippet: string, id: string) => {
+    navigator.clipboard.writeText(snippet);
+    setCopiedCodeId(id);
+    toast.success("Code snippet copied!");
+    setTimeout(() => setCopiedCodeId(null), 2000);
+  };
+
+  const formatInline = (str: string) => {
+    return str
+      .replace(/\*\*(.*?)\*\*/g, "<strong class='font-bold text-foreground'>$1</strong>")
+      .replace(/\*(.*?)\*/g, "<em class='italic text-foreground/80'>$1</em>")
+      .replace(/`([^`]+)`/g, "<code class='px-1.5 py-0.5 rounded bg-muted/80 text-primary font-mono text-[11px] font-semibold border border-border/40'>$1</code>");
+  };
+
+  // Structured Markdown Parser (Tables, Code blocks, Headers, Lists)
   const renderFormattedContent = (content: string) => {
     const lines = content.split("\n");
-    return lines.map((line, idx) => {
-      // Header 4
+    const blocks: React.ReactNode[] = [];
+    let i = 0;
+    let blockKey = 0;
+
+    while (i < lines.length) {
+      const line = lines[i];
+
+      // 1. Code Block: ```lang ... ```
+      if (line.trim().startsWith("```")) {
+        const lang = line.trim().slice(3).trim() || "code";
+        const codeLines: string[] = [];
+        i++;
+        while (i < lines.length && !lines[i].trim().startsWith("```")) {
+          codeLines.push(lines[i]);
+          i++;
+        }
+        i++; // skip closing ```
+        const fullCode = codeLines.join("\n");
+        const codeId = `mentor-code-${blockKey++}`;
+
+        blocks.push(
+          <div key={codeId} className="my-2.5 rounded-xl border border-border/60 bg-slate-950/90 overflow-hidden text-xs shadow-xs">
+            <div className="flex items-center justify-between px-3 py-1.5 bg-muted/40 border-b border-border/40 text-[10px] text-muted-foreground">
+              <span className="font-mono font-semibold uppercase flex items-center gap-1.5 text-foreground/80">
+                <Terminal className="h-3 w-3 text-primary" /> {lang}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleCopySnippet(fullCode, codeId)}
+                className="flex items-center gap-1 px-2 py-0.5 rounded bg-muted/60 text-foreground hover:bg-muted transition-colors text-[10px]"
+              >
+                {copiedCodeId === codeId ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                <span>{copiedCodeId === codeId ? "Copied" : "Copy Code"}</span>
+              </button>
+            </div>
+            <pre className="p-3 font-mono text-[11px] leading-relaxed text-slate-100 overflow-x-auto custom-scrollbar">
+              {fullCode}
+            </pre>
+          </div>
+        );
+        continue;
+      }
+
+      // 2. Markdown Table
+      if (line.trim().startsWith("|") && line.trim().endsWith("|")) {
+        const tableLines: string[] = [];
+        while (i < lines.length && lines[i].trim().startsWith("|") && lines[i].trim().endsWith("|")) {
+          tableLines.push(lines[i].trim());
+          i++;
+        }
+
+        if (tableLines.length >= 2) {
+          const headerCells = tableLines[0]
+            .split("|")
+            .map((c) => c.trim())
+            .filter((_, idx, arr) => idx > 0 && idx < arr.length - 1);
+
+          const bodyRows = tableLines.slice(2).map((rowLine) =>
+            rowLine
+              .split("|")
+              .map((c) => c.trim())
+              .filter((_, idx, arr) => idx > 0 && idx < arr.length - 1)
+          );
+
+          const tableId = `tbl-${blockKey++}`;
+
+          blocks.push(
+            <div key={tableId} className="my-3 overflow-x-auto rounded-xl border border-border/60 bg-surface/80 custom-scrollbar shadow-xs">
+              <table className="w-full border-collapse text-left text-xs">
+                <thead>
+                  <tr className="border-b border-border/60 bg-muted/50 text-[11px] font-bold text-foreground">
+                    {headerCells.map((h, hIdx) => (
+                      <th key={hIdx} className="px-3 py-2 whitespace-nowrap">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/40 text-[11px] text-foreground/90">
+                  {bodyRows.map((row, rIdx) => (
+                    <tr key={rIdx} className="hover:bg-muted/30 transition-colors">
+                      {row.map((cell, cIdx) => (
+                        <td
+                          key={cIdx}
+                          className="px-3 py-2 align-top"
+                          dangerouslySetInnerHTML={{ __html: formatInline(cell) }}
+                        />
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+          continue;
+        }
+      }
+
+      // 3. Headers
       if (line.startsWith("#### ")) {
-        return (
-          <h4 key={idx} className="text-xs font-black text-foreground mt-3 mb-1 uppercase tracking-wider">
+        blocks.push(
+          <h4 key={blockKey++} className="text-xs font-black text-foreground mt-3 mb-1 uppercase tracking-wider">
             {line.replace("#### ", "")}
           </h4>
         );
+        i++;
+        continue;
       }
-      // Header 3
       if (line.startsWith("### ")) {
-        return (
-          <h3 key={idx} className="text-sm font-bold text-foreground mt-3 mb-1.5 flex items-center gap-1.5">
+        blocks.push(
+          <h3 key={blockKey++} className="text-sm font-bold text-foreground mt-3 mb-1.5 flex items-center gap-1.5">
             <span className="h-1.5 w-1.5 rounded-full bg-primary"></span>
             {line.replace("### ", "")}
           </h3>
         );
+        i++;
+        continue;
       }
-      // Bullet items
+
+      // 4. Bullet Items
       if (line.trim().startsWith("- ") || line.trim().startsWith("* ")) {
         const bulletText = line.trim().replace(/^[-*]\s+/, "");
-        return (
-          <li key={idx} className="text-xs text-foreground/90 leading-relaxed ml-4 list-disc my-0.5">
-            <span dangerouslySetInnerHTML={{ __html: formatBoldAndCode(bulletText) }} />
+        blocks.push(
+          <li key={blockKey++} className="text-xs text-foreground/90 leading-relaxed ml-4 list-disc my-0.5">
+            <span dangerouslySetInnerHTML={{ __html: formatInline(bulletText) }} />
           </li>
         );
+        i++;
+        continue;
       }
-      // Numbered items
+
+      // 5. Numbered Items
       if (/^\d+\.\s+/.test(line.trim())) {
         const itemText = line.trim().replace(/^\d+\.\s+/, "");
-        return (
-          <li key={idx} className="text-xs text-foreground/90 leading-relaxed ml-4 list-decimal my-0.5">
-            <span dangerouslySetInnerHTML={{ __html: formatBoldAndCode(itemText) }} />
+        blocks.push(
+          <li key={blockKey++} className="text-xs text-foreground/90 leading-relaxed ml-4 list-decimal my-0.5">
+            <span dangerouslySetInnerHTML={{ __html: formatInline(itemText) }} />
           </li>
         );
-      }
-      // Empty line
-      if (!line.trim()) {
-        return <div key={idx} className="h-2" />;
+        i++;
+        continue;
       }
 
-      return (
+      // 6. Empty Line
+      if (!line.trim()) {
+        blocks.push(<div key={blockKey++} className="h-1.5" />);
+        i++;
+        continue;
+      }
+
+      // 7. Regular Paragraph
+      blocks.push(
         <p
-          key={idx}
+          key={blockKey++}
           className="text-xs text-foreground/90 leading-relaxed my-1"
-          dangerouslySetInnerHTML={{ __html: formatBoldAndCode(line) }}
+          dangerouslySetInnerHTML={{ __html: formatInline(line) }}
         />
       );
-    });
-  };
+      i++;
+    }
 
-  const formatBoldAndCode = (str: string) => {
-    return str
-      .replace(/\*\*(.*?)\*\*/g, "<strong class='font-bold text-foreground'>$1</strong>")
-      .replace(/\*(.*?)\*/g, "<em class='italic'>$1</em>")
-      .replace(/`([^`]+)`/g, "<code class='px-1.5 py-0.5 rounded bg-muted/60 text-primary font-mono text-[11px] font-semibold'>$1</code>");
+    return blocks;
   };
 
   return (
@@ -135,7 +256,7 @@ export const MentorMessage: React.FC<MentorMessageProps> = ({ message }) => {
               className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
               title="Copy advice"
             >
-              {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+              {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
             </button>
           )}
         </div>
@@ -161,3 +282,5 @@ export const MentorMessage: React.FC<MentorMessageProps> = ({ message }) => {
     </div>
   );
 };
+
+export default MentorMessage;

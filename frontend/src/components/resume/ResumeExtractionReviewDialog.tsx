@@ -53,9 +53,26 @@ export const ResumeExtractionReviewDialog: React.FC<ResumeExtractionReviewDialog
 }) => {
   if (!extractionData) return null;
 
-  const [activeTab, setActiveTab] = useState<"personal" | "education" | "skills" | "experience" | "projects" | "achievements">("personal");
+  const [activeTab, setActiveTab] = useState<"personal" | "education" | "skills" | "experience" | "projects" | "achievements" | "ai_audit">("personal");
   const [formData, setFormData] = useState<ExtractedProfileData>(() => extractionData.extractedProfile);
   const [applying, setApplying] = useState(false);
+  const [aiAuditLoading, setAiAuditLoading] = useState(false);
+  const [aiAuditResult, setAiAuditResult] = useState<any>(null);
+
+  const handleRunAiAudit = async () => {
+    setAiAuditLoading(true);
+    try {
+      const res = await ResumeApi.analyzeUploaded({ extractionData });
+      if (res.success && res.data) {
+        setAiAuditResult(res.data);
+        toast.success("AI Quality and ATS audit completed!");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to analyze uploaded resume");
+    } finally {
+      setAiAuditLoading(false);
+    }
+  };
 
   // Field Conflicts detection
   const conflicts = useMemo(() => {
@@ -138,6 +155,7 @@ export const ResumeExtractionReviewDialog: React.FC<ResumeExtractionReviewDialog
     { id: "experience", label: "Experience", icon: Briefcase, count: formData.experience?.length || 0 },
     { id: "projects", label: "Projects", icon: FolderGit2, count: formData.projects?.length || 0 },
     { id: "achievements", label: "Achievements", icon: Trophy, count: formData.achievements?.length || 0 },
+    { id: "ai_audit", label: "AI Quality & ATS Audit", icon: Sparkles, count: aiAuditResult ? 1 : 0 },
   ] as const;
 
   return (
@@ -513,6 +531,78 @@ export const ResumeExtractionReviewDialog: React.FC<ResumeExtractionReviewDialog
                       )}
                     </div>
                   ))
+                )}
+              </div>
+            )}
+
+            {/* AI Quality & ATS Audit Tab */}
+            {activeTab === "ai_audit" && (
+              <div className="space-y-4">
+                <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-cyan-400" /> Uploaded Document Intelligence Audit
+                    </h4>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Analyzes extracted text quality, ATS readability, grammar, and section structure.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleRunAiAudit}
+                    disabled={aiAuditLoading}
+                    className="bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold"
+                  >
+                    {aiAuditLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin mr-1" /> : <Sparkles className="h-3.5 w-3.5 mr-1" />}
+                    {aiAuditResult ? "Re-Run Audit" : "Run AI Audit"}
+                  </Button>
+                </div>
+
+                {aiAuditResult ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">Resume Quality Rating</span>
+                        <div className="text-2xl font-black font-mono text-emerald-400">
+                          {aiAuditResult.qualityRating?.overallScore ?? "--"} / 100
+                        </div>
+                        <p className="text-[11px] text-slate-400">
+                          Rubric: {aiAuditResult.qualityRating?.rubricVersion || "quality-v2.0-deterministic"}
+                        </p>
+                      </div>
+
+                      <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">ATS Readiness Score</span>
+                        <div className="text-2xl font-black font-mono text-cyan-400">
+                          {aiAuditResult.atsReadiness?.overallScore ?? "--"} / 100
+                        </div>
+                        <p className="text-[11px] text-slate-400">
+                          Status: <strong className="text-cyan-300">{aiAuditResult.atsReadiness?.label || "Parser-Safe"}</strong>
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Language review count */}
+                    {aiAuditResult.languageReview && (
+                      <div className="p-3 rounded-xl bg-purple-950/20 border border-purple-800/40 text-xs flex items-center justify-between">
+                        <span className="text-purple-300 font-semibold">
+                          Writing & Grammar: {aiAuditResult.languageReview.issues?.length || 0} suggestion(s) detected
+                        </span>
+                        <span className="text-[11px] text-slate-400">
+                          Can be selectively resolved once applied to editor
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center rounded-xl border border-slate-800 bg-slate-900/40 space-y-2">
+                    <Sparkles className="h-8 w-8 text-cyan-400 mx-auto" />
+                    <h5 className="font-semibold text-white text-sm">Ready for Intelligence Audit</h5>
+                    <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                      Click "Run AI Audit" to evaluate how ATS scanners and technical hiring managers rate this document.
+                    </p>
+                  </div>
                 )}
               </div>
             )}

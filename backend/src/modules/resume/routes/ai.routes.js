@@ -13,6 +13,13 @@ import {
   tailorResumeWithTwoStage,
   getAiHealth,
 } from "../controllers/ai.controller.js";
+import {
+  copilotChatHandler,
+  reviewLanguageHandler,
+  evaluateScoresHandler,
+  analyzeRoleHandler,
+  analyzeUploadedResumeHandler,
+} from "../controllers/resumeIntelligence.controller.js";
 import { verifyFirebaseToken } from "../../../core/auth/auth.middleware.js";
 import { resumeUpload } from "../../../core/middleware/multer.middleware.js";
 
@@ -83,5 +90,12 @@ router.post("/onboarding/parse-resume", verifyFirebaseToken, heavyAiLimiter, (re
 router.post("/analyze-jd", verifyFirebaseToken, heavyAiLimiter, analyzeJobDescriptionEndpoint);
 router.post("/match-master-data", verifyFirebaseToken, matchMasterDataForJd);
 router.post("/tailor-two-stage", verifyFirebaseToken, heavyAiLimiter, tailorResumeWithTwoStage);
+
+// Live Resume Intelligence Upgrade Endpoints
+router.post("/resume/copilot-chat", verifyFirebaseToken, heavyAiLimiter, copilotChatHandler);
+router.post("/resume/review-language", verifyFirebaseToken, heavyAiLimiter, reviewLanguageHandler);
+router.post("/resume/evaluate-scores", verifyFirebaseToken, evaluateScoresHandler);
+router.post("/resume/analyze-role", verifyFirebaseToken, analyzeRoleHandler);
+router.post("/resume/analyze-uploaded", verifyFirebaseToken, heavyAiLimiter, analyzeUploadedResumeHandler);
 
 export default router;

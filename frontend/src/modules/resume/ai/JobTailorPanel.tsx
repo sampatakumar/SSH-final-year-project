@@ -1,10 +1,12 @@
 import React, { useState } from "react";
-import { Sparkles, Target, CheckCircle2, AlertCircle, XCircle, Wand2, RefreshCw } from "lucide-react";
+import { Sparkles, Target, CheckCircle2, AlertCircle, XCircle, Wand2, RefreshCw, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import type { ResumeData } from "../templates/types";
 import { getRenderableSkillLines } from "@/components/resume/skillFormat";
+import { ResumeApi, type RoleMatchAnalysis } from "../services/resume.api";
 
 export interface JobTailorPanelProps {
   data: ResumeData;
@@ -21,23 +23,25 @@ export const JobTailorPanel: React.FC<JobTailorPanelProps> = ({
   data,
   onApplyKeywordFocus,
 }) => {
+  const [targetRole, setTargetRole] = useState("");
   const [jobDescription, setJobDescription] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState<MatchResult[] | null>(null);
+  const [apiAnalysis, setApiAnalysis] = useState<RoleMatchAnalysis | null>(null);
 
   // Analyze Job Description against Resume Data
   const handleAnalyzeJob = () => {
-    if (!jobDescription.trim() || jobDescription.trim().length < 30) {
-      toast.error("Please paste a job description with at least 30 characters.");
+    if (!targetRole.trim() && (!jobDescription.trim() || jobDescription.trim().length < 20)) {
+      toast.error("Please enter a target role or paste a job description (at least 20 chars).");
       return;
     }
 
     setIsAnalyzing(true);
 
     try {
-      const textLower = jobDescription.toLowerCase();
+      const textLower = `${targetRole} ${jobDescription}`.toLowerCase();
 
-      // Extract candidate terms from JD
+      // Common tech keywords
       const commonTechKeywords = [
         "react", "typescript", "javascript", "node.js", "nodejs", "python", "java", "c++",
         "golang", "rust", "docker", "kubernetes", "aws", "gcp", "azure", "postgresql",
@@ -83,7 +87,15 @@ export const JobTailorPanel: React.FC<JobTailorPanelProps> = ({
       });
 
       setResults(matchResults);
-      toast.success(`Extracted and matched ${foundJdKeywords.length} target job keywords!`);
+
+      // Async backend analysis in background
+      ResumeApi.analyzeRole(data, targetRole, jobDescription)
+        .then((res) => {
+          if (res.success && res.data) setApiAnalysis(res.data);
+        })
+        .catch(() => {});
+
+      toast.success("Role & Job Description analysis complete!");
     } finally {
       setIsAnalyzing(false);
     }
@@ -94,7 +106,7 @@ export const JobTailorPanel: React.FC<JobTailorPanelProps> = ({
   const notFoundCount = results?.filter((r) => r.category === "NOT_FOUND").length || 0;
   const totalCount = results?.length || 0;
 
-  const matchPercentage = totalCount > 0 ? Math.round(((matchedCount + weakCount * 0.5) / totalCount) * 100) : 0;
+  const matchPercentage = apiAnalysis?.matchPercentage ?? (totalCount > 0 ? Math.round(((matchedCount + weakCount * 0.5) / totalCount) * 100) : 0);
 
   return (
     <div className="space-y-4">
@@ -103,20 +115,32 @@ export const JobTailorPanel: React.FC<JobTailorPanelProps> = ({
           <Target className="h-4 w-4 text-primary" /> Tailor for Job Description
         </h3>
         <p className="text-[11px] text-muted-foreground">
-          Compare your resume against target job requirements to identify keyword matches and skill gaps.
+          Compare your current resume against target expectations without fabricating skills or claims.
         </p>
       </div>
 
+      {/* Target Role Title */}
+      <div className="space-y-1">
+        <label className="text-[11px] font-semibold text-muted-foreground">Target Role (Optional)</label>
+        <Input
+          value={targetRole}
+          onChange={(e) => setTargetRole(e.target.value)}
+          placeholder="e.g. Full-Stack Developer, Backend Engineer"
+          className="text-xs bg-background h-8"
+        />
+      </div>
+
       {/* JD Input */}
-      <div className="space-y-2">
+      <div className="space-y-1.5">
+        <label className="text-[11px] font-semibold text-muted-foreground">Job Description (Optional)</label>
         <Textarea
-          rows={4}
+          rows={3}
           value={jobDescription}
           onChange={(e) => setJobDescription(e.target.value)}
           placeholder="Paste job description or requirements list here..."
           className="text-xs bg-background custom-scrollbar"
         />
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between pt-1">
           <span className="text-[10px] text-muted-foreground">
             {jobDescription.length} characters
           </span>
@@ -126,8 +150,8 @@ export const JobTailorPanel: React.FC<JobTailorPanelProps> = ({
             disabled={isAnalyzing}
             className="h-7 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold gap-1.5"
           >
-            <Sparkles className="h-3.5 w-3.5" />
-            {isAnalyzing ? "Analyzing Job..." : "Analyze & Match"}
+            {isAnalyzing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+            {isAnalyzing ? "Analyzing..." : "Analyze & Match"}
           </Button>
         </div>
       </div>
@@ -193,9 +217,9 @@ export const JobTailorPanel: React.FC<JobTailorPanelProps> = ({
               <Sparkles className="h-3.5 w-3.5" /> Grounded Tailoring Guidance
             </div>
             <ul className="space-y-1 text-[11px] text-muted-foreground list-disc list-inside">
-              <li>Highlight your existing matching projects at the top of the Projects section.</li>
+              <li>Highlight verified projects demonstrating these technologies.</li>
               <li>Promote matched skills to the front of your technical skills matrix.</li>
-              <li className="text-amber-400/90 font-medium">Do not fabricate unverified skills or tools. Highlight transferable concepts instead.</li>
+              <li className="text-amber-400/90 font-medium">Never fabricate unverified skills. Highlight transferable concepts instead.</li>
             </ul>
           </div>
         </div>

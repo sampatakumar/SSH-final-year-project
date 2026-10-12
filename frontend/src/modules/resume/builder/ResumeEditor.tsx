@@ -359,7 +359,7 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
           setResumeData((prev) => {
             const next = JSON.parse(JSON.stringify(prev)) as ResumeData;
             if (sectionId === "projects" && next.projects) {
-              next.projects = next.projects.filter((_, i) => String(i) !== itemId && (next.projects![i]?.id !== itemId && next.projects![i]?.title !== itemId));
+              next.projects = next.projects.filter((_, i) => String(i) !== itemId && ((next.projects![i] as any)?.id !== itemId && (next.projects![i] as any)?.title !== itemId));
             } else if (sectionId === "experience" && next.experience) {
               next.experience = next.experience.filter((_, i) => String(i) !== itemId);
             } else if (sectionId === "education" && next.education) {
@@ -1007,20 +1007,37 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
               )}
 
               {/* TAB 3: AI Resume Health Overview */}
+              {/* TAB 3: AI Resume Health Overview */}
               {rightTab === "ai" && (
                 <div className="space-y-4">
-                  <div className="p-4 rounded-xl bg-gradient-to-r from-primary/10 to-transparent border border-primary/20">
-                    <div className="text-[11px] font-bold text-muted-foreground uppercase">
-                      ATS Readiness Score
+                  {/* Dual Score Quick Overview */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="p-3 rounded-xl bg-gradient-to-r from-cyan-500/10 to-transparent border border-cyan-500/20">
+                      <div className="text-[10px] font-bold text-muted-foreground uppercase">
+                        ATS Readiness
+                      </div>
+                      <div className="text-xl font-black font-mono text-foreground">
+                        {atsReport.score} <span className="text-[10px] text-muted-foreground font-normal">/ 100</span>
+                      </div>
+                      <p className="text-[10px] text-cyan-400 font-semibold truncate mt-0.5">
+                        {atsReport.label}
+                      </p>
                     </div>
-                    <div className="text-2xl font-black font-mono text-foreground">
-                      {atsReport.score} <span className="text-xs text-muted-foreground font-normal">/ 100</span>
+
+                    <div className="p-3 rounded-xl bg-gradient-to-r from-emerald-500/10 to-transparent border border-emerald-500/20">
+                      <div className="text-[10px] font-bold text-muted-foreground uppercase">
+                        Completeness
+                      </div>
+                      <div className="text-xl font-black font-mono text-foreground">
+                        {completenessReport.score}%
+                      </div>
+                      <p className="text-[10px] text-emerald-400 font-semibold truncate mt-0.5">
+                        {completenessReport.completedCount} / {completenessReport.items.length} items
+                      </p>
                     </div>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Status: <strong className="text-primary">{atsReport.label}</strong>
-                    </p>
                   </div>
 
+                  {/* Audited Checks */}
                   <div className="space-y-2">
                     <span className="text-xs font-bold text-muted-foreground uppercase">
                       Audited Checks ({atsReport.passedCount}/{atsReport.totalCount})
@@ -1045,13 +1062,15 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
                     </div>
                   </div>
 
-                  <Button
-                    size="sm"
-                    onClick={() => setShowAiAssistantModal(true)}
-                    className="w-full text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5"
-                  >
-                    <Sparkles className="h-3.5 w-3.5" /> Open Full AI Assistant
-                  </Button>
+                  <div className="space-y-2 pt-1">
+                    <Button
+                      size="sm"
+                      onClick={() => setShowAiAssistantModal(true)}
+                      className="w-full text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5"
+                    >
+                      <Sparkles className="h-3.5 w-3.5" /> Launch Live AI Copilot & Review
+                    </Button>
+                  </div>
                 </div>
               )}
 
@@ -1102,6 +1121,7 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
         onOpenChange={setShowAiAssistantModal}
         data={resumeData}
         config={config}
+        githubEvidence={userProjects}
         onSelectSection={(secId) => {
           setActiveSection(secId);
           setRightTab("edit");
