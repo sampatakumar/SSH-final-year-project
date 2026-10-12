@@ -178,15 +178,26 @@ Located in `src/modules/mentor/`:
 - **Proactive Context Panel**: `MentorContextPanel.tsx` displays live candidate signals (Target Role, Readiness Score, Active Skill Gaps, and GitHub Repository health).
 - **Action Cards**: `MentorActionCard.tsx` provides quick-click execution of recommended career actions.
 
+Detailed documentation for each frontend domain module is available in their respective subdirectories:
+- 📺 **EduTube**: [./src/modules/edutube/README.md](./src/modules/edutube/README.md)
+- 💻 **Coding Assessment**: [./src/modules/coding/README.md](./src/modules/coding/README.md)
+- 🐙 **GitHub Intelligence**: [./src/modules/github/README.md](./src/modules/github/README.md)
+- 🤖 **Smart Mentor**: [./src/modules/mentor/README.md](./src/modules/mentor/README.md)
+- 🗺️ **Learning Roadmap**: [./src/modules/roadmap/README.md](./src/modules/roadmap/README.md)
+- 📄 **Resume & Portfolio**: [./src/modules/resume/README.md](./src/modules/resume/README.md)
+- 🔍 **Skill Gap Analysis**: [./src/modules/gaps/README.md](./src/modules/gaps/README.md)
+
 ---
 
-## 9. EduTube UI
+## 9. EduTube UI (Education-Only Filtering & Player Security)
 
 Located in `src/modules/edutube/`:
-- **Search & Filters**: `EduTubeSearch.tsx` and `FilterBar.tsx` for searching topic-specific tutorials.
-- **Video Cards & Grid**: `VideoGrid.tsx` and `VideoCard.tsx` displaying thumbnails, duration, channel name, and mapped skill badges.
-- **Integrated Video Player**: `VideoPlayer.tsx` and `VideoNotes.tsx` for viewing lessons and taking synchronized learning notes.
-- **Playlists & History**: Dedicated sub-pages for bookmarked items and custom learning tracks.
+- **Zero-Iframe Gate**: `VideoPlayer.tsx` suppresses the YouTube embed `<iframe>` whenever `isBlocked = true`, rendering an **Education-Only Gate** shield with rejection reasons.
+- **Privacy-Enhanced Playback**: Embeds use `https://www.youtube-nocookie.com/embed/<videoId>?rel=0&modestbranding=1` for distraction-free learning.
+- **Search vs Default Separation**: Initial view loads personalized recommendations; search runs only on explicit submission.
+- **Misclassification Reporting**: `ReportVideoDialog.tsx` allows learners to report false positives and false negatives to improve the classifier.
+- **Integrated Video Notes & Progress**: Synchronized playback tracking with resume prompt banners and timestamped notes (`VideoNotes.tsx`).
+- For complete frontend module details, see [./src/modules/edutube/README.md](./src/modules/edutube/README.md).
 
 ---
 

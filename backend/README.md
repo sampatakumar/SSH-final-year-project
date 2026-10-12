@@ -213,11 +213,29 @@ Smart Skill Hub user -> GitHub OAuth -> GitHub authorization -> callback -> acce
 
 ---
 
-## 16. EduTube
+Detailed documentation for each backend domain module is available in their respective subdirectories:
+- 📺 **EduTube**: [./src/modules/edutube/README.md](./src/modules/edutube/README.md)
+- 💻 **Coding Assessment**: [./src/modules/coding/README.md](./src/modules/coding/README.md)
+- 🐙 **GitHub Intelligence**: [./src/modules/github/README.md](./src/modules/github/README.md)
+- 🤖 **Smart Mentor**: [./src/modules/mentor/README.md](./src/modules/mentor/README.md)
+- 🎯 **Skill Profile & Evaluation**: [./src/modules/skills/README.md](./src/modules/skills/README.md)
+- 🔍 **Skill Gap Analysis**: [./src/modules/gaps/README.md](./src/modules/gaps/README.md)
+- 💡 **Recommendations**: [./src/modules/recommendations/README.md](./src/modules/recommendations/README.md)
+- 📄 **Resume & Portfolio**: [./src/modules/resume/README.md](./src/modules/resume/README.md)
+- 📚 **Study Planner**: [./src/modules/study/README.md](./src/modules/study/README.md)
+- ⚙️ **Settings & Integrations**: [./src/modules/settings/README.md](./src/modules/settings/README.md)
 
-- Interfaces with the **YouTube Data API v3**.
-- Builds dynamic search queries mapping to missing skills identified by the gap engine.
-- Persists user watch history, playlists, and bookmarked videos in MongoDB.
+---
+
+## 16. EduTube (Deterministic Education-Only Filter v2.0.0)
+
+- **Deterministic Content Classifier**: Evaluates title, description, category ID, channel metadata, duration, format tokens, and keyword stuffing.
+- **Strict Blocking**: Rejects music videos, lyric videos, movie trailers, film clips, entertainment compilations, shorts (<60s, `#shorts`), comedy, and celebrity vlogs.
+- **Contextual Exceptions**: Preserves STEM courses with media keywords (Music Theory, Audio Engineering DSP, Video Editing in Premiere Pro, Game Engine Development).
+- **Zero-Bypass Playback Gate**: Evaluates videos at search (`/api/v1/edutube/search`) and independently gates direct playback requests (`/api/v1/edutube/video/:videoId`), returning HTTP 403 for blocked content.
+- **Versioned Cache Invalidation**: Cache keys automatically include `CLASSIFIER_VERSION = '2.0.0'` to eliminate stale cache bypass.
+- **User Reporting**: Authenticated reporting route (`POST /api/v1/edutube/report`) to log and inspect misclassified content.
+- For complete technical documentation, see [./src/modules/edutube/README.md](./src/modules/edutube/README.md).
 
 ---
 

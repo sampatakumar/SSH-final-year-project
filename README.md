@@ -211,12 +211,24 @@ User -> Authorize GitHub -> GitHub OAuth Callback -> Access Token -> Synchronize
 
 ---
 
-## 10. EduTube Learning System
+Detailed subsystem and module documentation is organized into dedicated READMEs:
+- 🌐 **Frontend Subsystem**: [./frontend/README.md](./frontend/README.md)
+  - 📺 [EduTube Frontend](./frontend/src/modules/edutube/README.md) | 💻 [Coding Assessment Frontend](./frontend/src/modules/coding/README.md) | 🐙 [GitHub Intelligence Frontend](./frontend/src/modules/github/README.md) | 🤖 [Smart Mentor Frontend](./frontend/src/modules/mentor/README.md) | 🗺️ [Roadmap Frontend](./frontend/src/modules/roadmap/README.md) | 📄 [Resume & Portfolio Frontend](./frontend/src/modules/resume/README.md) | 🔍 [Skill Gaps Frontend](./frontend/src/modules/gaps/README.md)
+- ⚙️ **Backend Subsystem**: [./backend/README.md](./backend/README.md)
+  - 📺 [EduTube Backend](./backend/src/modules/edutube/README.md) | 💻 [Coding Sandbox Backend](./backend/src/modules/coding/README.md) | 🐙 [GitHub Intelligence Backend](./backend/src/modules/github/README.md) | 🤖 [Smart Mentor Backend](./backend/src/modules/mentor/README.md) | 🎯 [Skills Engine Backend](./backend/src/modules/skills/README.md) | 🔍 [Gaps Engine Backend](./backend/src/modules/gaps/README.md) | 💡 [Recommendations Backend](./backend/src/modules/recommendations/README.md) | 📄 [Resume & Portfolio Backend](./backend/src/modules/resume/README.md) | 📚 [Study Module Backend](./backend/src/modules/study/README.md) | ⚙️ [Settings Backend](./backend/src/modules/settings/README.md)
 
-EduTube integrates curated technical education into the developer workspace:
-- Queries the **YouTube Data API v3** using targeted search strings based on detected skill gaps.
-- Provides search filters (duration, upload date, topic category).
-- Supports bookmarking saved videos, tracking watch history, and building custom playlists.
+---
+
+## 10. EduTube Learning System (Education-Only v2.0.0)
+
+EduTube provides an accredited, distraction-free technical discovery and learning environment:
+- **Deterministic Content Classifier (`v2.0.0`)**: Multi-signal pipeline evaluating category IDs, channel metadata, duration, format indicators, STEM keywords, and keyword stuffing.
+- **Strict Content Blocking**: Hard-blocks music videos, official music channels, lyric videos, movie trailers, film teasers, comedy compilations, YouTube Shorts (<60s, `#shorts`), and celebrity gossip.
+- **Contextual Exceptions**: Intelligently allows legitimate STEM lectures using entertainment terms (e.g., Music Theory, Audio Engineering DSP, Video Editing in Premiere Pro, Game Engine Development).
+- **Zero-Bypass Playback Gate**: Enforced at search (`/api/v1/edutube/search`) and direct video detail lookup (`/api/v1/edutube/video/:videoId`). Unapproved videos return HTTP 403, and the frontend player renders **zero iframe elements** to completely prevent unapproved playback.
+- **Privacy-Enhanced Player**: Approved videos stream via `https://www.youtube-nocookie.com/embed/<videoId>?rel=0&modestbranding=1`.
+- **Learning Persistence & Feedback**: Tracks watch history, resume prompts, timestamped video notes, playlists, and user classification reports (`POST /api/v1/edutube/report`).
+- Detailed documentation: [./backend/src/modules/edutube/README.md](./backend/src/modules/edutube/README.md) and [./frontend/src/modules/edutube/README.md](./frontend/src/modules/edutube/README.md).
 
 ---
 
