@@ -433,7 +433,11 @@ export const GitHubIntelligencePage: React.FC = () => {
           {/* Tab 1: Overview & Charts */}
           {activeTab === "overview" && (
             <div className="space-y-6">
-              <StatsSummary stats={analysis.aggregateStats} />
+              <StatsSummary
+                stats={analysis.aggregateStats}
+                totalRepos={analysis.repositories?.length ?? analysis.profile?.publicRepos ?? 0}
+                dominantLanguage={analysis.dominantLanguage}
+              />
               <StatsCharts repositories={analysis.repositories || []} />
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <LanguageDistribution
@@ -442,7 +446,10 @@ export const GitHubIntelligencePage: React.FC = () => {
                   selectedLanguage={selectedLanguage}
                   onSelectLanguage={setSelectedLanguage}
                 />
-                <ActivityTimeline events={analysis.recentEvents} />
+                <ActivityTimeline
+                  recentEvents={analysis.recentEvents}
+                  events={analysis.recentEvents}
+                />
               </div>
             </div>
           )}
@@ -451,6 +458,7 @@ export const GitHubIntelligencePage: React.FC = () => {
           {activeTab === "mentor" && (
             <PersonalCareerMentor
               mentorData={mentorData}
+              analysis={analysis}
               username={analysis.username}
               targetRole={targetRole}
               onRoleChange={handleRoleChange}
@@ -476,12 +484,18 @@ export const GitHubIntelligencePage: React.FC = () => {
 
           {/* Tab 5: Skill Evidence */}
           {activeTab === "evidence" && (
-            <SkillEvidence username={analysis.username} />
+            <SkillEvidence
+              data={analysis}
+              username={analysis.username}
+            />
           )}
 
           {/* Tab 6: AI Review */}
           {activeTab === "insights" && (
-            <AIInsights insights={analysis.aiInsights} />
+            <AIInsights
+              insights={analysis.aiInsights}
+              username={analysis.username}
+            />
           )}
         </div>
       )}
@@ -500,6 +514,7 @@ export const GitHubIntelligencePage: React.FC = () => {
         <ExportModal
           isOpen={isExportOpen}
           onClose={() => setIsExportOpen(false)}
+          analysis={analysis}
           analysisData={analysis}
         />
       )}

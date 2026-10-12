@@ -104,7 +104,8 @@ export async function fetchGitHubProfileData(rawUsername) {
         sizeKB: repo.size || 0,
         archived: Boolean(repo.archived),
         fork: Boolean(repo.fork),
-        updatedAt: repo.updated_at || ""
+        updatedAt: repo.updated_at || "",
+        topics: Array.isArray(repo.topics) ? repo.topics : []
       };
     });
 

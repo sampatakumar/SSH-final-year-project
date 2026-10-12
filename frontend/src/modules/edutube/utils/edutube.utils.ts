@@ -34,18 +34,18 @@ export const SORT_OPTIONS: Array<{ code: string; label: string }> = [
 ];
 
 export const POPULAR_TECHNOLOGIES = [
+  { name: "Algorithms & DSA", query: "data structures and algorithms full course", tag: "Core CS" },
+  { name: "System Design", query: "system design distributed systems tutorial", tag: "Architecture" },
+  { name: "Mathematics & AI", query: "linear algebra calculus deep learning lecture", tag: "Math & AI" },
   { name: "JavaScript", query: "JavaScript full course tutorial", tag: "Frontend & Backend" },
   { name: "TypeScript", query: "TypeScript crash course tutorial", tag: "Type Safety" },
   { name: "React", query: "React.js complete tutorial project", tag: "UI Engineering" },
   { name: "Node.js", query: "Node.js Express backend tutorial", tag: "Backend APIs" },
   { name: "Python", query: "Python full course for beginners", tag: "General & AI" },
-  { name: "Java", query: "Java programming full course", tag: "Enterprise" },
-  { name: "C++", query: "C++ data structures and algorithms", tag: "Core CS" },
-  { name: "Docker", query: "Docker containerization crash course", tag: "DevOps" },
-  { name: "Git & GitHub", query: "Git and GitHub complete tutorial", tag: "Version Control" },
+  { name: "Docker & K8s", query: "Docker kubernetes containerization crash course", tag: "DevOps & Cloud" },
   { name: "SQL & Databases", query: "PostgreSQL SQL database tutorial", tag: "Data Storage" },
-  { name: "MongoDB", query: "MongoDB tutorial for beginners", tag: "NoSQL" },
   { name: "Next.js", query: "Next.js full stack course", tag: "Full Stack" },
+  { name: "Academic CS", query: "computer science lecture university course", tag: "Academic" },
 ];
 
 export function formatViews(views?: number): string {

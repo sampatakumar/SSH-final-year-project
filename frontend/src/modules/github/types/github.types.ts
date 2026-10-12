@@ -297,3 +297,64 @@ export interface GitHubAnalysisData {
   recentEvents?: any[];
   analyzedAt: string;
 }
+
+export interface SkillEvidenceItem {
+  skill: string;
+  canonicalName: string;
+  category: string;
+  evidenceType: "claimed" | "observed_project" | "practical_assessment";
+  confidence: number;
+  tier?: "High Evidence" | "Moderate Evidence" | "Emerging Evidence" | "Limited Evidence";
+  signals: {
+    repoCount?: number;
+    originalRepoCount?: number;
+    forkedRepoCount?: number;
+    totalBytes?: number;
+    codePercentage?: number;
+    starsCount?: number;
+    problemsSolved?: number;
+    problemsAttempted?: number;
+    passRate?: number;
+    [key: string]: any;
+  };
+  observations: string[];
+  repoNames?: string[];
+  projectUrls?: string[];
+  lastObservedAt?: string;
+  stat?: LanguageStatItem;
+  gaps?: string[];
+  recommendedTasks?: string[];
+}
+
+export interface SkillEvidencePackage {
+  contractVersion: string;
+  source: "github" | "resume" | "coding";
+  userId: string;
+  timestamp: string;
+  skills: SkillEvidenceItem[];
+  metadata?: Record<string, any>;
+}
+
+export interface SkillEvidenceProps {
+  data?: GitHubAnalysisData | null;
+  username?: string;
+  evidencePackage?: SkillEvidencePackage | null;
+  isLoading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
+}
+
+export interface RepositoryDeepAnalysis {
+  repoName: string;
+  htmlUrl: string;
+  language: string;
+  purpose: string;
+  architectureSummary: string;
+  techStack: string[];
+  strongPractices: Array<{ practice: string; detail: string; confidence: number }>;
+  technicalWeaknesses: Array<{ weakness: string; impact: string; suggestion: string }>;
+  missingProductionElements: string[];
+  securityVerifications: Array<{ check: string; severity: "Low" | "Medium" | "High"; note: string }>;
+  refactoringTasks: Array<{ task: string; priority: "High" | "Medium" | "Low"; expectedBenefit: string }>;
+  recommendedExercises: Array<{ title: string; skill: string; link: string }>;
+}

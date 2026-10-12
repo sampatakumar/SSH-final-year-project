@@ -99,6 +99,26 @@ export function generateRecommendations(gaps = [], targetRole = "Full Stack Deve
         estimatedHours = 5;
     }
 
+    // Prerequisites mapping
+    const prerequisitesMap = {
+      React: ["JavaScript", "HTML", "CSS"],
+      "Express.js": ["Node.js", "JavaScript"],
+      "REST APIs": ["HTTP Fundamentals", "JavaScript"],
+      Docker: ["Linux Basics", "Command Line"],
+      TypeScript: ["JavaScript"],
+      "Next.js": ["React", "JavaScript"],
+      MongoDB: ["JSON / Object Data Modeling"],
+      PostgreSQL: ["Relational Database Concepts", "SQL Basics"],
+      "CI/CD": ["Git", "Automated Testing"],
+      Jest: ["JavaScript"],
+      Vitest: ["JavaScript", "TypeScript"],
+    };
+
+    const prerequisites = prerequisitesMap[canonical] || ["Basic Programming Fundamentals"];
+    const completionCriteria = codingTask
+      ? `Successfully execute and pass 100% of test cases for "${codingTask.taskTitle}" in the isolated Docker coding sandbox.`
+      : `Build and document an original implementation prototype with error handling and verify against standard tests.`;
+
     recommendations.push({
       recommendationId: `rec_${canonical.toLowerCase().replace(/[^a-z0-9]/g, "_")}_${recommendations.length + 1}`,
       skill: canonical,
@@ -113,10 +133,15 @@ export function generateRecommendations(gaps = [], targetRole = "Full Stack Deve
       learningObjective,
       practicalAction,
       reasoning,
+      prerequisites,
+      completionCriteria,
+      assessmentMethod: codingTask ? "Deterministic Sandbox Test Suite" : "Evidence-Based Code Artifact Review",
       platformTaskId: codingTask ? codingTask.taskId : null,
       platformTaskTitle: codingTask ? codingTask.taskTitle : null,
       documentationUrl: docUrl,
+      edutubeTopicQuery: `${canonical} full course tutorial`,
       estimatedHours,
+      estimatedEffortText: `~${estimatedHours} hours (estimated)`,
       actionStatus: "pending",
     });
   }

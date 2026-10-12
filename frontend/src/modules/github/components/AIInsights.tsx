@@ -16,10 +16,10 @@ import type { GitHubAIInsights } from "../types/github.types";
 
 export interface AIInsightsProps {
   insights?: GitHubAIInsights;
-  username: string;
+  username?: string;
 }
 
-export const AIInsights: React.FC<AIInsightsProps> = ({ insights, username }) => {
+export const AIInsights: React.FC<AIInsightsProps> = ({ insights, username = "developer" }) => {
   const [copied, setCopied] = React.useState(false);
 
   if (!insights) return null;

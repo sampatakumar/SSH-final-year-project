@@ -104,6 +104,20 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 </div>
               ))}
             </div>
+
+            {/* Live Platform Highlights Ticker Chips */}
+            <div className="flex flex-wrap items-center gap-2 mt-5 w-full">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#10162A] border border-indigo-500/20 text-[11px] font-mono text-indigo-300">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                24 Target Roles Covered
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#10162A] border border-cyan-500/20 text-[11px] font-mono text-cyan-300">
+                Isolated Docker Sandbox Runtimes
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#10162A] border border-purple-500/20 text-[11px] font-mono text-purple-300">
+                SM-2 Spaced Retrieval Memory
+              </span>
+            </div>
           </motion.div>
 
           {/* Right Column: SaaS Dashboard Mockup */}

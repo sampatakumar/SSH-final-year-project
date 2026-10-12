@@ -64,16 +64,51 @@ export const EduTubeApi = {
     return res.data;
   },
 
-  getVideo: async (videoId: string): Promise<{ video: EduTubeVideoDetail; cached: boolean }> => {
+  getVideo: async (
+    videoId: string
+  ): Promise<{
+    video: EduTubeVideoDetail;
+    cached: boolean;
+    allowed?: boolean;
+    decision?: string;
+    reasonCodes?: string[];
+    message?: string;
+  }> => {
     if (!videoId?.trim()) {
       throw new Error("Valid videoId is required.");
     }
 
     const endpoint = `/edutube/video/${encodeURIComponent(videoId.trim())}`;
-    const res = await apiRequest<{ video: EduTubeVideoDetail; cached: boolean }>(endpoint, {
-      method: "GET",
-    });
+    try {
+      const res = await apiRequest<{ video: EduTubeVideoDetail; cached: boolean; allowed?: boolean }>(endpoint, {
+        method: "GET",
+      });
+      return res.data;
+    } catch (err: any) {
+      if (err.statusCode === 403 || err.data?.allowed === false) {
+        return {
+          allowed: false,
+          decision: err.data?.decision || "reject",
+          reasonCodes: err.data?.reasonCodes || ["UNAPPROVED_CONTENT"],
+          message: err.data?.message || err.message,
+          video: (err.data?.video || null) as any,
+          cached: false,
+        };
+      }
+      throw err;
+    }
+  },
 
+  reportClassification: async (payload: {
+    videoId: string;
+    feedbackType: "false_positive" | "false_negative" | "inappropriate";
+    reason?: string;
+    notes?: string;
+  }): Promise<{ acknowledged: boolean; report: any }> => {
+    const res = await apiRequest<{ acknowledged: boolean; report: any }>("/edutube/report", {
+      method: "POST",
+      body: payload,
+    });
     return res.data;
   },
 

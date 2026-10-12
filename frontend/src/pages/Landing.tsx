@@ -11,6 +11,7 @@ import {
   TestimonialsAndFAQ,
   FinalCTA,
   LandingFooter,
+  CareerIntelligenceSimulator,
 } from "@/components/landing";
 
 const Landing: React.FC = () => {
@@ -74,7 +75,10 @@ const Landing: React.FC = () => {
       {/* 3. Technology / Ecosystem Strip */}
       <TechStrip />
 
-      {/* 4. Feature Grid Section (10 Features) */}
+      {/* 4. Evidence-Based Career Intelligence Simulator */}
+      <CareerIntelligenceSimulator onExploreRole={handleFeatureSelect} />
+
+      {/* 5. Feature Grid Section (10 Features) */}
       <FeatureGrid onFeatureSelect={handleFeatureSelect} />
 
       {/* 5. How It Works Section */}

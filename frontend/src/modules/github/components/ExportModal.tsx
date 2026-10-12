@@ -7,15 +7,18 @@ import { toast } from "sonner";
 export interface ExportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  analysis: GitHubAnalysisData;
+  analysis?: GitHubAnalysisData;
+  analysisData?: GitHubAnalysisData;
 }
 
 export const ExportModal: React.FC<ExportModalProps> = ({
   isOpen,
   onClose,
-  analysis,
+  analysis: directAnalysis,
+  analysisData,
 }) => {
-  if (!isOpen) return null;
+  const analysis = directAnalysis || analysisData;
+  if (!isOpen || !analysis) return null;
 
   const handlePrint = () => {
     window.print();

@@ -10,6 +10,7 @@ export interface FeatureItem {
   badgeBg: string;     // Tailwind bg class e.g. "bg-purple-500/10 border-purple-500/20"
   glowColor: string;   // Custom glow rgba
   route?: string;
+  tag?: string;
 }
 
 interface FeatureCardProps {
@@ -34,11 +35,19 @@ export const FeatureCard: React.FC<FeatureCardProps> = ({ feature, onClick }) =>
       />
 
       <div>
-        {/* Icon container */}
-        <div
-          className={`w-12 h-12 rounded-xl flex items-center justify-center mb-5 border ${feature.badgeBg} group-hover:scale-110 transition-transform duration-300`}
-        >
-          <Icon className={`w-6 h-6 ${feature.accentColor}`} />
+        {/* Top Icon + Tag row */}
+        <div className="flex items-center justify-between mb-5">
+          <div
+            className={`w-12 h-12 rounded-xl flex items-center justify-center border ${feature.badgeBg} group-hover:scale-110 transition-transform duration-300`}
+          >
+            <Icon className={`w-6 h-6 ${feature.accentColor}`} />
+          </div>
+
+          {feature.tag && (
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-slate-400 group-hover:text-indigo-300 group-hover:border-indigo-500/30 transition-colors">
+              {feature.tag}
+            </span>
+          )}
         </div>
 
         {/* Feature Title */}

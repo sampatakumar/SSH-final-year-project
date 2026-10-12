@@ -30,9 +30,12 @@ export const EduTubeHeader: React.FC<EduTubeHeaderProps> = ({
             <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-primary text-primary-foreground">
               Learning Layer
             </span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hidden sm:inline">
+              Education-Only
+            </span>
           </div>
           <p className="text-xs text-muted-foreground font-medium">
-            Curated engineering courses, tutorials & project walkthroughs
+            Strict education-only discovery: courses, tutorials & academic lectures
           </p>
         </div>
       </div>

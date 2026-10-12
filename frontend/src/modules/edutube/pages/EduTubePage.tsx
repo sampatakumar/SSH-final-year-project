@@ -21,6 +21,7 @@ import { VideoGrid } from "../components/VideoGrid";
 import { VideoPlayer } from "../components/VideoPlayer";
 import { VideoDetails } from "../components/VideoDetails";
 import { PersonalizedFeed } from "../components/PersonalizedFeed";
+import { ReportVideoDialog } from "../components/ReportVideoDialog";
 import type {
   EduTubeVideoItem,
   EduTubeLanguage,
@@ -59,21 +60,66 @@ export const EduTubePage: React.FC = () => {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Educational Filter & Rejection State
+  const [isCurrentVideoBlocked, setIsCurrentVideoBlocked] = useState(false);
+  const [currentVideoRejection, setCurrentVideoRejection] = useState<any>(null);
+  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
+  const [reportTargetVideo, setReportTargetVideo] = useState<{ videoId: string; title: string } | null>(null);
+
   // Synchronize routeVideoId if navigated directly to watch route
   useEffect(() => {
     if (routeVideoId) {
       if (!activeVideo || activeVideo.videoId !== routeVideoId) {
-        setActiveVideo({
-          videoId: routeVideoId,
-          title: "Video Lesson",
-          description: "",
-          thumbnail: { default: "" },
-          channelId: "",
-          channelTitle: "",
-          publishedAt: "",
-          embedUrl: `https://www.youtube.com/embed/${routeVideoId}`,
-          youtubeUrl: `https://www.youtube.com/watch?v=${routeVideoId}`,
-        });
+        setIsCurrentVideoBlocked(false);
+        setCurrentVideoRejection(null);
+        EduTubeApi.getVideo(routeVideoId)
+          .then((res) => {
+            if (res.allowed === false) {
+              setIsCurrentVideoBlocked(true);
+              setCurrentVideoRejection(res);
+              setActiveVideo({
+                videoId: routeVideoId,
+                title: res.video?.title || "Restricted Video Content",
+                description: "",
+                thumbnail: { default: "" },
+                channelId: "",
+                channelTitle: "",
+                publishedAt: "",
+                embedUrl: "",
+                youtubeUrl: `https://www.youtube.com/watch?v=${routeVideoId}`,
+                classifierDecision: "reject",
+              });
+            } else {
+              setIsCurrentVideoBlocked(false);
+              setCurrentVideoRejection(null);
+              setActiveVideo(
+                res.video || {
+                  videoId: routeVideoId,
+                  title: "Video Lesson",
+                  description: "",
+                  thumbnail: { default: "" },
+                  channelId: "",
+                  channelTitle: "",
+                  publishedAt: "",
+                  embedUrl: `https://www.youtube.com/embed/${routeVideoId}`,
+                  youtubeUrl: `https://www.youtube.com/watch?v=${routeVideoId}`,
+                }
+              );
+            }
+          })
+          .catch(() => {
+            setActiveVideo({
+              videoId: routeVideoId,
+              title: "Video Lesson",
+              description: "",
+              thumbnail: { default: "" },
+              channelId: "",
+              channelTitle: "",
+              publishedAt: "",
+              embedUrl: `https://www.youtube.com/embed/${routeVideoId}`,
+              youtubeUrl: `https://www.youtube.com/watch?v=${routeVideoId}`,
+            });
+          });
       }
     }
   }, [routeVideoId]);
@@ -251,6 +297,8 @@ export const EduTubePage: React.FC = () => {
   };
 
   const handleWatchVideo = (video: EduTubeVideoItem | string) => {
+    setIsCurrentVideoBlocked(false);
+    setCurrentVideoRejection(null);
     if (typeof video === "string") {
       setActiveVideo({
         videoId: video,
@@ -264,6 +312,15 @@ export const EduTubePage: React.FC = () => {
         youtubeUrl: `https://www.youtube.com/watch?v=${video}`,
       });
     } else {
+      if (video.classifierDecision === "reject") {
+        setIsCurrentVideoBlocked(true);
+        setCurrentVideoRejection({
+          videoId: video.videoId,
+          allowed: false,
+          message: "This video does not meet EduTube's educational content standards.",
+          reasonCodes: video.classification?.reasonCodes || ["NON_EDUCATIONAL_CONTENT"],
+        });
+      }
       setActiveVideo(video);
     }
     setSeekToSeconds(null);
@@ -278,6 +335,8 @@ export const EduTubePage: React.FC = () => {
   const handleBackToList = () => {
     setActiveVideo(null);
     setSeekToSeconds(null);
+    setIsCurrentVideoBlocked(false);
+    setCurrentVideoRejection(null);
     queryClient.invalidateQueries({ queryKey: ["edutube"] });
     if (routeVideoId) {
       navigate("/dashboard/edutube");
@@ -310,6 +369,13 @@ export const EduTubePage: React.FC = () => {
                 title={activeVideo.title}
                 thumbnail={activeVideo.thumbnail?.high || activeVideo.thumbnail?.default}
                 channelTitle={activeVideo.channelTitle}
+                isBlocked={isCurrentVideoBlocked}
+                rejectionReason={currentVideoRejection?.message}
+                rejectionCodes={currentVideoRejection?.reasonCodes}
+                onReport={() => {
+                  setReportTargetVideo({ videoId: activeVideo.videoId, title: activeVideo.title });
+                  setIsReportDialogOpen(true);
+                }}
                 onBack={handleBackToList}
                 onSeekPositionChange={(sec) => setCurrentPlaybackSeconds(sec)}
                 seekToSeconds={seekToSeconds}
@@ -321,6 +387,14 @@ export const EduTubePage: React.FC = () => {
                 currentPlaybackSeconds={currentPlaybackSeconds}
                 onSelectRelatedVideo={handleWatchVideo}
                 onSeekTo={(sec) => setSeekToSeconds(sec)}
+                onBlockedStatusChange={(blocked, rejection) => {
+                  setIsCurrentVideoBlocked(blocked);
+                  setCurrentVideoRejection(rejection);
+                }}
+                onOpenReport={() => {
+                  setReportTargetVideo({ videoId: activeVideo.videoId, title: activeVideo.title });
+                  setIsReportDialogOpen(true);
+                }}
               />
             </div>
           ) : isSearchActive ? (
@@ -453,6 +527,13 @@ export const EduTubePage: React.FC = () => {
           )}
         </main>
       </div>
+
+      <ReportVideoDialog
+        isOpen={isReportDialogOpen}
+        onClose={() => setIsReportDialogOpen(false)}
+        videoId={reportTargetVideo?.videoId || ""}
+        videoTitle={reportTargetVideo?.title || ""}
+      />
     </div>
   );
 };

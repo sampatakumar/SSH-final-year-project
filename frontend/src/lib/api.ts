@@ -70,7 +70,10 @@ export async function apiRequest<T>(
 
     if (!response.ok) {
       const errObj = payload as { message?: string; error?: string };
-      throw new Error(errObj.message || errObj.error || "Request failed");
+      const err = new Error(errObj.message || errObj.error || "Request failed");
+      (err as any).statusCode = response.status;
+      (err as any).data = (payload as any)?.data;
+      throw err;
     }
 
     return payload as ApiEnvelope<T>;
@@ -196,6 +199,15 @@ export interface RecommendationItem {
   learningObjective: string;
   action: string;
   practicalAction?: string;
+  reasoning?: string;
+  currentScore?: number;
+  currentLevel?: string;
+  targetLevel?: string;
+  prerequisites?: string[];
+  completionCriteria?: string;
+  assessmentMethod?: string;
+  estimatedEffortText?: string;
+  edutubeTopicQuery?: string;
   platformTaskId?: string | null;
   platformTaskTitle?: string | null;
   documentationUrl?: string;

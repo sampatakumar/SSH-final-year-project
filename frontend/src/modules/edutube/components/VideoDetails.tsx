@@ -12,6 +12,9 @@ import {
   Sparkles,
   BookOpen,
   Check,
+  Flag,
+  ShieldAlert,
+  CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -29,6 +32,8 @@ export interface VideoDetailsProps {
   currentPlaybackSeconds?: number;
   onSelectRelatedVideo: (video: EduTubeVideoItem) => void;
   onSeekTo?: (seconds: number) => void;
+  onOpenReport?: () => void;
+  onBlockedStatusChange?: (isBlocked: boolean, rejectionInfo?: any) => void;
 }
 
 export const VideoDetails: React.FC<VideoDetailsProps> = ({
@@ -37,10 +42,13 @@ export const VideoDetails: React.FC<VideoDetailsProps> = ({
   currentPlaybackSeconds = 0,
   onSelectRelatedVideo,
   onSeekTo,
+  onOpenReport,
+  onBlockedStatusChange,
 }) => {
   const { authInitialized, firebaseUser } = useAuth();
   const queryClient = useQueryClient();
   const [video, setVideo] = useState<EduTubeVideoDetail | null>(null);
+  const [rejectionData, setRejectionData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDescExpanded, setIsDescExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -105,27 +113,35 @@ export const VideoDetails: React.FC<VideoDetailsProps> = ({
         setIsLoading(true);
         const res = await EduTubeApi.getVideo(videoId);
         if (!isCancelled) {
-          setVideo(res.video);
+          if (res.allowed === false) {
+            setRejectionData(res);
+            onBlockedStatusChange?.(true, res);
+            setVideo((res.video as any) || null);
+          } else {
+            setVideo(res.video);
+            setRejectionData(null);
+            onBlockedStatusChange?.(false, null);
 
-          // Fetch related educational videos based on title keywords
-          if (res.video?.title) {
-            const queryKeywords = res.video.title
-              .replace(/[^\w\s]/gi, "")
-              .split(/\s+/)
-              .filter((w) => w.length > 3)
-              .slice(0, 3)
-              .join(" ");
+            // Fetch related educational videos based on title keywords
+            if (res.video?.title) {
+              const queryKeywords = res.video.title
+                .replace(/[^\w\s]/gi, "")
+                .split(/\s+/)
+                .filter((w) => w.length > 3)
+                .slice(0, 3)
+                .join(" ");
 
-            if (queryKeywords) {
-              EduTubeApi.search({ q: `${queryKeywords} tutorial`, maxResults: 4 })
-                .then((searchRes) => {
-                  if (!isCancelled) {
-                    setRelatedVideos(
-                      (searchRes.items || []).filter((v) => v.videoId !== videoId).slice(0, 3)
-                    );
-                  }
-                })
-                .catch(() => {});
+              if (queryKeywords) {
+                EduTubeApi.search({ q: `${queryKeywords} tutorial`, maxResults: 4 })
+                  .then((searchRes) => {
+                    if (!isCancelled) {
+                      setRelatedVideos(
+                        (searchRes.items || []).filter((v) => v.videoId !== videoId).slice(0, 3)
+                      );
+                    }
+                  })
+                  .catch(() => {});
+              }
             }
           }
         }
@@ -259,9 +275,49 @@ export const VideoDetails: React.FC<VideoDetailsProps> = ({
               {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Share2 className="h-3.5 w-3.5" />}
               <span>{copied ? "Copied" : "Share"}</span>
             </Button>
+
+            {/* Report Misclassification */}
+            {onOpenReport && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onOpenReport}
+                className="h-8 px-2.5 text-xs font-semibold gap-1.5 shadow-neo-raised-sm text-muted-foreground hover:text-foreground"
+                title="Report content misclassification"
+              >
+                <Flag className="h-3.5 w-3.5 text-primary" />
+                <span className="hidden sm:inline">Report</span>
+              </Button>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Rejection Notice Banner */}
+      {rejectionData && (
+        <div className="p-4 rounded-2xl bg-destructive/10 border border-destructive/30 space-y-2 text-xs shadow-neo-raised">
+          <div className="flex items-center gap-2 text-destructive font-bold">
+            <ShieldAlert className="h-4 w-4" />
+            <span>EduTube Educational Quality Notice</span>
+          </div>
+          <p className="text-muted-foreground leading-relaxed">
+            {rejectionData.message ||
+              "This video does not meet EduTube's verified educational criteria and is blocked from playback."}
+          </p>
+          {rejectionData.reasonCodes && rejectionData.reasonCodes.length > 0 && (
+            <div className="flex flex-wrap gap-1 pt-1">
+              {rejectionData.reasonCodes.map((code: string) => (
+                <span
+                  key={code}
+                  className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-destructive/15 text-destructive border border-destructive/20"
+                >
+                  {code}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Video Notes Module (Phase 3B) */}
       <VideoNotes

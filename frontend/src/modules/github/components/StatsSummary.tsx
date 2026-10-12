@@ -13,40 +13,50 @@ import type { AggregateGitHubStats } from "../types/github.types";
 
 export interface StatsSummaryProps {
   stats: AggregateGitHubStats;
-  totalRepos: number;
-  dominantLanguage: string;
+  totalRepos?: number;
+  dominantLanguage?: string;
 }
 
 export const StatsSummary: React.FC<StatsSummaryProps> = ({
   stats,
-  totalRepos,
-  dominantLanguage,
+  totalRepos = 0,
+  dominantLanguage = "JavaScript",
 }) => {
-  const originalRepos = Math.max(0, totalRepos - stats.forkedCount);
-  const originalityRatio = totalRepos > 0
-    ? Math.round((originalRepos / totalRepos) * 100)
-    : 100;
+  const safeTotalRepos = Number.isFinite(totalRepos) ? Math.max(0, Number(totalRepos)) : 0;
+  const safeForked = Number.isFinite(stats?.forkedCount) ? Math.max(0, Number(stats.forkedCount)) : 0;
+  const safeTotalStars = Number.isFinite(stats?.totalStars) ? Math.max(0, Number(stats.totalStars)) : 0;
+  const safeSizeKB = Number.isFinite(stats?.totalSizeKB) ? Math.max(0, Number(stats.totalSizeKB)) : 0;
+  const safeForks = Number.isFinite(stats?.totalForks) ? Math.max(0, Number(stats.totalForks)) : 0;
+  const safeWatchers = Number.isFinite(stats?.totalWatchers) ? Math.max(0, Number(stats.totalWatchers)) : 0;
+  const safeIssues = Number.isFinite(stats?.totalIssues) ? Math.max(0, Number(stats.totalIssues)) : 0;
 
-  const sizeFormatted = stats.totalSizeKB > 1024
-    ? `${(stats.totalSizeKB / 1024).toFixed(1)} MB`
-    : `${stats.totalSizeKB} KB`;
+  const originalRepos = Math.max(0, safeTotalRepos - safeForked);
+  const originalityRatio = safeTotalRepos > 0
+    ? Math.round((originalRepos / safeTotalRepos) * 100)
+    : 0;
+
+  const sizeFormatted = safeSizeKB > 1024
+    ? `${(safeSizeKB / 1024).toFixed(1)} MB`
+    : `${safeSizeKB} KB`;
 
   const avgStars = originalRepos > 0
-    ? (stats.totalStars / originalRepos).toFixed(1)
-    : "0.0";
+    ? (safeTotalStars / originalRepos).toFixed(1)
+    : safeTotalRepos > 0
+    ? "0.0 (forked only)"
+    : "N/A (0 repos)";
 
   const cards = [
     {
       title: "Total Repositories",
-      value: totalRepos,
-      subValue: `${originalRepos} original · ${stats.forkedCount} forked`,
+      value: safeTotalRepos,
+      subValue: `${originalRepos} original · ${safeForked} forked`,
       icon: FolderGit2,
       color: "text-blue-500",
       bg: "bg-blue-500/10",
     },
     {
       title: "Total Stars Earned",
-      value: stats.totalStars,
+      value: safeTotalStars,
       subValue: `Avg ${avgStars} stars / original repo`,
       icon: Star,
       color: "text-amber-500",
@@ -54,7 +64,7 @@ export const StatsSummary: React.FC<StatsSummaryProps> = ({
     },
     {
       title: "Repository Forks",
-      value: stats.totalForks,
+      value: safeForks,
       subValue: "Community project clones",
       icon: GitFork,
       color: "text-purple-500",
@@ -62,7 +72,7 @@ export const StatsSummary: React.FC<StatsSummaryProps> = ({
     },
     {
       title: "Total Watchers",
-      value: stats.totalWatchers,
+      value: safeWatchers,
       subValue: "Active project subscribers",
       icon: Eye,
       color: "text-emerald-500",
@@ -78,7 +88,7 @@ export const StatsSummary: React.FC<StatsSummaryProps> = ({
     },
     {
       title: "Open Issues Tracked",
-      value: stats.totalIssues,
+      value: safeIssues,
       subValue: "Active tasks & bug reports",
       icon: AlertCircle,
       color: "text-orange-500",
@@ -95,7 +105,7 @@ export const StatsSummary: React.FC<StatsSummaryProps> = ({
     {
       title: "Portfolio Originality",
       value: `${originalityRatio}%`,
-      subValue: `${originalRepos} of ${totalRepos} projects owned`,
+      subValue: `${originalRepos} of ${safeTotalRepos} projects owned`,
       icon: ShieldCheck,
       color: "text-rose-500",
       bg: "bg-rose-500/10",

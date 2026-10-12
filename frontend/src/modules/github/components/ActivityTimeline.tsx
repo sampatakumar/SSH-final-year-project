@@ -12,10 +12,16 @@ import {
 
 export interface ActivityTimelineProps {
   recentEvents?: any[];
+  events?: any[];
 }
 
-export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ recentEvents = [] }) => {
-  if (!recentEvents || recentEvents.length === 0) {
+export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
+  recentEvents = [],
+  events,
+}) => {
+  const displayEvents = (events && events.length > 0) ? events : recentEvents;
+
+  if (!displayEvents || displayEvents.length === 0) {
     return (
       <div className="bg-card rounded-2xl border border-border/50 p-5 shadow-xs">
         <div className="flex items-center gap-2 border-b border-border/40 pb-3 mb-3">
@@ -65,7 +71,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ recentEvents
         <div className="flex items-center gap-2">
           <Activity className="h-4 w-4 text-primary" />
           <h3 className="font-bold text-sm text-foreground">
-            Activity Timeline (Last {recentEvents.length} Events)
+            Activity Timeline (Last {displayEvents.length} Events)
           </h3>
         </div>
         <span className="text-[11px] text-muted-foreground font-mono">Live Stream</span>
@@ -73,7 +79,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ recentEvents
 
       {/* Events List */}
       <div className="space-y-2.5 max-h-80 overflow-y-auto custom-scrollbar pr-1">
-        {recentEvents.map((evt, idx) => {
+        {displayEvents.map((evt, idx) => {
           const repoName = evt.repo?.name || "Repository";
           const commitCount = evt.payload?.commits?.length || 0;
           const time = evt.created_at ? formatRelativeTime(evt.created_at) : "";

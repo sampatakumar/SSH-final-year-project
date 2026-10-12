@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { ArrowLeft, ExternalLink, ShieldAlert, Play, RotateCcw, Clock } from "lucide-react";
+import { ArrowLeft, ExternalLink, ShieldAlert, Play, RotateCcw, Clock, Flag, ShieldX } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { EduTubeApi } from "../services/edutube.api";
@@ -11,9 +11,13 @@ export interface VideoPlayerProps {
   channelTitle?: string;
   durationSeconds?: number;
   embeddable?: boolean;
+  isBlocked?: boolean;
+  rejectionReason?: string;
+  rejectionCodes?: string[];
   onBack: () => void;
   onSeekPositionChange?: (currentSeconds: number) => void;
   seekToSeconds?: number | null;
+  onReport?: () => void;
 }
 
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({
@@ -23,9 +27,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   channelTitle = "",
   durationSeconds = 0,
   embeddable = true,
+  isBlocked = false,
+  rejectionReason,
+  rejectionCodes = [],
   onBack,
   onSeekPositionChange,
   seekToSeconds = null,
+  onReport,
 }) => {
   const queryClient = useQueryClient();
   const [resumePrompt, setResumePrompt] = useState<{
@@ -242,7 +250,59 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
       {/* Embedded Player Container */}
       <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-black border border-border/40 shadow-neo-raised">
-        {embeddable ? (
+        {isBlocked ? (
+          <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center space-y-3 bg-surface text-foreground">
+            <div className="h-12 w-12 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-500 shadow-neo-raised-sm">
+              <ShieldAlert className="h-6 w-6" />
+            </div>
+            <div className="space-y-1 max-w-md">
+              <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/30">
+                Education-Only Gate
+              </span>
+              <h3 className="text-sm font-bold text-foreground">
+                Playback Blocked: Non-Educational Content
+              </h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {rejectionReason ||
+                  "EduTube strictly restricts playback to accredited programming, engineering, mathematics, and academic courses. Entertainment media, music videos, and short-form content are blocked."}
+              </p>
+              {rejectionCodes.length > 0 && (
+                <div className="flex flex-wrap justify-center gap-1 pt-1">
+                  {rejectionCodes.map((code) => (
+                    <span
+                      key={code}
+                      className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-muted/60 text-muted-foreground border border-border/40"
+                    >
+                      {code}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onBack}
+                className="text-xs font-bold gap-1.5 shadow-neo-raised-sm"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                <span>Back to EduTube</span>
+              </Button>
+              {onReport && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onReport}
+                  className="text-xs font-semibold gap-1 text-muted-foreground hover:text-foreground"
+                >
+                  <Flag className="h-3 w-3" />
+                  <span>Report Error</span>
+                </Button>
+              )}
+            </div>
+          </div>
+        ) : embeddable ? (
           <iframe
             src={embedUrl}
             title={title || "EduTube Video Lesson"}

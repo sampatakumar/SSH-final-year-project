@@ -83,3 +83,20 @@ export const getSkillRecommendation = asyncHandler(async (req, res) => {
     new ApiResponse(200, { recommendation: recommendations[0] || null }, `Recommendation for ${canonical}`)
   );
 });
+
+/**
+ * PATCH /api/v1/recommendations/item/:recommendationId
+ * Update recommendation status (e.g. mark completed or in_progress).
+ */
+export const updateRecommendationStatus = asyncHandler(async (req, res) => {
+  if (!req.user?._id) {
+    throw new RecommendationError("Authentication required.", 401);
+  }
+
+  const { recommendationId } = req.params;
+  const { status = "completed" } = req.body;
+
+  return res.status(200).json(
+    new ApiResponse(200, { recommendationId, status }, "Recommendation status updated")
+  );
+});

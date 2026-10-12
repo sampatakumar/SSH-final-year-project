@@ -17,16 +17,23 @@ export function buildCareerMentorPlan({
   targetRole = TARGET_ROLES.FULL_STACK_DEVELOPER,
 }) {
   let role = TARGET_ROLES.FULL_STACK_DEVELOPER;
-  const inputRole = String(targetRole || "").toLowerCase();
-
-  if (inputRole.includes("frontend")) {
-    role = TARGET_ROLES.FRONTEND_ENGINEER;
-  } else if (inputRole.includes("backend")) {
-    role = TARGET_ROLES.BACKEND_NODE_ENGINEER;
-  } else if (inputRole.includes("software engineer") || inputRole.includes("core cs") || inputRole.includes("algorithms")) {
-    role = TARGET_ROLES.DATA_STRUCTURES_ALGORITHMS;
+  if (ROLE_REQUIREMENTS[targetRole]) {
+    role = targetRole;
   } else {
-    role = TARGET_ROLES.FULL_STACK_DEVELOPER;
+    const inputRole = String(targetRole || "").toLowerCase();
+    if (inputRole.includes("frontend")) {
+      role = TARGET_ROLES.FRONTEND_ENGINEER;
+    } else if (inputRole.includes("backend")) {
+      role = TARGET_ROLES.BACKEND_NODE_ENGINEER;
+    } else if (
+      inputRole.includes("software engineer") ||
+      inputRole.includes("core cs") ||
+      inputRole.includes("algorithms")
+    ) {
+      role = TARGET_ROLES.DATA_STRUCTURES_ALGORITHMS;
+    } else {
+      role = TARGET_ROLES.FULL_STACK_DEVELOPER;
+    }
   }
 
   const repositories = githubData?.repositories || [];

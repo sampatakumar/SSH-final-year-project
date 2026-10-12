@@ -45,9 +45,10 @@ import type {
 
 export interface PersonalCareerMentorProps {
   mentorData: PersonalCareerMentorData;
-  analysis: GitHubAnalysisData;
+  analysis?: GitHubAnalysisData;
+  username?: string;
   targetRole: string;
-  onRoleChange: (newRole: string) => void;
+  onRoleChange: (newRole: string) => void | Promise<void>;
 }
 
 const QUICK_PROMPTS = [
@@ -62,6 +63,7 @@ const QUICK_PROMPTS = [
 export const PersonalCareerMentor: React.FC<PersonalCareerMentorProps> = ({
   mentorData,
   analysis,
+  username,
   targetRole,
   onRoleChange,
 }) => {

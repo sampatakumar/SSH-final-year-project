@@ -52,8 +52,48 @@ export const getVideoDetails = asyncHandler(async (req, res) => {
 
   const result = await edutubeSearchService.getVideoById(videoId.trim());
 
+  if (result.allowed === false) {
+    return res.status(403).json(
+      new ApiResponse(
+        403,
+        {
+          allowed: false,
+          decision: result.decision || "reject",
+          reasonCodes: result.reasonCodes || [],
+          matchedSignals: result.matchedSignals || [],
+          classifierVersion: result.classifierVersion,
+          message: "Video does not meet educational quality standards for EduTube discovery or playback.",
+          video: result.video ? { videoId: result.video.videoId, title: result.video.title } : undefined,
+        },
+        "Video does not meet educational quality standards for EduTube discovery or playback."
+      )
+    );
+  }
+
   return res.status(200).json(
     new ApiResponse(200, result, "Video details retrieved successfully")
+  );
+});
+
+export const reportVideoClassification = asyncHandler(async (req, res) => {
+  const { videoId, reason, feedbackType, notes } = req.body;
+
+  if (!videoId || typeof videoId !== "string" || !videoId.trim()) {
+    throw new EduTubeError(400, "Parameter 'videoId' is required.");
+  }
+
+  const report = {
+    reportId: `rep_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    videoId: videoId.trim(),
+    userId: req.user?._id || "anonymous",
+    feedbackType: feedbackType || "false_positive",
+    reason: reason || "incorrect_classification",
+    notes: String(notes || "").slice(0, 500),
+    reportedAt: new Date().toISOString(),
+  };
+
+  return res.status(200).json(
+    new ApiResponse(200, { report, acknowledged: true }, "Video classification report received successfully")
   );
 });
 

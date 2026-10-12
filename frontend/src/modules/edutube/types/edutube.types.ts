@@ -31,6 +31,32 @@ export interface EduTubeVideoItem {
     seconds?: number;
     formatted?: string;
   };
+  classification?: EducationalClassification;
+  classifierDecision?: "allow" | "reject" | "review";
+}
+
+export interface EducationalClassification {
+  videoId: string;
+  decision: "allow" | "reject" | "review";
+  contentType: string;
+  educationalRelevance: number;
+  confidence: number;
+  reasonCodes: string[];
+  matchedSignals: string[];
+  classifierVersion: string;
+}
+
+export interface VideoRejectionInfo {
+  allowed: false;
+  decision: "reject" | "review";
+  reasonCodes: string[];
+  matchedSignals: string[];
+  classifierVersion: string;
+  message: string;
+  video?: {
+    videoId: string;
+    title: string;
+  };
 }
 
 export interface EduTubeVideoDetail {

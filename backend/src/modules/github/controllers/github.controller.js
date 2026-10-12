@@ -168,28 +168,95 @@ export const getLatestUserAnalysis = asyncHandler(async (req, res) => {
  * Extract Smart Skill Hub skill evidence from GitHub profile.
  */
 export const getSkillEvidence = asyncHandler(async (req, res) => {
-  const username = req.params.username || req.query.username;
-  if (!username) {
-    throw new ApiError(400, "GitHub username is required.");
+  let username = req.params.username || req.query.username;
+
+  if (!username && req.user?._id) {
+    const settings = await UserSettings.findOne({ owner: req.user._id }).lean().catch(() => null);
+    if (settings?.githubIntegration?.connected && settings.githubIntegration.githubUsername) {
+      username = settings.githubIntegration.githubUsername;
+    } else if (req.user.githubUrl) {
+      const match = req.user.githubUrl.match(/github\.com\/([A-Za-z0-9_.-]+)/);
+      if (match) username = match[1];
+    }
   }
 
-  const profileData = await fetchGitHubProfileData(username);
-  const evidencePackage = extractGitHubEvidence({
-    userId: req.user?._id || "anonymous-developer",
-    githubData: profileData,
-  });
+  if (!username) {
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          evidence: {
+            source: "github",
+            version: "1.0.0",
+            timestamp: new Date().toISOString(),
+            userId: req.user?._id || "anonymous-developer",
+            skills: [],
+            summary: {
+              totalSkillsIdentified: 0,
+              dominantSkill: null,
+              highConfidenceCount: 0,
+              insufficientEvidence: true,
+              guidance: "Connect your GitHub account in Settings or analyze a public repository profile to generate verifiable skill evidence.",
+            },
+          },
+        },
+        "No GitHub account connected"
+      )
+    );
+  }
 
-  return res.status(200).json(
-    new ApiResponse(200, { evidence: evidencePackage }, "GitHub skill evidence extracted successfully")
-  );
+  try {
+    const profileData = await fetchGitHubProfileData(username);
+    const evidencePackage = extractGitHubEvidence({
+      userId: req.user?._id || "anonymous-developer",
+      githubData: profileData,
+    });
+
+    return res.status(200).json(
+      new ApiResponse(200, { evidence: evidencePackage }, "GitHub skill evidence extracted successfully")
+    );
+  } catch (err) {
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          evidence: {
+            source: "github",
+            version: "1.0.0",
+            timestamp: new Date().toISOString(),
+            userId: req.user?._id || "anonymous-developer",
+            skills: [],
+            summary: {
+              totalSkillsIdentified: 0,
+              dominantSkill: null,
+              highConfidenceCount: 0,
+              insufficientEvidence: true,
+              guidance: `Could not fetch GitHub activity for @${username}: ${err.message}. Skill evidence could not be generated.`,
+            },
+          },
+        },
+        "GitHub profile evidence unavailable"
+      )
+    );
+  }
 });
 
 /**
  * Get Personalized Career Mentor plan for a developer profile.
  */
 export const getCareerMentorDashboard = asyncHandler(async (req, res) => {
-  const username = req.params.username || req.query.username || req.body?.username;
+  let username = req.params.username || req.query.username || req.body?.username;
   const targetRole = req.query.role || req.body?.role || "Full Stack Developer";
+
+  if (!username && req.user?._id) {
+    const settings = await UserSettings.findOne({ owner: req.user._id }).lean().catch(() => null);
+    if (settings?.githubIntegration?.connected && settings.githubIntegration.githubUsername) {
+      username = settings.githubIntegration.githubUsername;
+    } else if (req.user.githubUrl) {
+      const match = req.user.githubUrl.match(/github\.com\/([A-Za-z0-9_.-]+)/);
+      if (match) username = match[1];
+    }
+  }
 
   if (!username) {
     throw new ApiError(400, "GitHub username is required.");

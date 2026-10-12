@@ -3,15 +3,18 @@
  * Provides TTL-based caching and in-flight promise coalescing to protect YouTube Data API v3 quota.
  */
 
+import { CLASSIFIER_VERSION } from "./educationalClassifier.service.js";
+
 class EduTubeCacheService {
   constructor(defaultTTLSeconds = 600) {
     this.defaultTTL = defaultTTLSeconds * 1000;
     this.cache = new Map();
     this.inFlightRequests = new Map();
+    this.classifierVersion = CLASSIFIER_VERSION;
   }
 
   /**
-   * Build a deterministic cache key for search queries.
+   * Build a deterministic cache key for search queries bound to active classifier version.
    */
   generateSearchKey(params = {}) {
     const q = (params.q || "").trim().toLowerCase();
@@ -22,16 +25,17 @@ class EduTubeCacheService {
     const sort = (params.sort || "relevance").trim().toLowerCase();
     const pageToken = (params.pageToken || "").trim();
     const maxResults = params.maxResults || 10;
+    const version = params.classifierVersion || this.classifierVersion;
 
-    return `edutube:search:${q}:${language}:${regionCode}:${level}:${duration}:${sort}:${pageToken}:${maxResults}`;
+    return `edutube:search:v${version}:${q}:${language}:${regionCode}:${level}:${duration}:${sort}:${pageToken}:${maxResults}`;
   }
 
   /**
-   * Build a deterministic cache key for video metadata.
+   * Build a deterministic cache key for video metadata bound to active classifier version.
    */
-  generateVideoKey(videoId) {
+  generateVideoKey(videoId, version = this.classifierVersion) {
     const id = (videoId || "").trim();
-    return `edutube:video:${id}`;
+    return `edutube:video:v${version}:${id}`;
   }
 
   /**

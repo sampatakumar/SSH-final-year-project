@@ -235,6 +235,10 @@ export class AdaptiveSkillLoopService {
     };
   }
 
+  async recordAssessmentOutcome(ownerId, payload = {}) {
+    return this.recordAdaptiveAssessmentOutcome(ownerId, payload);
+  }
+
   /**
    * Record formative assessment or coding challenge outcome, update SkillProfile
    * with empirical evidence, adjust gaps, and schedule spaced revision.

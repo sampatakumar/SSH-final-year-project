@@ -4,6 +4,7 @@ import type { LanguageStatItem } from "../types/github.types";
 
 export interface LanguageDistributionProps {
   languages: Record<string, LanguageStatItem>;
+  dominantLanguage?: string;
   selectedLanguage: string;
   onSelectLanguage: (lang: string) => void;
 }

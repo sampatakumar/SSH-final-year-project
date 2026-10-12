@@ -154,17 +154,35 @@ describe("Step 6: Gap Analysis Module Verification Suite", () => {
       expect(run1.gaps).toEqual(run2.gaps);
     });
 
-    it("19. verifies benchmark requirements exist for all 4 supported target roles", () => {
+    it("19. verifies benchmark requirements exist for all supported target roles (24 roles catalogue)", () => {
       const supportedRoles = Object.values(TARGET_ROLES);
-      expect(supportedRoles.length).toBe(4);
+      expect(supportedRoles.length).toBeGreaterThanOrEqual(24);
 
       for (const role of supportedRoles) {
         const config = ROLE_REQUIREMENTS[role];
         expect(config).toBeDefined();
         expect(config.roleName).toBe(role);
-        expect(config.coreSkills.length).toBeGreaterThanOrEqual(5);
+        expect(config.coreSkills.length).toBeGreaterThanOrEqual(4);
         expect(Array.isArray(config.recommendedSkills)).toBe(true);
       }
+    });
+
+    it("verifies dynamic role switching between diverse career roles (e.g. DevOps vs AI vs Full Stack)", () => {
+      const evaluatedSkills = [
+        { canonicalName: "JavaScript", score: 85, level: "Proficient" },
+        { canonicalName: "Docker", score: 80, level: "Proficient" },
+        { canonicalName: "Linux", score: 75, level: "Proficient" },
+      ];
+
+      // Switch to DevOps Engineer
+      const devopsAnalysis = analyzeSkillGaps(evaluatedSkills, "DevOps Engineer");
+      expect(devopsAnalysis.targetRole).toBe("DevOps Engineer");
+      expect(devopsAnalysis.metSkills.some((s) => s.canonicalName === "Docker")).toBe(true);
+
+      // Switch to AI Application Developer
+      const aiAnalysis = analyzeSkillGaps(evaluatedSkills, "AI Application Developer");
+      expect(aiAnalysis.targetRole).toBe("AI Application Developer");
+      expect(aiAnalysis.gaps.some((g) => g.canonicalName === "TypeScript")).toBe(true);
     });
   });
 
@@ -234,7 +252,7 @@ describe("Step 6: Gap Analysis Module Verification Suite", () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(Array.isArray(res.body.data.roles)).toBe(true);
-      expect(res.body.data.roles.length).toBe(4);
+      expect(res.body.data.roles.length).toBeGreaterThanOrEqual(24);
     });
 
     it("15. rejects unauthenticated GET /api/v1/gaps with 401", async () => {

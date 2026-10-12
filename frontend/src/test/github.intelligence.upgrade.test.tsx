@@ -271,6 +271,49 @@ describe("GitHub Intelligence Hub & Full Git Reviewer Integration Suite", () => 
       expect(screen.getByText("Dominant Technology")).toBeInTheDocument();
       expect(screen.getByText("Portfolio Originality")).toBeInTheDocument();
     });
+
+    it("prevents NaN calculations when totalRepos is undefined or zero", () => {
+      render(
+        <StatsSummary
+          stats={{
+            totalStars: 0,
+            totalForks: 0,
+            totalWatchers: 0,
+            totalIssues: 0,
+            totalSizeKB: 0,
+            archivedCount: 0,
+            forkedCount: 0,
+          }}
+        />
+      );
+
+      // Verify no NaN is rendered in subValues or text
+      expect(screen.queryByText(/\bNaN\b/)).not.toBeInTheDocument();
+      expect(screen.getByText("0 original · 0 forked")).toBeInTheDocument();
+      expect(screen.getByText("Avg N/A (0 repos) stars / original repo")).toBeInTheDocument();
+    });
+
+    it("handles 100% forked repository portfolios gracefully", () => {
+      render(
+        <StatsSummary
+          stats={{
+            totalStars: 50,
+            totalForks: 10,
+            totalWatchers: 50,
+            totalIssues: 2,
+            totalSizeKB: 1000,
+            archivedCount: 0,
+            forkedCount: 5,
+          }}
+          totalRepos={5}
+        />
+      );
+
+      expect(screen.queryByText(/\bNaN\b/)).not.toBeInTheDocument();
+      expect(screen.getByText("0 original · 5 forked")).toBeInTheDocument();
+      expect(screen.getByText("Avg 0.0 (forked only) stars / original repo")).toBeInTheDocument();
+      expect(screen.getByText("0%")).toBeInTheDocument();
+    });
   });
 
   // 4. LanguageDistribution Component
@@ -367,6 +410,55 @@ describe("GitHub Intelligence Hub & Full Git Reviewer Integration Suite", () => 
       expect(screen.getByText(/Smart Skill Hub Evidence Integration/i)).toBeInTheDocument();
       expect(screen.getByText("TypeScript")).toBeInTheDocument();
       expect(screen.getByText("Go")).toBeInTheDocument();
+    });
+
+    it("handles undefined data gracefully without throwing Cannot destructure property errors", () => {
+      // Phase 1 regression test: Previously threw Cannot destructure property 'languages' of 'data' as it is undefined.
+      expect(() => render(<SkillEvidence data={undefined} />)).not.toThrow();
+      expect(screen.getByText(/No Verified Skill Evidence Found/i)).toBeInTheDocument();
+    });
+
+    it("handles null data gracefully with helpful empty state", () => {
+      expect(() => render(<SkillEvidence data={null} />)).not.toThrow();
+      expect(screen.getByText(/No Verified Skill Evidence Found/i)).toBeInTheDocument();
+    });
+
+    it("handles incomplete payload (empty languages or repositories) without crashing", () => {
+      const incompleteData: any = {
+        username: "emptyuser",
+        languages: {},
+        repositories: [],
+      };
+      render(<SkillEvidence data={incompleteData} />);
+      expect(screen.getByText(/No Verified Skill Evidence Found/i)).toBeInTheDocument();
+    });
+
+    it("renders loading state when isLoading is true", () => {
+      render(<SkillEvidence isLoading={true} />);
+      expect(screen.getByText(/Extracting Skill Evidence/i)).toBeInTheDocument();
+    });
+
+    it("renders error state and triggers onRetry when provided", () => {
+      const retrySpy = vi.fn();
+      render(<SkillEvidence error="Network failure" onRetry={retrySpy} />);
+
+      expect(screen.getByText(/Unable to Load Skill Evidence/i)).toBeInTheDocument();
+      expect(screen.getByText(/Network failure/i)).toBeInTheDocument();
+
+      const retryBtn = screen.getByRole("button", { name: /Retry Evidence Extraction/i });
+      fireEvent.click(retryBtn);
+      expect(retrySpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("opens skill evidence deep file dialog when a skill card is clicked", () => {
+      render(<SkillEvidence data={mockGitHubData} />);
+
+      const tsCard = screen.getByText("TypeScript");
+      fireEvent.click(tsCard);
+
+      expect(screen.getByText(/TypeScript Evidence File/i)).toBeInTheDocument();
+      expect(screen.getByText(/Verified Observations/i)).toBeInTheDocument();
+      expect(screen.getByText(/smart-skill-hub/i)).toBeInTheDocument();
     });
   });
 

@@ -14,6 +14,7 @@
  */
 
 import { env } from "../../../config/env.js";
+import { educationalClassifierService } from "./educationalClassifier.service.js";
 
 export const QUALITY_GATE_REASONS = {
   UNVERIFIED_DURATION: "UNVERIFIED_DURATION",
@@ -223,24 +224,40 @@ export class EduTubeQualityGateService {
       };
     }
 
-    // 5. Low-substance / entertainment penalty check
+    // 5. Educational classification & entertainment filtering
     const fullText = `${video.title || ""} ${video.description || ""}`.toLowerCase();
-    for (const pattern of NON_EDUCATIONAL_PATTERNS) {
-      if (pattern.test(fullText)) {
-        return {
-          eligible: false,
-          rejectReason: QUALITY_GATE_REASONS.LOW_SUBSTANCE_ENTERTAINMENT,
-          message: "Video matches non-educational entertainment pattern.",
-          diagnostic: { durationSeconds, isShort: false, matchedPattern: pattern.toString() },
-        };
+    const classification = educationalClassifierService.classifyVideo(video, {
+      minDurationSeconds: minDuration,
+    });
+
+    if (classification.decision !== "allow") {
+      let rejectReason = QUALITY_GATE_REASONS.LOW_SUBSTANCE_ENTERTAINMENT;
+      if (classification.reasonCodes.includes("HARD_BLOCK_SHORTS")) {
+        rejectReason = QUALITY_GATE_REASONS.YOUTUBE_SHORTS_EXCLUDED;
+      } else if (classification.reasonCodes.includes("HARD_BLOCK_DURATION_BELOW_MINIMUM")) {
+        rejectReason = QUALITY_GATE_REASONS.DURATION_BELOW_MINIMUM;
+      } else if (classification.reasonCodes.includes("HARD_BLOCK_NON_EMBEDDABLE")) {
+        rejectReason = QUALITY_GATE_REASONS.NON_EMBEDDABLE;
       }
+
+      return {
+        eligible: false,
+        rejectReason,
+        message: `Video failed educational content filtering (${classification.reasonCodes.join(", ")}).`,
+        diagnostic: {
+          durationSeconds,
+          isShort: isShort || classification.reasonCodes.includes("HARD_BLOCK_SHORTS"),
+          educationalScore: classification.educationalRelevance,
+          classification,
+        },
+      };
     }
 
     // 6. Educational substance assessment
-    let educationalScore = Number(video.educationalScore ?? 75);
+    let educationalScore = classification.educationalRelevance;
     const hasStructuredPattern = STRUCTURED_EDUCATIONAL_PATTERNS.some((p) => p.test(fullText));
     if (hasStructuredPattern) {
-      educationalScore = Math.min(100, educationalScore + 10);
+      educationalScore = Math.min(100, educationalScore + 5);
     }
 
     return {
@@ -253,6 +270,7 @@ export class EduTubeQualityGateService {
         educationalScore,
         minDurationEnforced: minDuration,
         structuredTutorial: hasStructuredPattern,
+        classification,
       },
     };
   }

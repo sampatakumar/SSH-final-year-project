@@ -1,6 +1,8 @@
 import { getAllTasks, getPublicTask, getRawTask } from "../services/taskCatalog.service.js";
 import { executeJavaScript, executeJavaScriptTask } from "../sandbox/dockerExecutor.js";
 import { evaluateTask } from "../services/codingExecution.service.js";
+import { generateCodingIntelligenceReport } from "../services/codeIntelligence.service.js";
+import { adaptiveSkillLoopService } from "../../skills/services/adaptive-skill-loop.service.js";
 import { CodingSubmission } from "../models/codingSubmission.models.js";
 import { ApiError, CodingExecutionError, CodingEvaluationError } from "../../../core/errors/ApiError.js";
 import { ApiResponse } from "../../../core/errors/ApiResponse.js";
@@ -103,8 +105,17 @@ export const submitSolution = asyncHandler(async (req, res) => {
   }
 
   const result = await evaluateTask(taskId, code);
+  const task = getRawTask(taskId, language);
 
-  // If user is authenticated, save submission
+  // Generate deep coding intelligence report
+  const intelligence = await generateCodingIntelligenceReport({
+    code,
+    task,
+    executionResult: result,
+    userId: req.user?._id || null,
+  });
+
+  // If user is authenticated, save submission & update empirical skill profile
   let savedSubmission = null;
   if (req.user?._id) {
     savedSubmission = await CodingSubmission.create({
@@ -125,6 +136,21 @@ export const submitSolution = asyncHandler(async (req, res) => {
       stderr: result.stderr || "",
       submittedAt: new Date(),
     });
+
+    try {
+      const primarySkill = task?.skills?.[0] || task?.category || "Problem Solving";
+      await adaptiveSkillLoopService.recordAssessmentOutcome(req.user._id, {
+        skill: primarySkill,
+        taskId,
+        score: result.score,
+        maxScore: result.maxScore,
+        testCasesPassed: result.passed,
+        testCasesTotal: result.total,
+        assessmentType: "coding_challenge",
+      });
+    } catch (err) {
+      console.warn("[coding-controller] Error updating adaptive skill loop:", err.message);
+    }
   }
 
   return res.status(200).json(
@@ -133,6 +159,7 @@ export const submitSolution = asyncHandler(async (req, res) => {
       {
         ...result,
         submissionId: savedSubmission?._id || null,
+        intelligence,
       },
       "Evaluation completed"
     )

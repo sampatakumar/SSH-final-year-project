@@ -10,6 +10,7 @@ import { verifyFirebaseToken } from "../../../core/auth/auth.middleware.js";
 import {
   searchEducationalVideos,
   getVideoDetails,
+  reportVideoClassification,
   // Phase 3B: Watch History
   recordHistory,
   getHistory,
@@ -67,10 +68,11 @@ const edutubeLimiter = rateLimit({
 });
 
 // ==========================================
-// 1. PUBLIC / CACHED VIDEO DISCOVERY
+// 1. PUBLIC / CACHED VIDEO DISCOVERY & REPORTING
 // ==========================================
 router.get("/search", edutubeLimiter, searchEducationalVideos);
 router.get("/video/:videoId", edutubeLimiter, getVideoDetails);
+router.post("/report", edutubeLimiter, reportVideoClassification);
 
 // ==========================================
 // 2. AUTHENTICATED PERSONAL LEARNING ROUTES

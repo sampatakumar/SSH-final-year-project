@@ -8,3 +8,4 @@ export { HowItWorks } from "./HowItWorks";
 export { TestimonialsAndFAQ } from "./TestimonialsAndFAQ";
 export { FinalCTA } from "./FinalCTA";
 export { LandingFooter } from "./LandingFooter";
+export { CareerIntelligenceSimulator } from "./CareerIntelligenceSimulator";

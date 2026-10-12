@@ -186,7 +186,41 @@ export function evaluateEvidencePackages(evidencePackages = []) {
       evaluationConfidence = 0.92;
     }
 
-    // Unique observations
+    // Multi-dimensional scoring breakdown
+    const technicalProficiency = Math.min(
+      100,
+      Math.round(
+        (record.codingSignal ? 55 : 25) +
+        (record.githubSignal ? 30 : 0) +
+        (record.resumeSignal ? 15 : 0)
+      )
+    );
+    const engineeringPractices = Math.min(
+      100,
+      Math.round(
+        (record.githubSignal?.signals?.originalRepoCount ? 40 : 15) +
+        (record.codingSignal?.signals?.passRate ? 35 : 0) +
+        (record.githubSignal?.signals?.starsCount ? 15 : 0) +
+        10
+      )
+    );
+    const projectExperience = Math.min(
+      100,
+      Math.round(
+        (record.githubSignal?.signals?.repoCount ? Math.min(60, record.githubSignal.signals.repoCount * 25) : 20) +
+        (record.resumeSignal?.signals?.inProjects ? 25 : 0)
+      )
+    );
+    const assessmentPerformance = record.codingSignal?.signals?.problemsSolved
+      ? Math.min(100, Math.round(record.codingSignal.signals.problemsSolved * 45))
+      : 0;
+
+    const insufficientEvidence =
+      sourceCount === 1 &&
+      Boolean(record.resumeSignal) &&
+      !record.codingSignal &&
+      !(record.githubSignal?.signals?.originalRepoCount > 0);
+
     const uniqueObservations = Array.from(new Set(record.observations)).slice(0, 4);
 
     evaluatedSkills.push({
@@ -201,6 +235,18 @@ export function evaluateEvidencePackages(evidencePackages = []) {
       evidence: record.evidenceItems,
       observations: uniqueObservations,
       explanation: explanationFactors.join(" | "),
+      dimensions: {
+        technicalProficiency,
+        engineeringPractices,
+        projectExperience,
+        assessmentPerformance,
+        evidenceConfidence: Math.round(evaluationConfidence * 100),
+        evidenceFreshness: 90,
+      },
+      insufficientEvidence,
+      alternativeDemonstration: insufficientEvidence
+        ? `Evidence is currently self-reported. Validate proficiency by passing a practical challenge in the Coding Sandbox or publishing an original project.`
+        : null,
       methodologyVersion: EVALUATION_VERSION,
       lastAssessedAt: new Date().toISOString(),
     });

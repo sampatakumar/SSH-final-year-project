@@ -28,6 +28,7 @@ export const FeatureGrid: React.FC<FeatureGridProps> = ({ onFeatureSelect }) => 
       badgeBg: "bg-purple-500/10 border-purple-500/30",
       glowColor: "#A855F7",
       route: "/dashboard/mentor",
+      tag: "Context-Aware AI",
     },
     {
       icon: BarChart3,
@@ -37,6 +38,7 @@ export const FeatureGrid: React.FC<FeatureGridProps> = ({ onFeatureSelect }) => 
       badgeBg: "bg-emerald-500/10 border-emerald-500/30",
       glowColor: "#10B981",
       route: "/dashboard/skills",
+      tag: "6-D Rubric",
     },
     {
       icon: Target,
@@ -46,6 +48,7 @@ export const FeatureGrid: React.FC<FeatureGridProps> = ({ onFeatureSelect }) => 
       badgeBg: "bg-rose-500/10 border-rose-500/30",
       glowColor: "#F43F5E",
       route: "/dashboard/gaps",
+      tag: "24 Roles",
     },
     {
       icon: BookOpen,
@@ -55,6 +58,7 @@ export const FeatureGrid: React.FC<FeatureGridProps> = ({ onFeatureSelect }) => 
       badgeBg: "bg-cyan-500/10 border-cyan-500/30",
       glowColor: "#06B6D4",
       route: "/dashboard/roadmap",
+      tag: "Milestones & Tasks",
     },
     {
       icon: PlaySquare,
@@ -64,6 +68,7 @@ export const FeatureGrid: React.FC<FeatureGridProps> = ({ onFeatureSelect }) => 
       badgeBg: "bg-pink-500/10 border-pink-500/30",
       glowColor: "#EC4899",
       route: "/dashboard/edutube",
+      tag: "120s+ Quality Gate",
     },
     {
       icon: Code2,
@@ -73,6 +78,7 @@ export const FeatureGrid: React.FC<FeatureGridProps> = ({ onFeatureSelect }) => 
       badgeBg: "bg-sky-500/10 border-sky-500/30",
       glowColor: "#0EA5E9",
       route: "/dashboard/coding",
+      tag: "Docker Sandbox",
     },
     {
       icon: GitBranch,
@@ -82,6 +88,7 @@ export const FeatureGrid: React.FC<FeatureGridProps> = ({ onFeatureSelect }) => 
       badgeBg: "bg-indigo-500/10 border-indigo-500/30",
       glowColor: "#6366F1",
       route: "/dashboard/github",
+      tag: "Deep Repo Analysis",
     },
     {
       icon: FileText,
@@ -91,6 +98,7 @@ export const FeatureGrid: React.FC<FeatureGridProps> = ({ onFeatureSelect }) => 
       badgeBg: "bg-violet-500/10 border-violet-500/30",
       glowColor: "#8B5CF6",
       route: "/dashboard/resumes",
+      tag: "ATS Scorer",
     },
     {
       icon: Briefcase,
@@ -100,6 +108,7 @@ export const FeatureGrid: React.FC<FeatureGridProps> = ({ onFeatureSelect }) => 
       badgeBg: "bg-purple-500/10 border-purple-500/30",
       glowColor: "#7C6CFF",
       route: "/dashboard/portfolios",
+      tag: "One-Click Deploy",
     },
     {
       icon: TrendingUp,
@@ -109,6 +118,7 @@ export const FeatureGrid: React.FC<FeatureGridProps> = ({ onFeatureSelect }) => 
       badgeBg: "bg-amber-500/10 border-amber-500/30",
       glowColor: "#F59E0B",
       route: "/dashboard/analytics",
+      tag: "Live Telemetry",
     },
   ];
 
