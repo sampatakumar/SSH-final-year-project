@@ -24,6 +24,24 @@ const updateProfileSchema = z.object({
   githubUrl: z.string().max(1000).optional(),
   leetCodeId: z.string().max(300).optional(),
   geeksForGeeksId: z.string().max(300).optional(),
+  targetRole: z.string().max(300).optional(),
+  targetRoles: z.array(z.string().max(300)).max(30).optional(),
+  careerInterests: z.array(z.string().max(300)).max(50).optional(),
+  academic: z
+    .object({
+      degreeSlug: z.string().max(100).optional(),
+      degreeName: z.string().max(300).optional(),
+      branchSlug: z.string().max(100).optional(),
+      branchName: z.string().max(300).optional(),
+      specializationSlug: z.string().max(100).optional(),
+      specializationName: z.string().max(300).optional(),
+      stream: z.string().max(100).optional(),
+      currentYear: z.number().int().min(1).max(6).nullable().optional(),
+      currentSemester: z.number().int().min(1).max(12).nullable().optional(),
+      institution: z.string().max(500).optional(),
+      academicScheme: z.string().max(200).optional(),
+    })
+    .optional(),
   education: z.array(z.string().max(1000)).max(30).optional(),
   educationEntries: z
     .array(
@@ -148,6 +166,36 @@ export const updateCurrentUser = asyncHandler(async (req, res) => {
 
   if (parsed.data.geeksForGeeksId !== undefined) {
     user.geeksForGeeksId = parsed.data.geeksForGeeksId;
+  }
+
+  if (parsed.data.targetRole !== undefined) {
+    user.targetRole = parsed.data.targetRole.trim() || user.targetRole;
+  }
+
+  if (parsed.data.targetRoles !== undefined) {
+    const cleanRoles = Array.from(new Set(parsed.data.targetRoles.map((r) => r.trim()).filter(Boolean)));
+    user.targetRoles = cleanRoles;
+    if (cleanRoles.length > 0 && parsed.data.targetRole === undefined) {
+      user.targetRole = cleanRoles[0];
+    }
+  }
+
+  if (parsed.data.careerInterests !== undefined) {
+    user.careerInterests = Array.from(new Set(parsed.data.careerInterests.map((ci) => ci.trim()).filter(Boolean)));
+  }
+
+  if (parsed.data.academic !== undefined) {
+    const currentAcademic = user.academic && typeof user.academic.toObject === "function"
+      ? user.academic.toObject()
+      : (user.academic || {});
+
+    const updatedAcademic = { ...currentAcademic };
+    for (const [key, val] of Object.entries(parsed.data.academic)) {
+      if (val !== undefined) {
+        updatedAcademic[key] = val;
+      }
+    }
+    user.academic = updatedAcademic;
   }
 
   const hasEducationEntriesUpdate = parsed.data.educationEntries !== undefined;

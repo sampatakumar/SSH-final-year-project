@@ -23,6 +23,20 @@ import {
 import { firebaseAuth, googleProvider, githubProvider } from "./firebase";
 import { apiRequest } from "../api/apiClient";
 
+export interface AcademicProfile {
+  degreeSlug?: string;
+  degreeName?: string;
+  branchSlug?: string;
+  branchName?: string;
+  specializationSlug?: string;
+  specializationName?: string;
+  stream?: string;
+  currentYear?: number | null;
+  currentSemester?: number | null;
+  institution?: string;
+  academicScheme?: string;
+}
+
 export interface BackendUser {
   _id?: string;
   id?: string;
@@ -34,6 +48,9 @@ export interface BackendUser {
   photoURL?: string;
   avatar?: string;
   targetRole?: string;
+  targetRoles?: string[];
+  careerInterests?: string[];
+  academic?: AcademicProfile;
   githubUrl?: string;
   linkedInUrl?: string;
   phone?: string;

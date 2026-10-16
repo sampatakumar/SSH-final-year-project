@@ -44,6 +44,8 @@ export const ResumeDocumentViewer: React.FC<ResumeDocumentViewerProps> = ({ resu
       const response = await fetch(targetUrl, {
         headers: {
           ...(idToken && isBackendRoute ? { Authorization: `Bearer ${idToken}` } : {}),
+          "X-Tunnel-Skip-Anti-Phishing-Page": "1",
+          "bypass-tunnel-reminder": "1",
         },
         cache: "no-store",
       });

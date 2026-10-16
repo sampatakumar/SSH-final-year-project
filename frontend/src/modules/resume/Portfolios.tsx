@@ -130,7 +130,11 @@ const Portfolios = () => {
 
       try {
         const res = await fetch(`${getBackendOrigin()}/portfolio/status/${activeJobId}`, {
-          headers: { Authorization: `Bearer ${idToken}` }
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+            "X-Tunnel-Skip-Anti-Phishing-Page": "1",
+            "bypass-tunnel-reminder": "1",
+          }
         });
         const payload = (await res.json()) as PublishStatusResponse;
 
@@ -274,7 +278,13 @@ const Portfolios = () => {
       const preferencePayload = { theme: preference.theme, font: preference.font, animations: preference.animations, accent: preference.accent, notes: preference.notes.trim() };
 
       const response = await fetch(publishEndpoint, {
-        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+          "X-Tunnel-Skip-Anti-Phishing-Page": "1",
+          "bypass-tunnel-reminder": "1",
+        },
         body: JSON.stringify({ preference: preferencePayload, customDomain })
       });
 
@@ -325,7 +335,13 @@ const Portfolios = () => {
     try {
       setGithubExporting(true);
       const response = await fetch(githubExportEndpoint, {
-        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+          "X-Tunnel-Skip-Anti-Phishing-Page": "1",
+          "bypass-tunnel-reminder": "1",
+        },
         body: JSON.stringify({
           token: githubForm.token.trim(), repoOwner: githubForm.repoOwner.trim(), repoName: githubForm.repoName.trim(), branch: githubForm.branch.trim() || "main",
           pathPrefix: githubForm.pathPrefix.trim(), createRepo: true, privateRepo: githubForm.privateRepo,

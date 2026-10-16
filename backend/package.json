@@ -8,6 +8,7 @@
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
     "lint": "node -e \"console.log('Add ESLint config if needed')\"",
+    "seed:academic": "node src/modules/academic/seeds/runSeed.js",
     "test": "vitest run --config vitest.config.js"
   },
   "keywords": [

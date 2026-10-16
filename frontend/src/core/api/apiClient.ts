@@ -2,8 +2,17 @@ import { firebaseAuth, getAuthToken } from "../auth/firebase";
 
 const DEFAULT_API_BASE_URL = "http://localhost:8000/api/v1";
 
-export const getApiBaseUrl = () =>
-  (import.meta.env.VITE_API_URL || DEFAULT_API_BASE_URL).replace(/\/$/, "");
+export const getApiBaseUrl = () => {
+  if (typeof window !== "undefined") {
+    const host = window.location.host;
+    // If accessed through devtunnels (e.g. p7vc1nkb-8080.inc1.devtunnels.ms)
+    if (host.includes(".devtunnels.ms")) {
+      const backendTunnelHost = host.replace(/-8080\./, "-8000.");
+      return `https://${backendTunnelHost}/api/v1`;
+    }
+  }
+  return (import.meta.env.VITE_API_URL || DEFAULT_API_BASE_URL).replace(/\/$/, "");
+};
 
 export const getBackendOrigin = () =>
   getApiBaseUrl().replace(/\/api\/v1$/i, "");
@@ -36,6 +45,8 @@ export async function apiRequest<T>(
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(isFormData ? {} : { "Content-Type": "application/json" }),
+        "X-Tunnel-Skip-Anti-Phishing-Page": "1",
+        "bypass-tunnel-reminder": "1",
       },
       cache: "no-store",
       body: options.body

@@ -185,6 +185,24 @@ export const getFullProfileSnapshot = asyncHandler(async (req, res) => {
     about: {
       summary: user.about || ""
     },
+    career: {
+      targetRole: user.targetRole || "Full Stack Developer",
+      targetRoles: user.targetRoles || [],
+      careerInterests: user.careerInterests || [],
+    },
+    academic: user.academic || {
+      degreeSlug: "",
+      degreeName: "",
+      branchSlug: "",
+      branchName: "",
+      specializationSlug: "",
+      specializationName: "",
+      stream: "",
+      currentYear: null,
+      currentSemester: null,
+      institution: "",
+      academicScheme: "",
+    },
     socialProfiles,
     education: {
       summary: user.education || [],

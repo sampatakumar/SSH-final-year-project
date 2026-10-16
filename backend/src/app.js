@@ -27,6 +27,7 @@ import studyRouter from "./modules/study/routes/study.routes.js";
 import settingsRouter from "./modules/settings/routes/settings.routes.js";
 import integrationsRouter from "./modules/settings/routes/integrations.routes.js";
 import analyticsRouter from "./routes/analytics.routes.js";
+import academicRouter from "./modules/academic/routes/academic.routes.js";
 import { handleGitHubCallback } from "./modules/settings/controllers/integrations.controller.js";
 import { apiHitTracker } from "./core/middleware/analytics.middleware.js";
 import { incrementDailyCounter } from "./core/database/models/analytics.models.js";
@@ -51,9 +52,10 @@ const isOriginAllowed = (origin) => {
     return true;
   }
 
-  // Allow explicit Vercel frontend deployments and local dev servers
+  // Allow explicit Vercel frontend deployments, devtunnels, and local dev servers
   if (
     /^https:\/\/[a-z0-9-]+-smart-skill-hub\.vercel\.app$/i.test(normalized) ||
+    /^https:\/\/[a-z0-9-.]+\.devtunnels\.ms$/i.test(normalized) ||
     /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(normalized)
   ) {
     return true;
@@ -70,7 +72,12 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         ...defaultCspDirectives,
-        "frame-ancestors": ["'self'", env.FRONTEND_URL || "http://localhost:8081"]
+        "frame-ancestors": [
+          "'self'",
+          env.FRONTEND_URL || "http://localhost:8081",
+          "https://*.devtunnels.ms",
+          "https://p7vc1nkb-8080.inc1.devtunnels.ms"
+        ]
       }
     },
     xFrameOptions: false,
@@ -90,7 +97,14 @@ app.use(
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"]
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "Accept",
+      "X-Tunnel-Skip-Anti-Phishing-Page",
+      "bypass-tunnel-reminder"
+    ]
   })
 );
 app.use(express.json({ limit: "1mb" }));
@@ -139,6 +153,7 @@ app.use(`${env.API_PREFIX}/study`, studyRouter);
 app.use(`${env.API_PREFIX}/settings`, settingsRouter);
 app.use(`${env.API_PREFIX}/integrations`, integrationsRouter);
 app.use(`${env.API_PREFIX}/analytics`, analyticsRouter);
+app.use(`${env.API_PREFIX}/academic`, academicRouter);
 app.use(`${env.API_PREFIX}/admin`, adminRouter);
 app.use(`${env.API_PREFIX}/portfolio`, portfolioRouter);
 app.use("/portfolio", portfolioRouter);

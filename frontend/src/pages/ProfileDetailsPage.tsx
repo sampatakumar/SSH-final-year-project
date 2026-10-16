@@ -1,16 +1,25 @@
 import { motion } from "framer-motion";
 import { 
   Globe, User, Plus, Trash2, Sparkles, 
-  Cpu, GraduationCap, Briefcase, Trophy, Loader2 
+  Cpu, GraduationCap, Briefcase, Trophy, Loader2,
+  BookOpen, Compass, Target, Check, X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import AIDescriptionGeneratorDialog from "@/components/AIDescriptionGeneratorDialog";
 import { AI_PROMPT_PRESETS } from "@/config/aiPromptPresets";
 import { useAuth } from "@/core/auth";
 import { useEffect, useRef, useState, type ComponentType, type Dispatch, type SetStateAction } from "react";
 import { ProfileApi } from "@/modules/profile/services/profile.api";
+import {
+  AcademicApi,
+  type AcademicOptionsResponse,
+  type AcademicDegreeOption,
+  type AcademicBranchOption,
+  type CareerRoleOption,
+} from "@/modules/profile/services/academic.api";
 import { toast } from "sonner";
 import { ResumeUploadDropzone } from "@/components/resume/ResumeUploadDropzone";
 import { ResumeExtractionReviewDialog } from "@/components/resume/ResumeExtractionReviewDialog";
@@ -31,6 +40,20 @@ type SkillSectionRow = { title: string; skills: string[]; };
 type ExperienceRow = { role: string; company: string; location: string; date: string; bullets: string; };
 type AchievementRow = { title: string; date: string; bullets: string; };
 type EducationRow = { degree: string; specialization: string; college: string; location: string; endDate: string; grade: string; };
+
+export type AcademicProfileState = {
+  degreeSlug: string;
+  degreeName: string;
+  branchSlug: string;
+  branchName: string;
+  specializationSlug: string;
+  specializationName: string;
+  stream: string;
+  currentYear: number | null;
+  currentSemester: number | null;
+  institution: string;
+  academicScheme: string;
+};
 
 const emptyExperienceRow: ExperienceRow = { role: "", company: "", location: "", date: "", bullets: "" };
 const emptyAchievementRow: AchievementRow = { title: "", date: "", bullets: "" };
@@ -66,6 +89,12 @@ const buildSettingsSnapshot = (payload: {
   skillSections: SkillSectionRow[];
   experienceRows: ExperienceRow[];
   achievementRows: AchievementRow[];
+  academic: AcademicProfileState;
+  targetRole: string;
+  targetRoles: string[];
+  careerInterests: string[];
+  customBranchName: string;
+  customSpecName: string;
 }) =>
   JSON.stringify(payload);
 
@@ -95,6 +124,32 @@ export default function ProfileDetailsPage() {
   const [leetCodeId, setLeetCodeId] = useState("");
   const [geeksForGeeksId, setGeeksForGeeksId] = useState("");
 
+  // Academic Taxonomy State
+  const [degreeSlug, setDegreeSlug] = useState("");
+  const [degreeName, setDegreeName] = useState("");
+  const [branchSlug, setBranchSlug] = useState("");
+  const [branchName, setBranchName] = useState("");
+  const [customBranchName, setCustomBranchName] = useState("");
+  const [specializationSlug, setSpecializationSlug] = useState("");
+  const [specializationName, setSpecializationName] = useState("");
+  const [customSpecName, setCustomSpecName] = useState("");
+  const [stream, setStream] = useState("");
+  const [currentYear, setCurrentYear] = useState<number | null>(null);
+  const [currentSemester, setCurrentSemester] = useState<number | null>(null);
+  const [institution, setInstitution] = useState("");
+  const [academicScheme, setAcademicScheme] = useState("");
+
+  // Career Goals State
+  const [targetRole, setTargetRole] = useState("Full Stack Developer");
+  const [targetRoles, setTargetRoles] = useState<string[]>([]);
+  const [careerInterests, setCareerInterests] = useState<string[]>([]);
+  const [newInterestInput, setNewInterestInput] = useState("");
+
+  // Catalog Options
+  const [catalogOptions, setCatalogOptions] = useState<AcademicOptionsResponse | null>(null);
+  const [isLoadingCatalog, setIsLoadingCatalog] = useState(false);
+  const [branchRoles, setBranchRoles] = useState<CareerRoleOption[]>([]);
+
   const [skillSections, setSkillSections] = useState<SkillSectionRow[]>(defaultSkillSections);
   const [experienceRows, setExperienceRows] = useState<ExperienceRow[]>([emptyExperienceRow]);
   const [achievementRows, setAchievementRows] = useState<AchievementRow[]>([emptyAchievementRow]);
@@ -117,6 +172,40 @@ export default function ProfileDetailsPage() {
       user.achievements?.map((item: any) => ({ ...item, bullets: (item.bullets || []).join("\n") }))
     );
     const initialEdu = normalizeEducationRows(user.educationEntries);
+
+    const userAcademic = user.academic || {};
+    const nextDegreeSlug = userAcademic.degreeSlug || "";
+    const nextDegreeName = userAcademic.degreeName || "";
+    const nextBranchSlug = userAcademic.branchSlug || "";
+    const nextBranchName = userAcademic.branchName || "";
+    const nextSpecSlug = userAcademic.specializationSlug || "";
+    const nextSpecName = userAcademic.specializationName || "";
+    const nextStream = userAcademic.stream || "";
+    const nextYear = userAcademic.currentYear ?? null;
+    const nextSem = userAcademic.currentSemester ?? null;
+    const nextInst = userAcademic.institution || "";
+    const nextScheme = userAcademic.academicScheme || "";
+
+    const nextTargetRole = user.targetRole || "Full Stack Developer";
+    const nextTargetRoles = Array.isArray(user.targetRoles) && user.targetRoles.length > 0
+      ? user.targetRoles
+      : [nextTargetRole];
+    const nextInterests = Array.isArray(user.careerInterests) ? user.careerInterests : [];
+
+    setDegreeSlug(nextDegreeSlug);
+    setDegreeName(nextDegreeName);
+    setBranchSlug(nextBranchSlug);
+    setBranchName(nextBranchName);
+    setSpecializationSlug(nextSpecSlug);
+    setSpecializationName(nextSpecName);
+    setStream(nextStream);
+    setCurrentYear(nextYear);
+    setCurrentSemester(nextSem);
+    setInstitution(nextInst);
+    setAcademicScheme(nextScheme);
+    setTargetRole(nextTargetRole);
+    setTargetRoles(nextTargetRoles);
+    setCareerInterests(nextInterests);
 
     const nextDisplayName = user.displayName ?? "";
     const nextPhone = user.phone ?? "";
@@ -152,7 +241,25 @@ export default function ProfileDetailsPage() {
       educationRows: initialEdu,
       skillSections: initialSkillSections,
       experienceRows: initialExp,
-      achievementRows: initialAch
+      achievementRows: initialAch,
+      academic: {
+        degreeSlug: nextDegreeSlug,
+        degreeName: nextDegreeName,
+        branchSlug: nextBranchSlug,
+        branchName: nextBranchName,
+        specializationSlug: nextSpecSlug,
+        specializationName: nextSpecName,
+        stream: nextStream,
+        currentYear: nextYear,
+        currentSemester: nextSem,
+        institution: nextInst,
+        academicScheme: nextScheme,
+      },
+      targetRole: nextTargetRole,
+      targetRoles: nextTargetRoles,
+      careerInterests: nextInterests,
+      customBranchName: "",
+      customSpecName: "",
     });
   };
 
@@ -177,11 +284,45 @@ export default function ProfileDetailsPage() {
       }
     };
 
+    const loadCatalog = async () => {
+      try {
+        setIsLoadingCatalog(true);
+        const options = await AcademicApi.getOptions();
+        if (isMounted && options) {
+          setCatalogOptions(options);
+        }
+      } catch (err) {
+        console.error("Error loading academic options:", err);
+      } finally {
+        if (isMounted) {
+          setIsLoadingCatalog(false);
+        }
+      }
+    };
+
     loadInitialProfile();
+    loadCatalog();
     return () => {
       isMounted = false;
     };
   }, []);
+
+  // Fetch recommended career roles whenever branchSlug changes
+  useEffect(() => {
+    if (!branchSlug) {
+      setBranchRoles([]);
+      return;
+    }
+    let isMounted = true;
+    AcademicApi.getBranchRoles(branchSlug)
+      .then((roles) => {
+        if (isMounted) setBranchRoles(roles);
+      })
+      .catch((err) => console.error("Error loading branch roles:", err));
+    return () => {
+      isMounted = false;
+    };
+  }, [branchSlug]);
 
   // Handle Updates
   const updateObjectRow = <T,>(setter: Dispatch<SetStateAction<T[]>>, index: number, patch: Partial<T>) => {
@@ -236,6 +377,72 @@ export default function ProfileDetailsPage() {
     });
   };
 
+  // Dependent Selection Handlers
+  const handleDegreeChange = (slug: string) => {
+    setDegreeSlug(slug);
+    const found = catalogOptions?.degrees.find((d) => d.slug === slug);
+    if (found) {
+      setDegreeName(found.name);
+      setStream(found.stream);
+    } else {
+      setDegreeName("");
+    }
+  };
+
+  const handleBranchChange = (slug: string) => {
+    setBranchSlug(slug);
+    const found = catalogOptions?.branches.find((b) => b.slug === slug);
+    if (found) {
+      setBranchName(found.name);
+      if (found.stream) setStream(found.stream);
+      setSpecializationSlug("");
+      setSpecializationName("");
+    } else if (slug === "other-eng" || slug === "custom") {
+      setBranchName("Other Discipline");
+      setSpecializationSlug("");
+      setSpecializationName("");
+    }
+  };
+
+  const handleSpecializationChange = (slug: string) => {
+    setSpecializationSlug(slug);
+    const branch = catalogOptions?.branches.find((b) => b.slug === branchSlug);
+    const foundSpec = branch?.specializations.find((s) => s.slug === slug);
+    if (foundSpec) {
+      setSpecializationName(foundSpec.name);
+    } else if (slug === "general") {
+      setSpecializationName("General / Core");
+    } else {
+      setSpecializationName("");
+    }
+  };
+
+  const toggleTargetRole = (roleTitle: string) => {
+    const trimmed = roleTitle.trim();
+    if (!trimmed) return;
+    setTargetRoles((prev) => {
+      const exists = prev.includes(trimmed);
+      const next = exists ? prev.filter((r) => r !== trimmed) : [...prev, trimmed];
+      if (next.length > 0 && (!targetRole || (exists && targetRole === trimmed))) {
+        setTargetRole(next[0]);
+      }
+      return next;
+    });
+  };
+
+  const addCareerInterest = () => {
+    const trimmed = newInterestInput.trim();
+    if (!trimmed) return;
+    if (!careerInterests.includes(trimmed)) {
+      setCareerInterests((prev) => [...prev, trimmed]);
+    }
+    setNewInterestInput("");
+  };
+
+  const removeCareerInterest = (interest: string) => {
+    setCareerInterests((prev) => prev.filter((i) => i !== interest));
+  };
+
   // Save changes to backend via PATCH /api/v1/auth/me
   const handleSave = async () => {
     if (isLoadingProfile) return;
@@ -250,6 +457,33 @@ export default function ProfileDetailsPage() {
       return;
     }
 
+    const effectiveBranchName =
+      branchSlug === "other-eng" || branchSlug === "custom"
+        ? customBranchName.trim() || branchName
+        : branchName;
+    const effectiveSpecName =
+      specializationSlug === "custom"
+        ? customSpecName.trim() || specializationName
+        : specializationName;
+
+    const academicPayload: AcademicProfileState = {
+      degreeSlug,
+      degreeName,
+      branchSlug,
+      branchName: effectiveBranchName,
+      specializationSlug,
+      specializationName: effectiveSpecName,
+      stream,
+      currentYear: currentYear ? Number(currentYear) : null,
+      currentSemester: currentSemester ? Number(currentSemester) : null,
+      institution: institution.trim(),
+      academicScheme: academicScheme.trim(),
+    };
+
+    const effectiveTargetRoles =
+      targetRoles.length > 0 ? targetRoles : [targetRole || "Full Stack Developer"];
+    const effectivePrimaryRole = effectiveTargetRoles[0] || targetRole || "Full Stack Developer";
+
     const currentSnapshot = buildSettingsSnapshot({
       displayName: trimmedDisplayName,
       phone: phone.trim(),
@@ -262,7 +496,13 @@ export default function ProfileDetailsPage() {
       educationRows,
       skillSections,
       experienceRows,
-      achievementRows
+      achievementRows,
+      academic: academicPayload,
+      targetRole: effectivePrimaryRole,
+      targetRoles: effectiveTargetRoles,
+      careerInterests,
+      customBranchName,
+      customSpecName,
     });
 
     if (currentSnapshot === lastLoadedSnapshotRef.current) {
@@ -281,6 +521,21 @@ export default function ProfileDetailsPage() {
 
       const allSkills = unique(sanitizedSkillSections.flatMap((s) => s.skills));
 
+      // Keep educationRows[0] in harmony with academic credential if first entry was empty
+      const harmonizedEduRows = [...educationRows];
+      if (
+        harmonizedEduRows.length > 0 &&
+        !harmonizedEduRows[0].degree &&
+        (degreeName || effectiveBranchName || institution)
+      ) {
+        harmonizedEduRows[0] = {
+          ...harmonizedEduRows[0],
+          degree: degreeName || harmonizedEduRows[0].degree,
+          specialization: effectiveBranchName || harmonizedEduRows[0].specialization,
+          college: institution.trim() || harmonizedEduRows[0].college,
+        };
+      }
+
       const payload = {
         displayName: trimmedDisplayName,
         phone: phone.trim(),
@@ -290,7 +545,11 @@ export default function ProfileDetailsPage() {
         githubUrl: githubUrl.trim(),
         leetCodeId: leetCodeId.trim(),
         geeksForGeeksId: geeksForGeeksId.trim(),
-        educationEntries: educationRows
+        targetRole: effectivePrimaryRole,
+        targetRoles: effectiveTargetRoles,
+        careerInterests,
+        academic: academicPayload,
+        educationEntries: harmonizedEduRows
           .map((row) => ({
             degree: row.degree.trim(),
             specialization: row.specialization.trim(),
@@ -300,7 +559,7 @@ export default function ProfileDetailsPage() {
             grade: row.grade.trim()
           }))
           .filter((row) => row.degree || row.college || row.specialization),
-        education: educationRows
+        education: harmonizedEduRows
           .map((row) => [row.degree, row.specialization, row.college].filter(Boolean).join(" - ").trim())
           .filter(Boolean),
         skillSections: sanitizedSkillSections,
@@ -553,8 +812,351 @@ export default function ProfileDetailsPage() {
             </div>
           </motion.div>
 
+          {/* Academic Background & Specialization */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }} className="glass rounded-2xl p-6 shadow-sm relative overflow-hidden">
+            <div className="flex items-center justify-between gap-4 mb-6 pb-4 border-b border-border/40">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <BookOpen className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg text-foreground">Academic Background & Specialization</h3>
+                  <p className="text-xs text-muted-foreground">Multi-branch student credentials, branch, and institutional details.</p>
+                </div>
+              </div>
+              {stream && (
+                <Badge variant="glow" className="text-xs font-semibold px-3 py-1">
+                  {stream}
+                </Badge>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {/* Qualification / Degree */}
+              <div>
+                <label className="text-xs font-medium text-foreground mb-1.5 block">Qualification / Degree</label>
+                <select
+                  value={degreeSlug}
+                  onChange={(e) => handleDegreeChange(e.target.value)}
+                  className="w-full bg-background/50 border border-border/40 text-xs rounded-md px-3 h-9 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="">Select Degree / Qualification</option>
+                  {(catalogOptions?.degrees || []).map((deg) => (
+                    <option key={deg.slug} value={deg.slug}>
+                      {deg.shortName} — {deg.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Branch */}
+              <div>
+                <label className="text-xs font-medium text-foreground mb-1.5 block">Academic Branch</label>
+                <select
+                  value={branchSlug}
+                  onChange={(e) => handleBranchChange(e.target.value)}
+                  className="w-full bg-background/50 border border-border/40 text-xs rounded-md px-3 h-9 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="">Select Branch</option>
+                  {(catalogOptions?.branches || []).map((b) => (
+                    <option key={b.slug} value={b.slug}>
+                      {b.code ? `[${b.code}] ` : ""}{b.name}
+                    </option>
+                  ))}
+                  <option value="custom">Other / Custom Branch</option>
+                </select>
+              </div>
+
+              {/* Specialization */}
+              <div>
+                <label className="text-xs font-medium text-foreground mb-1.5 block">Specialization / Domain</label>
+                {(() => {
+                  const currentBranchObj = (catalogOptions?.branches || []).find((b) => b.slug === branchSlug);
+                  const specs = currentBranchObj?.specializations || [];
+                  return (
+                    <select
+                      value={specializationSlug}
+                      onChange={(e) => handleSpecializationChange(e.target.value)}
+                      className="w-full bg-background/50 border border-border/40 text-xs rounded-md px-3 h-9 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="">General / Core</option>
+                      {specs.map((sp) => (
+                        <option key={sp.slug} value={sp.slug}>
+                          {sp.name}
+                        </option>
+                      ))}
+                      <option value="custom">Custom Specialization</option>
+                    </select>
+                  );
+                })()}
+              </div>
+            </div>
+
+            {/* Custom Branch / Specialization fallback inputs if selected */}
+            {(branchSlug === "custom" || branchSlug === "other-eng" || specializationSlug === "custom") && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4 pt-4 border-t border-border/20">
+                {(branchSlug === "custom" || branchSlug === "other-eng") && (
+                  <div>
+                    <label className="text-xs font-medium text-foreground mb-1.5 block">Custom Branch Name</label>
+                    <Input
+                      value={customBranchName}
+                      onChange={(e) => setCustomBranchName(e.target.value)}
+                      className="bg-background/50 focus-visible:ring-primary h-9 text-xs"
+                      placeholder="e.g. Marine Engineering / Mechatronics"
+                    />
+                  </div>
+                )}
+                {specializationSlug === "custom" && (
+                  <div>
+                    <label className="text-xs font-medium text-foreground mb-1.5 block">Custom Specialization Name</label>
+                    <Input
+                      value={customSpecName}
+                      onChange={(e) => setCustomSpecName(e.target.value)}
+                      className="bg-background/50 focus-visible:ring-primary h-9 text-xs"
+                      placeholder="e.g. Edge Computing / FinTech"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Current Year, Semester, Institution, Scheme */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mt-5">
+              <div>
+                <label className="text-xs font-medium text-foreground mb-1.5 block">Current Year</label>
+                <select
+                  value={currentYear ?? ""}
+                  onChange={(e) => setCurrentYear(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full bg-background/50 border border-border/40 text-xs rounded-md px-3 h-9 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="">Select Year</option>
+                  <option value="1">1st Year</option>
+                  <option value="2">2nd Year</option>
+                  <option value="3">3rd Year</option>
+                  <option value="4">4th Year</option>
+                  <option value="5">5th Year</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-foreground mb-1.5 block">Current Semester</label>
+                <select
+                  value={currentSemester ?? ""}
+                  onChange={(e) => setCurrentSemester(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full bg-background/50 border border-border/40 text-xs rounded-md px-3 h-9 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="">Select Semester</option>
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((sem) => (
+                    <option key={sem} value={sem}>
+                      Semester {sem}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-foreground mb-1.5 block">Institution / College</label>
+                <Input
+                  value={institution}
+                  onChange={(e) => setInstitution(e.target.value)}
+                  className="bg-background/50 focus-visible:ring-primary h-9 text-xs"
+                  placeholder="e.g. National Institute of Technology"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-foreground mb-1.5 block">Academic Scheme / Regulation</label>
+                <Input
+                  value={academicScheme}
+                  onChange={(e) => setAcademicScheme(e.target.value)}
+                  className="bg-background/50 focus-visible:ring-primary h-9 text-xs"
+                  placeholder="e.g. 2022 Scheme / CBCS"
+                />
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Career Pathways & Role Goals */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.14 }} className="glass rounded-2xl p-6 shadow-sm relative overflow-hidden">
+            <div className="flex items-center justify-between gap-4 mb-6 pb-4 border-b border-border/40">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <Compass className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg text-foreground">Career Pathways & Role Goals</h3>
+                  <p className="text-xs text-muted-foreground">Select preferred career tracks and explore discipline-aligned pathways.</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground hidden sm:inline">Active Target:</span>
+                <Badge variant="glow" className="text-xs font-bold gap-1 px-3 py-1">
+                  <Target className="h-3 w-3" /> {targetRole || "Full Stack Developer"}
+                </Badge>
+              </div>
+            </div>
+
+            {/* Recommended Career Roles for Chosen Branch */}
+            {branchRoles.length > 0 && (
+              <div className="mb-6 p-4 rounded-xl bg-surface/70 border border-border/40">
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    <span className="text-xs font-bold text-foreground">
+                      Recommended Pathways for {branchName || "Selected Branch"}
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-muted-foreground">Click to add/remove from your goals</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {branchRoles.map((role) => {
+                    const isSelected = targetRoles.includes(role.title);
+                    const relType = role.mapping?.relationshipType || "primary";
+                    return (
+                      <button
+                        key={role.slug}
+                        type="button"
+                        onClick={() => toggleTargetRole(role.title)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                          isSelected
+                            ? "bg-primary text-primary-foreground shadow-sm ring-2 ring-primary/40"
+                            : "bg-background/60 hover:bg-background/90 text-foreground border border-border/50"
+                        }`}
+                      >
+                        {isSelected ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5 text-muted-foreground" />}
+                        <span>{role.title}</span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full uppercase tracking-wider ${
+                          isSelected ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
+                        }`}>
+                          {relType}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Selected Target Roles Matrix */}
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-medium text-foreground mb-2 block">
+                  Your Selected Career Goals ({targetRoles.length})
+                </label>
+                <div className="flex flex-wrap items-center gap-2 p-3 min-h-12 rounded-xl bg-background/50 border border-border/40">
+                  {targetRoles.length === 0 ? (
+                    <span className="text-xs text-muted-foreground italic">
+                      No career roles selected yet. Click any recommended role or pick from the catalog below.
+                    </span>
+                  ) : (
+                    targetRoles.map((r, rIdx) => (
+                      <Badge
+                        key={rIdx}
+                        variant={r === targetRole ? "glow" : "secondary"}
+                        className="text-xs gap-1.5 py-1 px-3 cursor-pointer"
+                        onClick={() => setTargetRole(r)}
+                        title="Click to set as primary target"
+                      >
+                        {r === targetRole && <Target className="h-3 w-3 text-primary" />}
+                        <span>{r}</span>
+                        {targetRoles.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleTargetRole(r);
+                            }}
+                            className="hover:text-destructive p-0.5 rounded transition-colors"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        )}
+                      </Badge>
+                    ))
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1.5">
+                  The first selected role serves as your primary AI mentor & gap analysis target. Click any badge to set it as primary.
+                </p>
+              </div>
+
+              {/* Add Role from Full Catalog */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                <div>
+                  <label className="text-xs font-medium text-foreground mb-1.5 block">Explore All Career Catalog Roles</label>
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        toggleTargetRole(e.target.value);
+                      }
+                    }}
+                    className="w-full bg-background/50 border border-border/40 text-xs rounded-md px-3 h-9 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="">+ Add role from full catalog...</option>
+                    {(catalogOptions?.careerCategories || []).map((cat) => (
+                      <optgroup key={cat} label={cat}>
+                        {(catalogOptions?.careerRoles || [])
+                          .filter((r) => r.category === cat)
+                          .map((r) => (
+                            <option key={r.slug} value={r.title} disabled={targetRoles.includes(r.title)}>
+                              {r.title} {targetRoles.includes(r.title) ? "✓ Added" : ""}
+                            </option>
+                          ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Career Interests & Domain Tags */}
+                <div>
+                  <label className="text-xs font-medium text-foreground mb-1.5 block">Career Interests & Domain Tags</label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={newInterestInput}
+                      onChange={(e) => setNewInterestInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addCareerInterest();
+                        }
+                      }}
+                      className="bg-background/50 focus-visible:ring-primary h-9 text-xs"
+                      placeholder="e.g. Embedded IoT, FinTech, Robotics"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={addCareerInterest}
+                      className="glow-primary text-xs shrink-0 h-9 px-3 gap-1"
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Add
+                    </Button>
+                  </div>
+                  {careerInterests.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {careerInterests.map((interest, iIdx) => (
+                        <Badge key={iIdx} variant="glass" className="text-[11px] gap-1 px-2.5 py-0.5">
+                          <span>{interest}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeCareerInterest(interest)}
+                            className="hover:text-destructive transition-colors ml-1"
+                          >
+                            <X className="h-2.5 w-2.5" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
           {/* Skills Matrix */}
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="glass rounded-2xl p-6 shadow-sm relative overflow-hidden">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16 }} className="glass rounded-2xl p-6 shadow-sm relative overflow-hidden">
             <div className="flex items-center justify-between gap-4 mb-6 pb-4 border-b border-border/40">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">

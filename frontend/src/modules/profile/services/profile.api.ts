@@ -11,6 +11,22 @@ export interface UpdateProfilePayload {
   githubUrl?: string;
   leetCodeId?: string;
   geeksForGeeksId?: string;
+  targetRole?: string;
+  targetRoles?: string[];
+  careerInterests?: string[];
+  academic?: {
+    degreeSlug?: string;
+    degreeName?: string;
+    branchSlug?: string;
+    branchName?: string;
+    specializationSlug?: string;
+    specializationName?: string;
+    stream?: string;
+    currentYear?: number | null;
+    currentSemester?: number | null;
+    institution?: string;
+    academicScheme?: string;
+  };
   educationEntries?: Array<{
     degree?: string;
     specialization?: string;

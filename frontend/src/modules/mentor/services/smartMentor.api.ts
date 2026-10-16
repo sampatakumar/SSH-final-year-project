@@ -62,6 +62,8 @@ export const SmartMentorApi = {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "X-Tunnel-Skip-Anti-Phishing-Page": "1",
+          "bypass-tunnel-reminder": "1",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ message }),
