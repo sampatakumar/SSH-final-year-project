@@ -79,6 +79,27 @@ const userSchema = new mongoose.Schema(
       trim: true,
       default: "Full Stack Developer",
     },
+    targetRoles: {
+      type: [String],
+      default: ["Full Stack Developer"],
+    },
+    careerInterests: {
+      type: [String],
+      default: [],
+    },
+    academic: {
+      degreeSlug: { type: String, trim: true, default: "" },
+      degreeName: { type: String, trim: true, default: "" },
+      branchSlug: { type: String, trim: true, default: "" },
+      branchName: { type: String, trim: true, default: "" },
+      specializationSlug: { type: String, trim: true, default: "" },
+      specializationName: { type: String, trim: true, default: "" },
+      stream: { type: String, trim: true, default: "" },
+      currentYear: { type: Number, min: 1, max: 6, default: null },
+      currentSemester: { type: Number, min: 1, max: 12, default: null },
+      institution: { type: String, trim: true, default: "" },
+      academicScheme: { type: String, trim: true, default: "" },
+    },
     education: {
       type: [String],
       default: [],
