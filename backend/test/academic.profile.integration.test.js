@@ -230,4 +230,89 @@ describe("Academic Student Profile Integration Suite", () => {
     expect(mockUser.academic.branchSlug).toBe("bcom-gen");
     expect(mockUser.targetRole).toBe("Financial Analyst");
   });
+
+  it("6. PATCH /api/v1/auth/me: legacy client updating only targetRole synchronizes targetRoles array", async () => {
+    const app = buildApp();
+    const legacyPayload = {
+      targetRole: "DevOps Engineer"
+    };
+
+    const res = await request(app).patch("/api/v1/auth/me").send(legacyPayload);
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(mockUser.targetRole).toBe("DevOps Engineer");
+    expect(mockUser.targetRoles).toEqual(["DevOps Engineer"]);
+  });
+
+  it("7. PATCH /api/v1/auth/me: payload with conflicting targetRole and targetRoles aligns primary role", async () => {
+    const app = buildApp();
+    const conflictPayload = {
+      targetRole: "Machine Learning Engineer",
+      targetRoles: ["Frontend Developer", "React Developer"]
+    };
+
+    const res = await request(app).patch("/api/v1/auth/me").send(conflictPayload);
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(mockUser.targetRole).toBe("Machine Learning Engineer");
+    expect(mockUser.targetRoles).toEqual([
+      "Machine Learning Engineer",
+      "Frontend Developer",
+      "React Developer"
+    ]);
+  });
+
+  it("8. PATCH /api/v1/auth/me: empty targetRoles array does not wipe career preference", async () => {
+    const app = buildApp();
+    mockUser.targetRole = "Cloud Architect";
+    mockUser.targetRoles = ["Cloud Architect"];
+
+    const emptyArrayPayload = {
+      targetRoles: []
+    };
+
+    const res = await request(app).patch("/api/v1/auth/me").send(emptyArrayPayload);
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(mockUser.targetRole).toBe("Cloud Architect");
+    expect(mockUser.targetRoles).toEqual(["Cloud Architect"]);
+  });
+
+  it("9. PATCH /api/v1/auth/me: empty targetRole string does not wipe valid career preference", async () => {
+    const app = buildApp();
+    mockUser.targetRole = "Site Reliability Engineer";
+    mockUser.targetRoles = ["Site Reliability Engineer"];
+
+    const emptyStringPayload = {
+      targetRole: "   "
+    };
+
+    const res = await request(app).patch("/api/v1/auth/me").send(emptyStringPayload);
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(mockUser.targetRole).toBe("Site Reliability Engineer");
+  });
+
+  it("10. PATCH /api/v1/auth/me: supports custom/uncatalogued branch without validation rejection", async () => {
+    const app = buildApp();
+    const customBranchPayload = {
+      academic: {
+        degreeSlug: "btech",
+        degreeName: "Bachelor of Technology",
+        branchSlug: "custom",
+        branchName: "Marine Engineering & Naval Architecture",
+        stream: "Engineering & Technology",
+        currentYear: 3,
+        currentSemester: 5,
+        institution: "Indian Maritime University"
+      }
+    };
+
+    const res = await request(app).patch("/api/v1/auth/me").send(customBranchPayload);
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(mockUser.academic.branchSlug).toBe("custom");
+    expect(mockUser.academic.branchName).toBe("Marine Engineering & Naval Architecture");
+    expect(mockUser.academic.institution).toBe("Indian Maritime University");
+  });
 });

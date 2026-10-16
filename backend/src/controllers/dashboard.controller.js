@@ -187,7 +187,9 @@ export const getFullProfileSnapshot = asyncHandler(async (req, res) => {
     },
     career: {
       targetRole: user.targetRole || "Full Stack Developer",
-      targetRoles: user.targetRoles || [],
+      targetRoles: Array.isArray(user.targetRoles) && user.targetRoles.length > 0
+        ? user.targetRoles
+        : [user.targetRole || "Full Stack Developer"],
       careerInterests: user.careerInterests || [],
     },
     academic: user.academic || {

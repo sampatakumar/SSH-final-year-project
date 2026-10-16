@@ -168,16 +168,35 @@ export const updateCurrentUser = asyncHandler(async (req, res) => {
     user.geeksForGeeksId = parsed.data.geeksForGeeksId;
   }
 
-  if (parsed.data.targetRole !== undefined) {
-    user.targetRole = parsed.data.targetRole.trim() || user.targetRole;
-  }
+  const hasTargetRoleInput = parsed.data.targetRole !== undefined;
+  const hasTargetRolesInput = parsed.data.targetRoles !== undefined;
 
-  if (parsed.data.targetRoles !== undefined) {
-    const cleanRoles = Array.from(new Set(parsed.data.targetRoles.map((r) => r.trim()).filter(Boolean)));
-    user.targetRoles = cleanRoles;
-    if (cleanRoles.length > 0 && parsed.data.targetRole === undefined) {
-      user.targetRole = cleanRoles[0];
+  if (hasTargetRoleInput || hasTargetRolesInput) {
+    const rawTargetRole = hasTargetRoleInput ? String(parsed.data.targetRole || "").trim() : "";
+    const rawTargetRoles = hasTargetRolesInput && Array.isArray(parsed.data.targetRoles)
+      ? Array.from(new Set(parsed.data.targetRoles.map((r) => String(r || "").trim()).filter(Boolean)))
+      : [];
+
+    let resolvedRoles = [];
+
+    if (hasTargetRolesInput && rawTargetRoles.length > 0) {
+      if (rawTargetRole && !rawTargetRoles.includes(rawTargetRole)) {
+        resolvedRoles = [rawTargetRole, ...rawTargetRoles];
+      } else if (rawTargetRole && rawTargetRoles.includes(rawTargetRole)) {
+        resolvedRoles = [rawTargetRole, ...rawTargetRoles.filter((r) => r !== rawTargetRole)];
+      } else {
+        resolvedRoles = rawTargetRoles;
+      }
+    } else if (hasTargetRoleInput && rawTargetRole) {
+      resolvedRoles = [rawTargetRole];
+    } else {
+      resolvedRoles = Array.isArray(user.targetRoles) && user.targetRoles.length > 0
+        ? user.targetRoles
+        : [user.targetRole || "Full Stack Developer"];
     }
+
+    user.targetRoles = resolvedRoles;
+    user.targetRole = resolvedRoles[0] || user.targetRole || "Full Stack Developer";
   }
 
   if (parsed.data.careerInterests !== undefined) {
