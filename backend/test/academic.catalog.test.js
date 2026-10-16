@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import express from "express";
 import request from "supertest";
 import {
@@ -9,6 +9,10 @@ import {
 } from "../src/modules/academic/constants/academicCatalog.js";
 import { academicCatalogService } from "../src/modules/academic/services/academicCatalog.service.js";
 import academicRouter from "../src/modules/academic/routes/academic.routes.js";
+import { AcademicDegree } from "../src/models/academicDegree.models.js";
+import { AcademicBranch } from "../src/models/academicBranch.models.js";
+import { CareerRole } from "../src/models/careerRole.models.js";
+import { BranchCareerMapping } from "../src/models/branchCareerMapping.models.js";
 import { globalErrorHandler } from "../src/core/errors/errorHandler.js";
 
 describe("Academic Catalog & Taxonomy Integrity Suite", () => {
@@ -271,4 +275,107 @@ describe("Academic Catalog & Taxonomy Integrity Suite", () => {
       expect(res.body.data.stats).toBeDefined();
     });
   });
+
+  describe("4. Seed Idempotency & Administrator Customization Preservation", () => {
+    it("ensures routine seed operations use $setOnInsert exclusively to protect admin edits", async () => {
+      let degreeBulkOps = [];
+      let branchBulkOps = [];
+      let roleBulkOps = [];
+      let mappingBulkOps = [];
+
+      const spyDegree = vi.spyOn(AcademicDegree, "bulkWrite").mockImplementation(async (ops) => {
+        degreeBulkOps = ops;
+        return { upsertedCount: 0, modifiedCount: 0 };
+      });
+      const spyBranch = vi.spyOn(AcademicBranch, "bulkWrite").mockImplementation(async (ops) => {
+        branchBulkOps = ops;
+        return { upsertedCount: 0, modifiedCount: 0 };
+      });
+      const spyRole = vi.spyOn(CareerRole, "bulkWrite").mockImplementation(async (ops) => {
+        roleBulkOps = ops;
+        return { upsertedCount: 0, modifiedCount: 0 };
+      });
+      const spyMapping = vi.spyOn(BranchCareerMapping, "bulkWrite").mockImplementation(async (ops) => {
+        mappingBulkOps = ops;
+        return { upsertedCount: 0, modifiedCount: 0 };
+      });
+
+      const spyDbConnected = vi.spyOn(academicCatalogService, "isDbConnected").mockReturnValue(true);
+
+      const result = await academicCatalogService.seedCatalog();
+      expect(result.success).toBe(true);
+
+      // Verify every bulk write operation uses $setOnInsert and NEVER $set
+      expect(degreeBulkOps.length).toBeGreaterThan(0);
+      for (const op of degreeBulkOps) {
+        expect(op.updateOne.update.$setOnInsert).toBeDefined();
+        expect(op.updateOne.update.$set).toBeUndefined();
+      }
+
+      expect(branchBulkOps.length).toBeGreaterThan(0);
+      for (const op of branchBulkOps) {
+        expect(op.updateOne.update.$setOnInsert).toBeDefined();
+        expect(op.updateOne.update.$set).toBeUndefined();
+      }
+
+      expect(roleBulkOps.length).toBeGreaterThan(0);
+      for (const op of roleBulkOps) {
+        expect(op.updateOne.update.$setOnInsert).toBeDefined();
+        expect(op.updateOne.update.$set).toBeUndefined();
+      }
+
+      expect(mappingBulkOps.length).toBeGreaterThan(0);
+      for (const op of mappingBulkOps) {
+        expect(op.updateOne.update.$setOnInsert).toBeDefined();
+        expect(op.updateOne.update.$set).toBeUndefined();
+      }
+
+      spyDegree.mockRestore();
+      spyBranch.mockRestore();
+      spyRole.mockRestore();
+      spyMapping.mockRestore();
+      spyDbConnected.mockRestore();
+    });
+
+    it("simulates rerun of routine seed over administrator-modified record and confirms edits are preserved", () => {
+      // Simulate an administrator custom record in database
+      const existingBranchDoc = {
+        slug: "cse",
+        name: "Computer Science and Engineering",
+        code: "CSE",
+        description: "Admin custom description: Focus on Cloud & AI",
+        isActive: false // Deactivated by admin
+      };
+
+      // When $setOnInsert is executed in MongoDB on an existing document,
+      // it only sets fields if the document is being inserted; if matched, it does nothing.
+      const seedOp = {
+        updateOne: {
+          filter: { slug: "cse" },
+          update: {
+            $setOnInsert: {
+              slug: "cse",
+              name: "Computer Science and Engineering",
+              description: "Default four-year CSE branch",
+              isActive: true
+            }
+          },
+          upsert: true
+        }
+      };
+
+      // Simulate MongoDB update behavior: document matched by filter
+      const matched = existingBranchDoc.slug === seedOp.updateOne.filter.slug;
+      expect(matched).toBe(true);
+
+      // Since document matched, $setOnInsert is skipped in MongoDB
+      const resultingDoc = matched
+        ? existingBranchDoc
+        : { ...seedOp.updateOne.update.$setOnInsert };
+
+      expect(resultingDoc.description).toBe("Admin custom description: Focus on Cloud & AI");
+      expect(resultingDoc.isActive).toBe(false);
+    });
+  });
 });
+

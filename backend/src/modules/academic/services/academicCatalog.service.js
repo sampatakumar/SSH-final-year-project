@@ -45,8 +45,6 @@ export class AcademicCatalogService {
           update: {
             $setOnInsert: {
               slug: deg.slug,
-            },
-            $set: {
               name: deg.name,
               shortName: deg.shortName,
               stream: deg.stream,
@@ -72,8 +70,6 @@ export class AcademicCatalogService {
           update: {
             $setOnInsert: {
               slug: b.slug,
-            },
-            $set: {
               name: b.name,
               code: b.code,
               discipline: b.discipline,
@@ -100,8 +96,6 @@ export class AcademicCatalogService {
           update: {
             $setOnInsert: {
               slug: r.slug,
-            },
-            $set: {
               title: r.title,
               category: r.category,
               categoryLabel: r.categoryLabel,
@@ -129,8 +123,6 @@ export class AcademicCatalogService {
             $setOnInsert: {
               branchSlug: m.branchSlug,
               roleSlug: m.roleSlug,
-            },
-            $set: {
               relationshipType: m.relationshipType || "primary",
               relevanceScore: m.relevanceScore || 80,
               isActive: true,
