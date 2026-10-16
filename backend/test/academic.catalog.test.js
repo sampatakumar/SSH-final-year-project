@@ -242,6 +242,87 @@ describe("Academic Catalog & Taxonomy Integrity Suite", () => {
       expect(res.body.data.roles.length).toBeGreaterThan(0);
     });
 
+    it("GET /api/v1/academic/career-roles/:roleSlug returns 200 for valid role", async () => {
+      const app = buildApp();
+      const res = await request(app).get("/api/v1/academic/career-roles/full-stack-developer");
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.role.title).toBe("Full-Stack Developer");
+    });
+
+    it("GET /api/v1/academic/career-roles/:roleSlug returns 404 for unknown role", async () => {
+      const app = buildApp();
+      const res = await request(app).get("/api/v1/academic/career-roles/non-existent-career-slug");
+      expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
+    });
+
+    it("POST /api/v1/academic/degrees rejects non-admin student request with 403 Forbidden", async () => {
+      const studentApp = buildApp({
+        uid: "student_123",
+        email: "student@example.com",
+        role: "student",
+      });
+
+      const res = await request(studentApp).post("/api/v1/academic/degrees").send({
+        slug: "barch",
+        name: "Bachelor of Architecture",
+        shortName: "B.Arch",
+        stream: "Engineering & Technology"
+      });
+      expect(res.status).toBe(403);
+      expect(res.body.success).toBe(false);
+    });
+
+    it("POST /api/v1/academic/branches rejects non-admin student request with 403 Forbidden", async () => {
+      const studentApp = buildApp({
+        uid: "student_123",
+        email: "student@example.com",
+        role: "student",
+      });
+
+      const res = await request(studentApp).post("/api/v1/academic/branches").send({
+        slug: "arch",
+        name: "Architecture",
+        code: "ARCH",
+        stream: "Engineering & Technology"
+      });
+      expect(res.status).toBe(403);
+      expect(res.body.success).toBe(false);
+    });
+
+    it("POST /api/v1/academic/career-roles rejects non-admin student request with 403 Forbidden", async () => {
+      const studentApp = buildApp({
+        uid: "student_123",
+        email: "student@example.com",
+        role: "student",
+      });
+
+      const res = await request(studentApp).post("/api/v1/academic/career-roles").send({
+        slug: "game-developer",
+        title: "Game Developer",
+        category: "Software & Computing"
+      });
+      expect(res.status).toBe(403);
+      expect(res.body.success).toBe(false);
+    });
+
+    it("POST /api/v1/academic/branch-roles/map rejects non-admin student request with 403 Forbidden", async () => {
+      const studentApp = buildApp({
+        uid: "student_123",
+        email: "student@example.com",
+        role: "student",
+      });
+
+      const res = await request(studentApp).post("/api/v1/academic/branch-roles/map").send({
+        branchSlug: "cse",
+        roleSlug: "game-developer",
+        relationshipType: "related"
+      });
+      expect(res.status).toBe(403);
+      expect(res.body.success).toBe(false);
+    });
+
     it("POST /api/v1/academic/seed rejects unauthenticated request with 401 Unauthorized", async () => {
       const app = buildApp();
       const res = await request(app).post("/api/v1/academic/seed");
