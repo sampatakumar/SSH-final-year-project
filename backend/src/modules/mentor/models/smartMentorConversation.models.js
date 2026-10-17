@@ -59,6 +59,14 @@ const mentorMessageSchema = new mongoose.Schema(
       type: [mentorReferenceSchema],
       default: [],
     },
+    courseRecommendations: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    learningPackage: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
     createdAt: {
       type: Date,
       default: Date.now,

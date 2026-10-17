@@ -45,12 +45,15 @@ export const SmartMentorApi = {
       onThinking?: () => void;
       onStart?: (source: string) => void;
       onChunk?: (chunk: string) => void;
+      onCourses?: (data: { courseRecommendations: any; learningPackage: any }) => void;
       onFallback?: (source: string) => void;
       onDone?: (data: {
         source: string;
         summary: string;
         actions: any[];
         references: any[];
+        courseRecommendations?: any;
+        learningPackage?: any;
       }) => void;
       onError?: (err: Error) => void;
     },
@@ -112,6 +115,8 @@ export const SmartMentorApi = {
                 callbacks.onStart?.(data.source || "groq");
               } else if (eventType === "chunk") {
                 callbacks.onChunk?.(data.chunk || "");
+              } else if (eventType === "courses") {
+                callbacks.onCourses?.(data);
               } else if (eventType === "fallback") {
                 callbacks.onFallback?.(data.source || "local_nlp");
               } else if (eventType === "done") {
@@ -129,6 +134,20 @@ export const SmartMentorApi = {
       if (err.name === "AbortError") return;
       callbacks.onError?.(err);
     }
+  },
+
+  /**
+   * Directly fetch recommended YouTube courses and 10-point learning packages.
+   */
+  recommendCourses: async (
+    query: string,
+    params: { level?: string; objective?: string } = {}
+  ): Promise<any> => {
+    const res = await apiRequest<any>("/mentor/recommend-courses", {
+      method: "POST",
+      body: { query, ...params },
+    });
+    return res.data;
   },
 
   /**

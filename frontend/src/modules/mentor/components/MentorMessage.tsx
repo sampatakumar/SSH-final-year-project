@@ -2,6 +2,9 @@ import React, { useState } from "react";
 import { User, Sparkles, Cpu, Copy, Check, CheckCircle2, Terminal } from "lucide-react";
 import { toast } from "sonner";
 import { MentorActionCard } from "./MentorActionCard";
+import { CourseRecommendationCard } from "./CourseRecommendationCard";
+import { CourseComparisonView } from "./CourseComparisonView";
+import { LearningPackageView } from "./LearningPackageView";
 import type { MentorMessageItem } from "../types/smartMentor.types";
 
 interface MentorMessageProps {
@@ -263,6 +266,45 @@ export const MentorMessage: React.FC<MentorMessageProps> = ({ message }) => {
 
         {/* Message Content */}
         <div className="space-y-1">{renderFormattedContent(message.content)}</div>
+
+        {/* Verified Course Recommendations & 10-Point Learning Package */}
+        {!isUser && message.courseRecommendations && (
+          <div className="pt-3 mt-3 border-t border-border/30 space-y-3">
+            <div className="flex items-center gap-1.5 text-[11px] font-black text-foreground uppercase tracking-wider">
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              <span>
+                Verified Courses & Playlists ({message.courseRecommendations.intent?.technologyName || "Learning"})
+              </span>
+            </div>
+
+            {/* Course Cards Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {message.courseRecommendations.shortlist?.map((c) => (
+                <CourseRecommendationCard
+                  key={c.id}
+                  course={c}
+                  isStartingPick={
+                    c.id === message.courseRecommendations?.recommendedStartingCourseId
+                  }
+                />
+              ))}
+            </div>
+
+            {/* Course Comparison & Trade-Offs View */}
+            {message.courseRecommendations.comparison && (
+              <CourseComparisonView comparison={message.courseRecommendations.comparison} />
+            )}
+
+            {/* 10-Point Structured Learning Package */}
+            {(message.learningPackage || message.courseRecommendations.learningPackage) && (
+              <LearningPackageView
+                learningPackage={
+                  (message.learningPackage || message.courseRecommendations.learningPackage)!
+                }
+              />
+            )}
+          </div>
+        )}
 
         {/* Action Items Recommendation Panel */}
         {!isUser && message.actions && message.actions.length > 0 && (

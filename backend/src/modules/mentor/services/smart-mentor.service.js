@@ -1,5 +1,6 @@
 import { smartMentorContextService } from "./smart-mentor-context.service.js";
 import { smartMentorLocalService } from "./smart-mentor-local.service.js";
+import { mentorCourseRecommendationService } from "./mentor-course-recommendation.service.js";
 import { SmartMentorConversation } from "../models/smartMentorConversation.models.js";
 import { generateJSON, TASK_TIERS, getGroqClient, getGroqModel } from "../../../services/groq.service.js";
 import { ApiError } from "../../../core/errors/ApiError.js";
@@ -34,18 +35,34 @@ export class SmartMentorService {
   /**
    * Format compact prompt context from unified user context.
    */
-  buildSystemPrompt(context) {
+  buildSystemPrompt(context, courseData = null) {
     const academic = context.career?.academic;
     const academicDesc = academic?.isConfigured
       ? `Degree: "${academic.degreeName || "N/A"}", Branch: "${academic.branchName || "N/A"}", Specialization: "${academic.specializationName || "N/A"}", Year: ${academic.currentYear || "N/A"}, Semester: ${academic.currentSemester || "N/A"}`
       : "Not configured / Unknown";
+
+    const courseSection = courseData
+      ? `\n\nVERIFIED YOUTUBE COURSE SHORTLIST & CURRICULUM:
+${JSON.stringify(courseData.shortlist, null, 2)}
+
+COURSE COMPARISON & STARTING RECOMMENDATION:
+${JSON.stringify(courseData.comparison, null, 2)}
+
+STRUCTURED 10-POINT LEARNING PACKAGE:
+${JSON.stringify(courseData.learningPackage, null, 2)}
+
+MANDATORY COURSE RECOMMENDATION RULES:
+- When recommending courses, strictly cite ONLY the verified courses, URLs, and instructors provided above.
+- Do NOT invent fake YouTube links or claim unverified public 5-star ratings.
+- Explain trade-offs between courses, highlight the recommended starting course, and guide the student through the structured 10-point package.`
+      : "";
 
     return `You are Smart Mentor, the personal technical career mentor inside Smart Skill Hub.
 You have access only to the structured user context provided to you.
 Your job is to help the candidate improve their technical career, close skill gaps, optimize their GitHub profile & repositories, guide their EduTube learning, and achieve job-readiness for their target role.
 
 GROUNDED USER CONTEXT:
-${JSON.stringify(context, null, 2)}
+${JSON.stringify(context, null, 2)}${courseSection}
 
 CRITICAL OPERATIONAL RULES:
 1. Never invent user data, repositories, metrics, skills, academic background, or experience not present in the context.
@@ -96,11 +113,27 @@ CRITICAL OPERATIONAL RULES:
       createdAt: new Date(),
     });
 
+    // Detect course learning query
+    const isLearningQuery =
+      /teach me|learn|full course|complete course|best course|course for|recommend.*course|playlist for|roadmap for|tutorial for/i.test(cleanMessage) ||
+      (/(python|javascript|react|java|node|machine learning|full stack|devops|docker|golang|rust|data science|dsa)/i.test(cleanMessage) &&
+        /(course|learn|tutorial|teach|playlist|start|guide|video|dsa)/i.test(cleanMessage));
+
+    let courseData = null;
+    if (isLearningQuery) {
+      try {
+        courseData = await mentorCourseRecommendationService.getRecommendationsForQuery(cleanMessage, context);
+      } catch (cErr) {
+        console.warn("[smart-mentor] Error fetching course recommendations:", cErr.message);
+        courseData = mentorCourseRecommendationService.getRecommendationsSynchronous(cleanMessage, context);
+      }
+    }
+
     let mentorResult;
 
     // Attempt Groq primary intelligence with fast timeout (5 seconds)
     try {
-      const systemPrompt = this.buildSystemPrompt(context);
+      const systemPrompt = this.buildSystemPrompt(context, courseData);
       const recentHistory = (conv.messages || []).slice(-6, -1).map((m) => ({
         role: m.role === "assistant" ? "assistant" : "user",
         content: m.content,
@@ -134,6 +167,8 @@ CRITICAL OPERATIONAL RULES:
           references: Array.isArray(groqRes.data.references) ? groqRes.data.references : [],
           confidence: Number(groqRes.data.confidence) || 0.92,
           source: "groq",
+          courseRecommendations: courseData,
+          learningPackage: courseData?.learningPackage || null,
         };
       } else {
         throw new Error("Invalid Groq JSON format");
@@ -141,6 +176,10 @@ CRITICAL OPERATIONAL RULES:
     } catch (err) {
       console.warn("[smart-mentor] Groq unavailable or timed out, activating Local NLP engine:", err.message);
       mentorResult = smartMentorLocalService.generateLocalResponse(cleanMessage, context);
+      if (courseData && !mentorResult.courseRecommendations) {
+        mentorResult.courseRecommendations = courseData;
+        mentorResult.learningPackage = courseData.learningPackage;
+      }
     }
 
     // Append mentor message to memory
@@ -151,6 +190,8 @@ CRITICAL OPERATIONAL RULES:
       confidence: mentorResult.confidence,
       actions: mentorResult.actions || [],
       references: mentorResult.references || [],
+      courseRecommendations: mentorResult.courseRecommendations || courseData || null,
+      learningPackage: mentorResult.learningPackage || courseData?.learningPackage || null,
       createdAt: new Date(),
     });
 
@@ -168,6 +209,8 @@ CRITICAL OPERATIONAL RULES:
       references: mentorResult.references || [],
       confidence: mentorResult.confidence,
       source: mentorResult.source,
+      courseRecommendations: mentorResult.courseRecommendations || courseData || null,
+      learningPackage: mentorResult.learningPackage || courseData?.learningPackage || null,
       contextSnapshot: {
         targetRole: context.career?.targetRole,
         readinessScore: context.career?.readinessScore,
@@ -199,8 +242,33 @@ CRITICAL OPERATIONAL RULES:
       createdAt: new Date(),
     });
 
+    // Detect course learning query
+    const isLearningQuery =
+      /teach me|learn|full course|complete course|best course|course for|recommend.*course|playlist for|roadmap for|tutorial for/i.test(cleanMessage) ||
+      (/(python|javascript|react|java|node|machine learning|full stack|devops|docker|golang|rust|data science|dsa)/i.test(cleanMessage) &&
+        /(course|learn|tutorial|teach|playlist|start|guide|video|dsa)/i.test(cleanMessage));
+
+    let courseData = null;
+    if (isLearningQuery) {
+      try {
+        courseData = await mentorCourseRecommendationService.getRecommendationsForQuery(cleanMessage, context);
+      } catch (cErr) {
+        console.warn("[smart-mentor] Error fetching course recommendations:", cErr.message);
+        courseData = mentorCourseRecommendationService.getRecommendationsSynchronous(cleanMessage, context);
+      }
+    }
+
     // Notify client: Thinking phase
     res.write(`event: thinking\ndata: ${JSON.stringify({ status: "thinking" })}\n\n`);
+
+    if (courseData) {
+      res.write(
+        `event: courses\ndata: ${JSON.stringify({
+          courseRecommendations: courseData,
+          learningPackage: courseData.learningPackage || null,
+        })}\n\n`
+      );
+    }
 
     let fullAnswer = "";
     let source = "groq";
@@ -213,15 +281,7 @@ CRITICAL OPERATIONAL RULES:
       if (!groq) throw new Error("Groq not configured");
 
       const targetModel = await getGroqModel({ taskTier: TASK_TIERS.HIGH_REASONING });
-      const academicDesc = context.career?.academic?.isConfigured
-        ? `Verified Academic Pathway: ${context.career.academic.branchName || ""} (${context.career.academic.degreeName || ""})`
-        : "Academic Pathway: Not configured";
-      const systemPrompt = `You are Smart Mentor, the personal technical career mentor inside Smart Skill Hub.
-You have access only to the structured user context provided to you.
-${academicDesc}
-GROUNDED CONTEXT:
-${JSON.stringify(context, null, 2)}
-Respond directly in clear, supportive, highly structured Markdown. Provide concrete steps and cite actual data. Do not hallucinate fake details, and never invent unconfigured academic or personal information.`;
+      const systemPrompt = this.buildSystemPrompt(context, courseData);
 
       const recentHistory = (conv.messages || []).slice(-6, -1).map((m) => ({
         role: m.role === "assistant" ? "assistant" : "user",
@@ -284,6 +344,8 @@ Respond directly in clear, supportive, highly structured Markdown. Provide concr
       confidence: 0.95,
       actions,
       references,
+      courseRecommendations: courseData || null,
+      learningPackage: courseData?.learningPackage || null,
       createdAt: new Date(),
     });
 
@@ -300,6 +362,8 @@ Respond directly in clear, supportive, highly structured Markdown. Provide concr
         summary,
         actions,
         references,
+        courseRecommendations: courseData || null,
+        learningPackage: courseData?.learningPackage || null,
       })}\n\n`
     );
     res.end();

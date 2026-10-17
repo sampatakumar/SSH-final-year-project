@@ -82,6 +82,8 @@ export const MentorChat: React.FC<MentorChatProps> = ({ context }) => {
     let finalSource: "groq" | "local_nlp" | "deterministic" = "groq";
     let finalActions: any[] = [];
     let finalReferences: any[] = [];
+    let finalCourseRecommendations: any = null;
+    let finalLearningPackage: any = null;
 
     try {
       await SmartMentorApi.streamChatMessage(
@@ -93,6 +95,14 @@ export const MentorChat: React.FC<MentorChatProps> = ({ context }) => {
           onStart: (src) => {
             setActiveSource(src as any);
             finalSource = src as any;
+          },
+          onCourses: (data) => {
+            if (data.courseRecommendations) {
+              finalCourseRecommendations = data.courseRecommendations;
+            }
+            if (data.learningPackage) {
+              finalLearningPackage = data.learningPackage;
+            }
           },
           onChunk: (chunk) => {
             accumulatedText += chunk;
@@ -106,6 +116,12 @@ export const MentorChat: React.FC<MentorChatProps> = ({ context }) => {
             finalSource = (data.source as any) || finalSource;
             finalActions = data.actions || [];
             finalReferences = data.references || [];
+            if (data.courseRecommendations) {
+              finalCourseRecommendations = data.courseRecommendations;
+            }
+            if (data.learningPackage) {
+              finalLearningPackage = data.learningPackage;
+            }
           },
           onError: async (err) => {
             console.warn("Streaming error, falling back to JSON request:", err.message);
@@ -116,6 +132,8 @@ export const MentorChat: React.FC<MentorChatProps> = ({ context }) => {
               finalSource = res.source;
               finalActions = res.actions || [];
               finalReferences = res.references || [];
+              finalCourseRecommendations = res.courseRecommendations || null;
+              finalLearningPackage = res.learningPackage || null;
             } catch (fallbackErr: any) {
               accumulatedText =
                 "I encountered an issue generating your career guidance. Please try again in a moment.";
@@ -138,6 +156,8 @@ export const MentorChat: React.FC<MentorChatProps> = ({ context }) => {
           source: finalSource,
           actions: finalActions,
           references: finalReferences,
+          courseRecommendations: finalCourseRecommendations,
+          learningPackage: finalLearningPackage,
           createdAt: new Date().toISOString(),
         };
         setMessages((prev) => [...prev, assistantMsg]);

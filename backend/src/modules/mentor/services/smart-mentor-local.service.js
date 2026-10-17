@@ -1,3 +1,5 @@
+import { mentorCourseRecommendationService } from "./mentor-course-recommendation.service.js";
+
 /**
  * Smart Mentor Local NLP / Deterministic Fallback Engine
  * Ultra-fast (<10ms) rule-based and intent-classified guidance engine grounded strictly
@@ -46,7 +48,15 @@ export class SmartMentorLocalService {
       return "resume_improvement";
     }
 
-    if (/edutube|video|watch|course|lesson|playlist/i.test(text)) {
+    if (
+      /teach me|learn|full course|complete course|best course|course for|recommend.*course|playlist for|roadmap for|tutorial for/i.test(text) ||
+      (/(python|javascript|react|java|node|machine learning|full stack|devops|docker|golang|rust|data science|dsa)/i.test(text) &&
+        /(course|learn|tutorial|teach|playlist|start|guide|video|dsa)/i.test(text))
+    ) {
+      return "course_recommendation";
+    }
+
+    if (/edutube|video|watch|lesson/i.test(text)) {
       return "learning_progress";
     }
 
@@ -382,6 +392,84 @@ To best showcase your skills for **${targetRole}**, consider building:
         break;
       }
 
+      case "course_recommendation": {
+        const rec = mentorCourseRecommendationService.getRecommendationsSynchronous(userMessage, context);
+        const topCourse = rec.shortlist?.[0];
+        const comparison = rec.comparison;
+        const pkg = rec.learningPackage;
+
+        const courseBullets = (rec.shortlist || [])
+          .map(
+            (c, i) =>
+              `${i + 1}. **[${c.title}](${c.youtubeUrl})** — *${c.channelTitle}*\n   - **Type**: \`${c.courseType}\` | **Level**: \`${c.level}\` ${c.duration?.formatted ? `| **Duration**: ${c.duration.formatted}` : ""}\n   - **Why Recommended**: ${c.whyMatches}\n   - **Key Topics**: ${(c.topicsCovered || []).slice(0, 4).join(", ")}\n   - **Limitations**: ${(c.limitations || [])[0] || "None"}`
+          )
+          .join("\n\n");
+
+        const comparisonLines = (comparison?.courses || [])
+          .map(
+            (cp) =>
+              `- **${cp.title}** (${cp.instructor}): ${cp.strength}. *Best for:* ${cp.bestFor}. *Trade-off:* ${cp.tradeOff}.`
+          )
+          .join("\n");
+
+        answer = `### Top Recommended YouTube Courses & Learning Package: ${rec.intent.technologyName}
+
+${comparison?.startingRecommendationReason || ""}
+
+#### Verified Course Shortlist:
+${courseBullets}
+
+#### Course Comparison & Trade-Offs:
+${comparisonLines}
+
+#### 10-Point Structured Learning Package:
+- **Prerequisites**: ${pkg?.prerequisites?.join(", ") || "None"}
+- **Core Modules**: ${pkg?.modules?.length || 0} structured phases covering fundamentals through full projects.
+- **Capstone Project**: **${pkg?.projects?.capstoneProject?.title || "Full Stack Application"}** — ${pkg?.projects?.capstoneProject?.description || ""}
+- **Hands-on Coding**: Practice targeted challenges in the Smart Skill Hub Coding Sandbox.
+- **Measurable Milestones**: ${pkg?.milestones?.[0] || "Pass sandbox tests"}
+
+> **Mastery Note**: Watching video courses builds mental models, but true skill mastery requires implementing projects and passing automated test suites in the Coding Sandbox.`;
+
+        summary = `Recommended top YouTube courses and 10-point learning roadmap for ${rec.intent.technologyName}.`;
+
+        actions.push({
+          title: `Start ${rec.intent.technologyName} Course on EduTube`,
+          priority: "high",
+          category: "edutube",
+          estimatedMinutes: 60,
+          route: topCourse?.edutubeUrl || "/dashboard/edutube",
+        });
+
+        actions.push({
+          title: `Practice ${rec.intent.technologyName} Coding Challenges`,
+          priority: "high",
+          category: "skills",
+          estimatedMinutes: 30,
+          route: "/dashboard/coding",
+        });
+
+        for (const c of rec.shortlist || []) {
+          references.push({
+            title: `${c.title} (${c.channelTitle})`,
+            type: "youtube_course",
+            url: c.youtubeUrl,
+          });
+        }
+
+        return {
+          answer,
+          summary,
+          actions,
+          references,
+          confidence: 0.95,
+          source: "local_nlp",
+          intent,
+          courseRecommendations: rec,
+          learningPackage: pkg,
+        };
+      }
+
       default: {
         answer = `Here is your current career summary inside Smart Skill Hub:
 - **Target Role**: ${targetRole} (Readiness: ${readiness}/100)
@@ -411,6 +499,8 @@ Ask me about your **GitHub hygiene**, **what to learn next**, **30-day plan**, o
       confidence: 0.95,
       source: "local_nlp",
       intent,
+      courseRecommendations: null,
+      learningPackage: null,
     };
   }
 }

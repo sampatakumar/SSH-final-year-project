@@ -75,3 +75,26 @@ export const clearMentorHistory = asyncHandler(async (req, res) => {
     new ApiResponse(200, result, "Mentor conversation history cleared successfully")
   );
 });
+
+/**
+ * POST /api/v1/mentor/recommend-courses
+ * Dedicated endpoint for structured YouTube course recommendations and 10-point learning packages.
+ */
+export const handleRecommendCourses = asyncHandler(async (req, res) => {
+  const { query, technology, level, objective } = { ...req.query, ...req.body };
+  const searchQuery = query || technology || "Software Engineering";
+  const context = await smartMentorContextService.getUnifiedUserContext(req.user._id);
+
+  const { mentorCourseRecommendationService } = await import(
+    "../services/mentor-course-recommendation.service.js"
+  );
+
+  const recommendations = await mentorCourseRecommendationService.getRecommendationsForQuery(
+    searchQuery,
+    context
+  );
+
+  return res.status(200).json(
+    new ApiResponse(200, recommendations, "Course recommendations retrieved successfully")
+  );
+});

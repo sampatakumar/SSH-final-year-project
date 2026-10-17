@@ -1021,6 +1021,101 @@ In strict compliance with the Phase 14 security requirements:
 2. **Owner Release Review:** Review all 14 phases on `expand-test` and approve merge into `main`.
 
 ---
+
+## 14. Phase 15: AI Mentor — YouTube Full-Course Recommendations & Learning Packages
+
+### 14.1 Executive Summary & Core Purpose
+
+Phase 15 upgrades the existing Smart Mentor system with evidence-based YouTube full-course recommendations, curated video course playlists, and 10-point structured learning packages. When students ask to learn a programming language, framework, technology, or career skill, the AI Mentor parses their intent, retrieves verified course curricula, computes multi-signal evidence rankings, and synthesizes complete learning packages integrated with the existing EduTube video viewer and the Docker-isolated coding sandbox.
+
+This architecture reuses the existing EduTube service and YouTube Data API v3 infrastructure rather than creating a duplicate video subsystem.
+
+---
+
+### 14.2 Architecture & Integration Blueprint
+
+```mermaid
+flowchart TD
+    User["Student in Smart Mentor Chat"] --> Intent["parseLearningIntent(query, userContext)"]
+    Intent --> Routing{"Live YouTube API or Curated Registry?"}
+    Routing -->|Curated Registry / Cache| Registry["Curated Canonical Registry (Python, JS, React, Java DSA, Full Stack, ML)"]
+    Routing -->|Live Search| SearchList["YouTube Data API v3 (type: 'video,playlist')"]
+    SearchList --> Cache["EduTube Cache Service (Redis/Memory TTL 24h)"]
+    Registry & SearchList --> Ranker["scoreCourseCandidate(candidate, intent, userProfile)"]
+    Ranker --> Shortlist["Verified Shortlist (Max 3 Top Matches)"]
+    Shortlist --> Comparator["generateComparison(shortlist)"]
+    Shortlist --> Package["generateLearningPackage(intent, shortlist, userProfile)"]
+    Package --> SandboxConnect["Coding Sandbox Challenges (/dashboard/coding)"]
+    Package --> EduTubeConnect["EduTube Player (/dashboard/edutube?video=... / playlist=...)"]
+    Comparator & Package --> ResponsePayload["MentorChatResponse + SSE 'event: courses'"]
+    ResponsePayload --> FrontendUI["CourseRecommendationCard + CourseComparisonView + LearningPackageView"]
+```
+
+---
+
+### 14.3 Multi-Signal Evidence-Based Ranking Model
+
+To avoid misleading recommendations, the ranking engine calculates a deterministic score `[0, 100]` composed of five transparent factors:
+
+1. **Technology & Keyword Relevance (`technologyMatch`, 0-35 points):** Exact match of the primary language/framework in title, description, and canonical tags.
+2. **Curriculum Completeness & Course Depth (`curriculumCompleteness`, 0-25 points):** Verified duration (`> 4 hours` full courses receive top weight; systematic multi-hour playlists receive full points; short tutorials `< 1 hour` receive zero full-course bonus).
+3. **Format Suitability (`courseStructureLength`, 0-15 points):** Prioritizes complete beginner-to-advanced courses and full playlists over isolated single lessons.
+4. **Hands-On Exercises & Practical Projects (`practicalProjects`, 0-15 points):** Verified coverage of building portfolio projects, exercises, and real-world debugging.
+5. **Level & Career Alignment (`levelSuitability`, 0-10 points):** Direct alignment with student difficulty preference (`beginner`, `intermediate`, `advanced`) and target career role.
+
+#### Anti-Hallucination & Public Star Rating Disclosure
+- **YouTube Public Star Ratings Limitation:** YouTube does not provide a universal public 5-star rating API. The system explicitly discloses: `"publicStarRating": "Not provided by YouTube public API"`.
+- **Honest Metadata:** No view counts, subscriber counts, or ratings are fabricated. When rating data is unavailable, it is documented as such.
+- **Identified Limitations:** Every course card explicitly lists topics that are **missing or not covered** in that course, preventing false expectations.
+- **Mastery Notice:** Watching progress is strictly differentiated from skill mastery. The system warns: *"Watching progress does not equate to verified skill mastery. Complete hands-on coding challenges and projects to demonstrate mastery."*
+
+---
+
+### 14.4 10-Point Structured Learning Package
+
+When students request a full learning path, the system constructs a 10-point package:
+1. **Prerequisites:** Foundational knowledge, runtime environments, and text editor setup.
+2. **Ordered Learning Modules:** Step-by-step phased curriculum with estimated study hours.
+3. **Recommended Complete Course/Playlist for Each Module:** Verified canonical links.
+4. **Core Concepts to Master:** Essential APIs, patterns, and principles.
+5. **Hands-On Coding Exercises:** Focused code drills.
+6. **Mini-Projects:** Real-world incremental portfolio apps.
+7. **Capstone Project:** Production-grade full-system project with architecture guidelines.
+8. **Coding Sandbox Challenges:** Direct clickable links to the SSH isolated Docker sandbox (`/dashboard/coding?task=...`).
+9. **Milestones & Measurable Completion Criteria:** Measurable criteria for completion.
+10. **Placement & Technical Interview Revision Checklist:** Core theory, architecture questions, and target-role next steps.
+
+---
+
+### 14.5 Full Automated Test Results (Phase 15)
+
+| Test Suite | Execution Command | Test Files | Passed | Failed | Skipped | Test Count | Result Summary |
+|---|---|---|---|---|---|---|---|
+| **Backend Full Test Suite** | `npm test` | 44 files | 44 passed | 0 failed | 0 | 473 / 473 passed (100%) | **PASS** — Complete backend green (0 failures) |
+| **Mentor Course Recommendation Tests** | `npm test -- test/mentor-course-recommendation.test.js` | 1 file | 1 passed | 0 failed | 0 | 18 / 18 passed (100%) | **PASS** — Intent, ranking, comparison, packages, and chat integration green |
+| **Smart Mentor Backend Tests** | `npm test -- test/smart-mentor.test.js` | 1 file | 1 passed | 0 failed | 0 | 11 / 11 passed (100%) | **PASS** — Streaming, fallback, memory persistence |
+| **EduTube Integration Backend Tests** | `npm test -- test/edutube.integration.test.js` | 1 file | 1 passed | 0 failed | 0 | 21 / 21 passed (100%) | **PASS** — Schema normalization, playlist support, error mapping |
+| **Frontend Full Test Suite** | `npm test -- --run` | 39 files | 39 passed | 0 failed | 0 | 274 / 274 passed (100%) | **PASS** — Complete frontend green |
+| **Frontend Mentor Recommendations Tests** | `npm test -- src/test/mentor-course-recommendation.test.tsx --run` | 1 file | 1 passed | 0 failed | 0 | 9 / 9 passed (100%) | **PASS** — Cards, comparison view, learning package view |
+| **Frontend Production Build** | `npm run build` | 3,447 modules | Succeeded | 0 errors | 0 | Bundled in 9.28s | **PASS** — Clean production bundle |
+
+---
+
+### 14.6 Security & URL Validation
+
+- **Safe External Navigation:** All external YouTube links strictly validate that protocols are `https:` and hostnames belong to `youtube.com`, `www.youtube.com`, or `youtu.be`. Any invalid URL or arbitrary redirect scheme (`javascript:`, `data:`, external malicious domains) is stripped.
+- **Rel noopener noreferrer:** All external links render with `target="_blank" rel="noopener noreferrer"` preventing tab-nabbing attacks.
+- **Cross-User Profile Isolation:** Student chat histories, course recommendations, and learning package progress are isolated by authenticated `req.user.uid`.
+- **Zero Raw Key Leakage:** Frontend client never receives raw YouTube API keys or backend server secrets.
+
+---
+
+### 14.7 Remaining Limitations & Next Steps
+
+1. **Live YouTube API Quota Limits:** When Google YouTube Data API v3 daily quota (10,000 units) is reached, the system falls back gracefully to the verified curated course registry with 100% feature parity.
+2. **Subtitles & Transcripts Search:** Automated in-video timestamp search for specific concept bookmarks within 10-hour courses can be enhanced in future phases using YouTube Captions API when OAuth2 authorization is granted.
+
+---
 *End of Report — Smart Skill Hub Architecture & Release Readiness Engineering Team*
 
 

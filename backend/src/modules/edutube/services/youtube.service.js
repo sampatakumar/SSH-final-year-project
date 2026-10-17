@@ -166,15 +166,19 @@ export class YouTubeService {
       ? Math.max(1, Math.min(50, params.maxResults))
       : 10;
 
+    const targetType = params.type || "video";
     const queryParams = {
       part: "snippet",
-      type: "video",
-      videoEmbeddable: "true",
-      videoSyndicated: "true",
+      type: targetType,
       safeSearch: "moderate",
       q: sanitizedQ,
       maxResults,
     };
+
+    if (targetType === "video") {
+      queryParams.videoEmbeddable = "true";
+      queryParams.videoSyndicated = "true";
+    }
 
     // Pagination
     if (params.pageToken && typeof params.pageToken === "string" && params.pageToken.trim()) {

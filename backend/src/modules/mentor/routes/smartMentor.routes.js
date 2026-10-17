@@ -8,6 +8,7 @@ import {
   handleMentorChatStream,
   getMentorHistory,
   clearMentorHistory,
+  handleRecommendCourses,
 } from "../controllers/smartMentor.controller.js";
 
 const router = Router();
@@ -30,5 +31,7 @@ router.post("/chat", verifyFirebaseToken, mentorLimiter, handleMentorChat);
 router.post("/chat/stream", verifyFirebaseToken, mentorLimiter, handleMentorChatStream);
 router.get("/history", verifyFirebaseToken, getMentorHistory);
 router.delete("/history", verifyFirebaseToken, clearMentorHistory);
+router.get("/courses", verifyFirebaseToken, mentorLimiter, handleRecommendCourses);
+router.post("/recommend-courses", verifyFirebaseToken, mentorLimiter, handleRecommendCourses);
 
 export default router;

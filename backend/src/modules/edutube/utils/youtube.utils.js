@@ -56,6 +56,48 @@ export const getYoutubeUrl = (videoId) => {
 };
 
 /**
+ * Build canonical YouTube playlist URL.
+ */
+export const getPlaylistUrl = (playlistId) => {
+  if (!playlistId || typeof playlistId !== "string") return "";
+  return `https://www.youtube.com/playlist?list=${encodeURIComponent(playlistId.trim())}`;
+};
+
+/**
+ * Build canonical YouTube playlist embed URL.
+ */
+export const getPlaylistEmbedUrl = (playlistId) => {
+  if (!playlistId || typeof playlistId !== "string") return "";
+  return `https://www.youtube.com/embed/videoseries?list=${encodeURIComponent(playlistId.trim())}`;
+};
+
+/**
+ * Safe external URL validator enforcing trusted YouTube domains and HTTPS/HTTP protocols.
+ */
+export const validateSafeExternalUrl = (url) => {
+  if (!url || typeof url !== "string") return null;
+  try {
+    const parsed = new URL(url);
+    if (!["https:", "http:"].includes(parsed.protocol)) return null;
+    const hostname = parsed.hostname.toLowerCase();
+    const validHostnames = [
+      "youtube.com",
+      "www.youtube.com",
+      "m.youtube.com",
+      "youtu.be",
+      "img.youtube.com",
+      "i.ytimg.com",
+    ];
+    if (!validHostnames.some((valid) => hostname === valid || hostname.endsWith("." + valid))) {
+      return null;
+    }
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+};
+
+/**
  * Parse ISO 8601 duration (e.g., PT1H2M30S, PT15M33S, PT45S) into seconds and human-readable string.
  */
 export const parseDuration = (isoDuration) => {
@@ -95,6 +137,7 @@ export const parseDuration = (isoDuration) => {
 export const normalizeSearchItem = (rawItem) => {
   if (!rawItem) return null;
 
+  const isPlaylist = rawItem.id?.kind === "youtube#playlist" || Boolean(rawItem.id?.playlistId);
   const videoId =
     typeof rawItem.id === "string"
       ? rawItem.id
@@ -105,7 +148,7 @@ export const normalizeSearchItem = (rawItem) => {
   const snippet = rawItem.snippet || {};
   const thumbnails = snippet.thumbnails || {};
 
-  return {
+  const result = {
     videoId,
     title: snippet.title || "",
     description: snippet.description || "",
@@ -119,10 +162,17 @@ export const normalizeSearchItem = (rawItem) => {
     channelId: snippet.channelId || "",
     channelTitle: snippet.channelTitle || "",
     publishedAt: snippet.publishedAt || "",
-    embedUrl: getEmbedUrl(videoId),
-    youtubeUrl: getYoutubeUrl(videoId),
+    embedUrl: isPlaylist ? getPlaylistEmbedUrl(videoId) : getEmbedUrl(videoId),
+    youtubeUrl: isPlaylist ? getPlaylistUrl(videoId) : getYoutubeUrl(videoId),
     liveBroadcastContent: snippet.liveBroadcastContent || "none",
   };
+
+  if (isPlaylist) {
+    result.isPlaylist = true;
+    result.playlistId = videoId;
+  }
+
+  return result;
 };
 
 /**

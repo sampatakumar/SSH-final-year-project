@@ -31,6 +31,8 @@ export interface MentorMessageItem {
   confidence?: number;
   actions?: MentorAction[];
   references?: MentorReference[];
+  courseRecommendations?: CourseRecommendationsPayload | null;
+  learningPackage?: LearningPackageData | null;
   createdAt?: string;
 }
 
@@ -124,6 +126,124 @@ export interface MentorContextData {
   updatedAt: string;
 }
 
+export interface CourseRecommendationItem {
+  id: string;
+  title: string;
+  channelTitle: string;
+  instructor?: string;
+  duration?: { formatted: string; seconds: number; isVerified?: boolean } | null;
+  publishedAt?: string;
+  courseType: "full_course" | "complete_playlist" | "focused_tutorial" | "project_course" | "dsa_course" | string;
+  technology: string;
+  level: string;
+  topicsCovered: string[];
+  limitations: string[];
+  whyMatches: string;
+  levelSuitability: string;
+  youtubeUrl: string;
+  edutubeUrl: string;
+  isPlaylist?: boolean;
+  engagement?: {
+    source: string;
+    publicStarRating?: string;
+    ratingNote?: string;
+    approxViews?: number;
+  };
+  ranking?: {
+    totalScore: number;
+    breakdown?: {
+      technologyMatch: number;
+      curriculumCompleteness: number;
+      courseStructureLength: number;
+      practicalProjects: number;
+      levelSuitability: number;
+    };
+  };
+}
+
+export interface CourseComparisonData {
+  recommendedStartingCourseId: string;
+  startingRecommendationReason: string;
+  courses: Array<{
+    courseId: string;
+    title: string;
+    instructor: string;
+    strength: string;
+    bestFor: string;
+    tradeOff: string;
+    isStartingPick: boolean;
+  }>;
+}
+
+export interface LearningPackageModule {
+  order: number;
+  title: string;
+  recommendedCourse: {
+    title: string;
+    youtubeUrl: string;
+    type: string;
+  };
+  coreConcepts: string[];
+  handsOnExercises: string[];
+  milestone: string;
+  isSkippedBasedOnProfile?: boolean;
+}
+
+export interface LearningPackageData {
+  title: string;
+  technology: string;
+  targetRole: string;
+  prerequisites: string[];
+  modules: LearningPackageModule[];
+  projects: {
+    miniProjects: Array<{
+      title: string;
+      description: string;
+      keySkills: string[];
+    }>;
+    capstoneProject: {
+      title: string;
+      description: string;
+      keySkills: string[];
+      architectureTip?: string;
+    };
+  };
+  codingChallenges: Array<{
+    taskId: string;
+    title: string;
+    difficulty: string;
+    category: string;
+  }>;
+  milestones: string[];
+  revisionInterview: {
+    keyQuestions: string[];
+    dsaPracticeTopics: string[];
+  };
+  nextSteps: Array<{
+    step: string;
+    route: string;
+    reason: string;
+  }>;
+  masteryNote: string;
+}
+
+export interface CourseRecommendationsPayload {
+  intent: {
+    technologyKey: string;
+    technologyName: string;
+    level: string;
+    objective: string;
+    preferredLanguage: string;
+    targetRole: string;
+    needsClarification?: boolean;
+  };
+  shortlist: CourseRecommendationItem[];
+  recommendedStartingCourseId?: string;
+  comparison?: CourseComparisonData | null;
+  learningPackage?: LearningPackageData | null;
+  cachedAt?: string;
+}
+
 export interface MentorChatResponse {
   message: string;
   summary: string;
@@ -131,6 +251,8 @@ export interface MentorChatResponse {
   references: MentorReference[];
   confidence: number;
   source: "groq" | "local_nlp" | "deterministic";
+  courseRecommendations?: CourseRecommendationsPayload | null;
+  learningPackage?: LearningPackageData | null;
   contextSnapshot?: {
     targetRole?: string;
     readinessScore?: number;
