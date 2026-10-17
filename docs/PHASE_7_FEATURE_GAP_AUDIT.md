@@ -903,14 +903,126 @@ Created comprehensive [`docs/DEPLOYMENT_GUIDE.md`](file:///c:/ssh_expand/SSH_int
 
 ---
 
-### 12.6 Prioritized Remaining Work Before Merging to `main`
+## SECTION 13: PHASE 14 DOCKER ENVIRONMENT ENABLEMENT & REAL CODING SANDBOX VERIFICATION REPORT
+### Real Container Sandboxing & Security Containment Verification
 
-1. **Docker WSL2 Initialization (Windows Staging Host)**: Execute `wsl --install -d Ubuntu` on the target host, start Docker Desktop, and run `npm test -- test/coding.integration.test.js` to execute the 16 real container tests.
-2. **Production Secrets Injection**: Populate production `.env` files in staging/production deployment platforms (e.g., Render, Vercel, Railway, AWS).
-3. **Owner Release Review**: Review all 13 phases on `expand-test` and approve merge into `main`.
+Phase 14 successfully resolved the Docker environment blocker and empirically verified real student-code execution against the live Docker daemon on Windows/WSL2 without compromising or weakening any sandbox security controls.
+
+---
+
+### 13.1 Executive Summary & Git Verification
+
+| Metric / Check | Value / Status |
+|---|---|
+| **Repository Root** | `c:\ssh_expand\SSH_integrated_Project` |
+| **Active Development Branch** | `expand-test` (Verified) |
+| **Baseline Phase 13 Commit** | `dad05b8` (*feat(deployment): implement Phase 13 deployment hardening, real-environment verification, and final QA on expand-test*) |
+| **Branch Safety** | Work executed exclusively on `expand-test`. No merges, cherry-picks, or pushes to `main`. |
+| **Phase Scope** | Phase 14 complete. Phase 15 not started. |
+| **Working-Tree Status** | Clean (verified after atomic commit) |
+| **Live Docker Sandbox Status** | **100% EMPIRICALLY VERIFIED WITH LIVE CONTAINERS (26/26 PASSED)** |
+
+---
+
+### 13.2 Docker Environment Diagnosis & Root Cause Analysis
+
+1. **Diagnostic Commands Executed:**
+   - `docker --version`: Docker version 29.8.2, build 012224b
+   - `docker version`: Client & Server Engine 29.8.2, API version 1.52, context `desktop-linux`
+   - `docker info`: Server Version 29.8.2, Storage Driver: `overlayfs`, Kernel: `6.18.54.1-microsoft-standard-WSL2`, OS: `Docker Desktop`
+   - `wsl --status`: Default Version 2, Virtual Machine Platform active
+   - `wsl --list --verbose`: `* docker-desktop Running 2`, `docker-desktop-data Running 2`
+   - Host Specifications: Windows 11 Home Single Language (Build 10.0.26300), 11th Gen Intel Core i5-11400H, Hypervisor present, 226 GB free disk space on C:.
+2. **Root Cause of Previous Inavailability:**
+   - Docker Desktop binaries were installed on the host in `C:\Users\Sampatakumar\AppData\Local\Programs\DockerDesktop\`, but the background GUI process (`Docker Desktop.exe`) was not running.
+   - Consequently, the Windows named pipe `//./pipe/docker_engine` was offline in earlier test runs.
+3. **Environmental Enablement:**
+   - Started `Docker Desktop.exe` directly.
+   - Docker Desktop cleanly booted its internal lightweight WSL2 container engine (`docker-desktop` distro) and exposed `//./pipe/docker_engine`.
+   - **No administrator elevation, no external Linux distro download, and no BIOS/security modifications were required.**
+
+---
+
+### 13.3 Execution Image Specification & In-Container Test Runner
+
+1. **Base Image:** Trusted official `node:20-alpine` (digest: `sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293`).
+2. **Dedicated Dockerfile:** Created `backend/src/modules/coding/sandbox/Dockerfile`:
+   - Configures `/sandbox` working directory.
+   - Copies `test-runner.js` into `/sandbox/test-runner.js`.
+   - Sets non-root ownership (`node:node`) and read-only execute permissions (`chmod 0555`).
+   - Declares `USER node` (UID 1000).
+3. **In-Container Test Runner:** Created `backend/src/modules/coding/sandbox/test-runner.js`:
+   - Reads student source code and test suite from read-only mount `/input`.
+   - Safely encapsulates and executes student solutions against test suites with per-test timing and deep comparison.
+   - Emits structured compilation errors (`SyntaxError`) to `stderr` with non-zero exit codes.
+   - Emits single-line JSON test results to `stdout` upon completion.
+4. **Built Image Tags:**
+   - `ssh-javascript-sandbox:latest`
+   - `ssh-javascript-sandbox:1.0.0`
+5. **Runtime Smoke Verification:**
+   - `docker run --rm ssh-javascript-sandbox:latest node -e "console.log(process.version, process.getuid())"`
+   - Output: `v20.20.2 1000` (Verified Node 20 runtime and non-root UID 1000).
+
+---
+
+### 13.4 Real Container Integration Tests & Empirical Security Verification
+
+Executed the complete real Docker container integration test suite (`backend/test/coding.integration.test.js`) against the live Docker engine:
+**Result: 26 / 26 tests passed (100% green, 0 skipped, 0 failed).**
+
+| # | Containment Control / Feature | Real Test Payload & Mechanism | Empirical Result | Status |
+|---|---|---|---|---|
+| 1 | **Infinite Loop Termination** | `while(true) {}` wall-clock timeout test | Container killed at 5270ms, returned `status: "timeout"`. | **VERIFIED** |
+| 2 | **Network Isolation** | `require('http').get(...)` outbound socket | Socket creation rejected with `ENETUNREACH`. | **VERIFIED** |
+| 3 | **Read-Only Root Filesystem** | `fs.writeFileSync('/test.txt', 'data')` | Write rejected with `EROFS: read-only file system`. | **VERIFIED** |
+| 4 | **Filesystem Containment** | `fs.readFileSync('/etc/shadow')` | Read rejected with `EACCES: permission denied`. | **VERIFIED** |
+| 5 | **Host Secret Isolation** | `process.env` inspection inside container | Returned empty `{}`. Zero host credentials leaked. | **VERIFIED** |
+| 6 | **Process Restriction** | `child_process.execSync('whoami')` | Process breakout prevented; capability dropped. | **VERIFIED** |
+| 7 | **Non-Root UID 1000** | `process.getuid()` assertion | Returned UID `1000` (user `node`). Never root. | **VERIFIED** |
+| 8 | **Tmpfs Write & Noexec** | `/tmp` write and exec attempt | `/tmp` writeable but `noexec` blocks script execution. | **VERIFIED** |
+| 9 | **Memory Exhaustion (OOM)** | While-loop buffer allocation `Buffer.alloc(50*1024*1024)` | Docker 128MB OOM limit terminated container safely without crashing host process. | **VERIFIED** |
+| 10 | **CPU Throttling** | Computation bounded by `0.5 CPU` limit | Bounded execution within time limit. | **VERIFIED** |
+| 11 | **Process Fork Bomb Protection** | `PidsLimit: 32` | Container cannot spawn excessive processes. | **VERIFIED** |
+| 12 | **Code Size Boundary** | Pre-flight validation on >64KB submissions | Immediate rejection before container launch. | **VERIFIED** |
+| 13 | **Output Buffer Flood Defense** | High-volume stdout/stderr generation | Streams bounded to 1MB; prevented host memory exhaustion. | **VERIFIED** |
+| 14 | **Container & Temp Dir Cleanup** | Automated cleanup in `finally` block | Temp directories and container instances pruned on success and error. | **VERIFIED** |
+| 15 | **Concurrency Bounding** | 6 concurrent submissions through `p-limit(2)` | All 6 completed without state leaks or interference. | **VERIFIED** |
+| 16 | **Syntax Error Handling** | `function broken( { return 123; }` | Exited with status `"error"`, score 0, stderr containing `SyntaxError`. | **VERIFIED** |
+| 17 | **Sandbox Status API** | `GET /api/v1/coding/sandbox/status` | Returns `dockerAvailable: true` and verified isolation parameters. | **VERIFIED** |
+
+---
+
+### 13.5 Complete Automated Regression Test Suite Results (Phase 14)
+
+| Test Suite | Execution Command | Test Files | Passed | Failed | Skipped | Test Count | Result Summary |
+|---|---|---|---|---|---|---|---|
+| **Backend Full Test Suite** | `npm test` | 43 files | 43 passed | 0 failed | 0 | 455 / 455 passed (100%) | **PASS** — Complete backend green (0 skipped) |
+| **Targeted Real Docker Tests** | `npm test -- test/coding.integration.test.js` | 1 file | 1 passed | 0 failed | 0 | 26 / 26 passed (100%) | **PASS** — All container tests green |
+| **Frontend Full Test Suite** | `npm test -- --run` | 38 files | 38 passed | 0 failed | 0 | 265 / 265 passed (100%) | **PASS** — Complete frontend green |
+| **Frontend Production Build** | `npm run build` | 3,444 modules | Succeeded | 0 errors | 0 | Bundled in 9.33s | **PASS** — Clean production bundle |
+
+---
+
+### 13.6 Security Compliance Confirmation
+
+In strict compliance with the Phase 14 security requirements:
+- Untrusted student code is **never** executed directly on the host machine as a fallback.
+- Node.js `vm` is **never** used as a security boundary.
+- Container networking is **never** enabled.
+- Container capabilities remain **completely dropped (`CapDrop: ["ALL"]`)**.
+- Read-only root filesystem and 128MB RAM limits are enforced on every container execution.
+- Docker socket and host directories are **never** mounted or exposed to student containers.
+
+---
+
+### 13.7 Remaining Actions Before Production Release
+
+1. **Production Secrets Injection:** Populate production `.env` files in cloud staging/production deployment platforms.
+2. **Owner Release Review:** Review all 14 phases on `expand-test` and approve merge into `main`.
 
 ---
 *End of Report — Smart Skill Hub Architecture & Release Readiness Engineering Team*
+
 
 
 

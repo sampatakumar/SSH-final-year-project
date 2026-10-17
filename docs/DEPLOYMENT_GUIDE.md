@@ -95,9 +95,18 @@ If deploying or testing on a Windows host:
    docker version
    docker run --rm hello-world
    ```
-4. Pull the lightweight Node.js execution image used by the sandbox:
+4. Pull the lightweight Node.js base image:
    ```powershell
    docker pull node:20-alpine
+   ```
+5. Build and tag the dedicated Smart Skill Hub sandbox image:
+   ```powershell
+   cd backend/src/modules/coding/sandbox
+   docker build -t ssh-javascript-sandbox:latest -t ssh-javascript-sandbox:1.0.0 .
+   ```
+6. Verify the container runner:
+   ```powershell
+   docker run --rm ssh-javascript-sandbox:latest node -e "console.log('Sandbox ready:', process.version)"
    ```
 
 ### 4.2 Linux Host Setup Steps
@@ -111,8 +120,13 @@ sudo usermod -aG docker $USER
 # 3. Enable and start daemon
 sudo systemctl enable --now docker
 
-# 4. Pull sandbox runner image
+# 4. Pull base image and build sandbox image
 docker pull node:20-alpine
+cd backend/src/modules/coding/sandbox
+docker build -t ssh-javascript-sandbox:latest -t ssh-javascript-sandbox:1.0.0 .
+
+# 5. Verify image execution
+docker run --rm ssh-javascript-sandbox:latest node -e "console.log('Sandbox ready:', process.version)"
 ```
 
 ### 4.3 Sandbox Isolation Boundaries
