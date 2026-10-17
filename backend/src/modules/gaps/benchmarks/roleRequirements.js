@@ -35,6 +35,19 @@ export const TARGET_ROLES = {
   API_INTEGRATION_DEVELOPER: "API and Integration Developer",
   OPEN_SOURCE_CONTRIBUTOR: "Open Source Contributor",
   TECHNICAL_SUPPORT_ENGINEER: "Technical Support Engineer",
+
+  // Multi-Branch Engineering & Business Tracks
+  EMBEDDED_SYSTEMS_ENGINEER: "Embedded Systems Engineer",
+  VLSI_DESIGN_ENGINEER: "VLSI Design Engineer",
+  IOT_DEVELOPER: "IoT Developer",
+  POWER_SYSTEMS_ENGINEER: "Power Systems Engineer",
+  CONTROL_SYSTEMS_ENGINEER: "Control Systems Engineer",
+  CAD_CAM_ENGINEER: "CAD/CAM Engineer",
+  ROBOTICS_ENGINEER: "Robotics Engineer",
+  STRUCTURAL_DESIGN_ENGINEER: "Structural Design Engineer",
+  BIM_SPECIALIST: "BIM Specialist",
+  FINANCIAL_ANALYST: "Financial Analyst",
+  BUSINESS_INTELLIGENCE_ANALYST: "Business Intelligence Analyst",
 };
 
 export const ROLE_REQUIREMENTS = {
@@ -547,4 +560,295 @@ export const ROLE_REQUIREMENTS = {
       { skill: "Linux", importance: "medium" },
     ],
   },
+
+  // 25. Embedded Systems Engineer (Electronics)
+  "Embedded Systems Engineer": {
+    roleName: "Embedded Systems Engineer",
+    category: "Electronics & Electrical",
+    description: "Develops low-level firmware, real-time operating system (RTOS) tasks, hardware driver interfaces, and microcontroller firmware.",
+    coreSkills: [
+      { skill: "Embedded C", importance: "critical", minProficiency: "Proficient", evidenceType: ["project", "github", "coding"], observableEvidence: "Microcontroller firmware code with peripheral drivers and interrupt service routines" },
+      { skill: "C++", importance: "high", minProficiency: "Competent", evidenceType: ["project", "github", "coding"], observableEvidence: "Object-oriented embedded drivers, classes, and hardware abstraction layers (HAL)" },
+      { skill: "Microcontrollers", importance: "critical", minProficiency: "Proficient", evidenceType: ["project", "hardware"], observableEvidence: "Hardware projects built on STM32, ESP32, or ARM Cortex microcontrollers" },
+      { skill: "RTOS", importance: "high", minProficiency: "Competent", evidenceType: ["project", "github"], observableEvidence: "FreeRTOS tasks, priority scheduling, queues, semaphores, and inter-task communication" },
+      { skill: "UART/SPI/I2C", importance: "high", minProficiency: "Competent", evidenceType: ["project", "hardware"], observableEvidence: "Logic analyzer traces, sensor register read/write protocols, and serial telemetry" },
+      { skill: "Hardware Debugging", importance: "high", minProficiency: "Competent", evidenceType: ["project", "lab"], observableEvidence: "Oscilloscope and JTAG/SWD in-circuit debugging session logs and pin diagnostics" },
+    ],
+    recommendedSkills: [
+      { skill: "Git", importance: "high", minProficiency: "Competent" },
+      { skill: "Linux", importance: "medium", minProficiency: "Competent" },
+      { skill: "Device Drivers", importance: "medium", minProficiency: "Developing" },
+      { skill: "PCB Design", importance: "medium", minProficiency: "Developing" },
+    ],
+    prerequisites: ["Digital Electronics", "Computer Architecture", "Circuit Theory"],
+    observableEvidence: [
+      "Microcontroller firmware repositories (STM32, ESP32, ARM) with register-level code or RTOS tasks",
+      "Peripheral interfacing code (I2C/SPI sensor readouts, UART communication)",
+      "Documented hardware projects with schematics, pinouts, and breadboard/PCB implementation",
+    ],
+  },
+
+  // 26. VLSI Design Engineer (Electronics)
+  "VLSI Design Engineer": {
+    roleName: "VLSI Design Engineer",
+    category: "Electronics & Electrical",
+    description: "Designs and verifies digital circuits, ASIC blocks, and FPGA architectures using Hardware Description Languages.",
+    coreSkills: [
+      { skill: "Verilog / SystemVerilog", importance: "critical", minProficiency: "Proficient", evidenceType: ["project", "github"], observableEvidence: "Synthesizable RTL module repositories with self-checking simulation testbenches" },
+      { skill: "VHDL", importance: "high", minProficiency: "Competent", evidenceType: ["project", "github"], observableEvidence: "VHDL entity and structural architecture implementations with automated test vectors" },
+      { skill: "Digital Logic Design", importance: "critical", minProficiency: "Proficient", evidenceType: ["project", "coursework"], observableEvidence: "Combinational and synchronous finite state machine (FSM) state diagrams and schematics" },
+      { skill: "Static Timing Analysis", importance: "high", minProficiency: "Competent", evidenceType: ["project", "eda"], observableEvidence: "Synopsys Design Constraints (.sdc) and setup/hold timing slack violation reports" },
+      { skill: "FPGA Prototyping", importance: "high", minProficiency: "Competent", evidenceType: ["project", "hardware"], observableEvidence: "Bitstream generation and hardware pin mapping on Xilinx Vivado or Intel Quartus" },
+    ],
+    recommendedSkills: [
+      { skill: "Linux", importance: "high", minProficiency: "Competent" },
+      { skill: "Python", importance: "medium", minProficiency: "Competent" },
+      { skill: "Git", importance: "high", minProficiency: "Competent" },
+      { skill: "TCL Scripting", importance: "medium", minProficiency: "Developing" },
+    ],
+    prerequisites: ["Semiconductor Physics", "Boolean Algebra", "Computer Organization"],
+    observableEvidence: [
+      "Verilog or SystemVerilog synthesizable RTL repositories with comprehensive testbenches",
+      "Simulation waveform snapshots and timing closure constraint files (.sdc)",
+      "FPGA implementation projects (Xilinx Vivado, Intel Quartus) with resource utilization reports",
+    ],
+  },
+
+  // 27. IoT Developer (Electronics)
+  "IoT Developer": {
+    roleName: "IoT Developer",
+    category: "Electronics & Electrical",
+    description: "Builds connected edge devices, wireless telemetry streaming pipelines, and cloud sensor integrations.",
+    coreSkills: [
+      { skill: "Embedded C", importance: "critical", minProficiency: "Proficient", evidenceType: ["project", "github"], observableEvidence: "Firmware code integrating sensor acquisition and low-power telemetry sleep cycles" },
+      { skill: "MQTT", importance: "critical", minProficiency: "Proficient", evidenceType: ["project", "github"], observableEvidence: "Pub/Sub message payloads, QoS level configurations, and secure TLS broker connectivity" },
+      { skill: "Python", importance: "high", minProficiency: "Competent", evidenceType: ["project", "github"], observableEvidence: "Backend ingestion scripts, edge gateway services, or cloud API integrations" },
+      { skill: "Microcontrollers", importance: "critical", minProficiency: "Proficient", evidenceType: ["project", "hardware"], observableEvidence: "ESP32/ESP8266 or ARM-based wireless sensor node prototypes and schematics" },
+      { skill: "REST APIs", importance: "high", minProficiency: "Competent", evidenceType: ["project", "api"], observableEvidence: "Documented HTTP endpoints for device registration, telemetry logs, and OTA firmware updates" },
+    ],
+    recommendedSkills: [
+      { skill: "Node.js", importance: "medium", minProficiency: "Competent" },
+      { skill: "AWS", importance: "medium", minProficiency: "Developing" },
+      { skill: "Git", importance: "high", minProficiency: "Competent" },
+      { skill: "Docker", importance: "medium", minProficiency: "Developing" },
+    ],
+    prerequisites: ["Computer Networks", "Basic Electronics", "Linux Fundamentals"],
+    observableEvidence: [
+      "End-to-end IoT projects with edge sensors publishing telemetry to an MQTT broker or cloud dashboard",
+      "Hardware wiring diagrams, firmware code, and API integration documentation",
+      "Demonstrated power management or wireless protocol integration (Wi-Fi, BLE, LoRa)",
+    ],
+  },
+
+  // 28. Power Systems Engineer (Electrical)
+  "Power Systems Engineer": {
+    roleName: "Power Systems Engineer",
+    category: "Electronics & Electrical",
+    description: "Simulates electrical grid networks, load flow calculations, transmission stability, and protection relay schemes.",
+    coreSkills: [
+      { skill: "MATLAB / Simulink", importance: "critical", minProficiency: "Proficient", evidenceType: ["project", "simulation"], observableEvidence: "Simulink dynamic power flow, generator swing equations, and inverter model simulations" },
+      { skill: "ETAP", importance: "critical", minProficiency: "Proficient", evidenceType: ["project", "simulation"], observableEvidence: "Load flow, short circuit, and motor acceleration studies in ETAP software" },
+      { skill: "Power Grid Modeling", importance: "critical", minProficiency: "Proficient", evidenceType: ["project", "case-study"], observableEvidence: "Transmission line parameter calculations and single-line network diagram models" },
+      { skill: "Relay Coordination", importance: "high", minProficiency: "Competent", evidenceType: ["project", "case-study"], observableEvidence: "Overcurrent and distance relay time-current characteristic (TCC) coordination curves" },
+      { skill: "Fault Analysis", importance: "high", minProficiency: "Competent", evidenceType: ["project", "case-study"], observableEvidence: "Symmetrical and unsymmetrical LG/LL/LLG fault current calculation reports" },
+    ],
+    recommendedSkills: [
+      { skill: "AutoCAD Electrical", importance: "high", minProficiency: "Competent" },
+      { skill: "Python", importance: "medium", minProficiency: "Developing" },
+      { skill: "Control Systems", importance: "medium", minProficiency: "Competent" },
+    ],
+    prerequisites: ["Electrical Machines", "Power Transmission & Distribution", "Network Theory"],
+    observableEvidence: [
+      "Simulink transmission network models or ETAP load flow and short-circuit simulation studies",
+      "Protection coordination curves and single-line diagram (SLD) portfolio documentation",
+      "Renewable generation or microgrid stability analysis reports",
+    ],
+  },
+
+  // 29. Control Systems Engineer (Electrical)
+  "Control Systems Engineer": {
+    roleName: "Control Systems Engineer",
+    category: "Electronics & Electrical",
+    description: "Designs closed-loop feedback controllers, dynamic system models, observers, and industrial automation algorithms.",
+    coreSkills: [
+      { skill: "MATLAB / Simulink", importance: "critical", minProficiency: "Proficient", evidenceType: ["project", "simulation"], observableEvidence: "Feedback control loop simulations, root locus, and frequency response Bode plot analysis" },
+      { skill: "Control Systems", importance: "critical", minProficiency: "Proficient", evidenceType: ["project", "simulation"], observableEvidence: "PID controller tuning, gain/phase stability margins, and state-space matrix models" },
+      { skill: "System Identification", importance: "high", minProficiency: "Competent", evidenceType: ["project", "case-study"], observableEvidence: "Transfer function estimation from experimental input-output step response data" },
+      { skill: "Python", importance: "high", minProficiency: "Competent", evidenceType: ["project", "coding"], observableEvidence: "Python control library scripts for automated system simulation and plotting" },
+      { skill: "PLC Programming", importance: "medium", minProficiency: "Competent", evidenceType: ["project", "lab"], observableEvidence: "Ladder logic programs with timers, counters, state sequences, and interlocks" },
+    ],
+    recommendedSkills: [
+      { skill: "C++", importance: "medium", minProficiency: "Competent" },
+      { skill: "SCADA", importance: "medium", minProficiency: "Developing" },
+      { skill: "Sensors & Actuators", importance: "high", minProficiency: "Competent" },
+      { skill: "Git", importance: "medium", minProficiency: "Competent" },
+    ],
+    prerequisites: ["Differential Equations", "Laplace & Z-Transforms", "Linear Algebra"],
+    observableEvidence: [
+      "Simulink PID, state-feedback, or LQR controller models with step response and Bode plot analysis",
+      "Hardware-in-the-loop (HIL) or inverted pendulum/motor speed controller implementation code",
+      "PLC ladder logic projects or system tuning lab writeups",
+    ],
+  },
+
+  // 30. CAD/CAM Engineer (Mechanical)
+  "CAD/CAM Engineer": {
+    roleName: "CAD/CAM Engineer",
+    category: "Mechanical & Industrial",
+    description: "Develops 3D parametric mechanical components, assembly drawings, GD&T tolerancing, and CNC toolpaths.",
+    coreSkills: [
+      { skill: "SolidWorks", importance: "critical", minProficiency: "Proficient", evidenceType: ["portfolio", "cad"], observableEvidence: "Fully defined 3D parametric part models and multi-body assembly portfolios" },
+      { skill: "AutoCAD", importance: "critical", minProficiency: "Proficient", evidenceType: ["portfolio", "cad"], observableEvidence: "2D engineering layout drawings with title blocks, layers, and dimension styles" },
+      { skill: "GD&T", importance: "critical", minProficiency: "Proficient", evidenceType: ["portfolio", "drawings"], observableEvidence: "Drawings applying ASME Y14.5 datum feature references, runout, and position tolerances" },
+      { skill: "CNC Programming", importance: "high", minProficiency: "Competent", evidenceType: ["project", "cam"], observableEvidence: "Toolpath simulations and verified G-code/M-code programs for CNC milling/turning" },
+      { skill: "Machine Element Design", importance: "high", minProficiency: "Competent", evidenceType: ["project", "calculations"], observableEvidence: "Shaft, bearing, gear, and fastener stress, deflection, and fatigue calculations" },
+    ],
+    recommendedSkills: [
+      { skill: "PTC Creo", importance: "medium", minProficiency: "Competent" },
+      { skill: "CATIA", importance: "medium", minProficiency: "Competent" },
+      { skill: "FEA Simulation", importance: "medium", minProficiency: "Developing" },
+      { skill: "DFM / DFA", importance: "high", minProficiency: "Competent" },
+    ],
+    prerequisites: ["Engineering Drawing", "Manufacturing Technology", "Strength of Materials"],
+    observableEvidence: [
+      "Portfolio of multi-component 3D assemblies with exploded views and bill of materials (BOM)",
+      "2D engineering manufacturing drawings with ASME Y14.5 GD&T datum feature callouts",
+      "CAM simulation recordings and verified G-code output files for milling or turning",
+    ],
+  },
+
+  // 31. Robotics Engineer (Mechanical & Mechatronics)
+  "Robotics Engineer": {
+    roleName: "Robotics Engineer",
+    category: "Mechanical & Industrial",
+    description: "Integrates robot kinematics, dynamic motion planning, sensor fusion, computer vision, and ROS 2 middleware.",
+    coreSkills: [
+      { skill: "ROS 2", importance: "critical", minProficiency: "Proficient", evidenceType: ["project", "github", "simulation"], observableEvidence: "ROS 2 package repositories on GitHub with publisher/subscriber nodes, services, and launch files" },
+      { skill: "Python", importance: "critical", minProficiency: "Proficient", evidenceType: ["project", "github", "coding"], observableEvidence: "Motion planning, telemetry scripts, robot kinematics algorithms, and computer vision modules" },
+      { skill: "C++", importance: "high", minProficiency: "Competent", evidenceType: ["project", "github", "coding"], observableEvidence: "Real-time robotics nodes, fast kinematics solvers, and motor driver abstractions" },
+      { skill: "Robot Kinematics", importance: "critical", minProficiency: "Proficient", evidenceType: ["project", "calculations"], observableEvidence: "Forward and inverse kinematics implementations with DH parameters and Jacobian matrices" },
+      { skill: "Sensors & Actuators", importance: "high", minProficiency: "Competent", evidenceType: ["project", "hardware"], observableEvidence: "IMU, lidar, ultrasonic sensor fusion, and servo/stepper actuator driver circuits" },
+    ],
+    recommendedSkills: [
+      { skill: "SLAM", importance: "high", minProficiency: "Developing" },
+      { skill: "Linux", importance: "high", minProficiency: "Competent" },
+      { skill: "Gazebo Simulation", importance: "medium", minProficiency: "Competent" },
+      { skill: "Git", importance: "high", minProficiency: "Competent" },
+    ],
+    prerequisites: ["Linear Algebra", "Mechatronics Fundamentals", "Calculus & Dynamics"],
+    observableEvidence: [
+      "ROS 2 package repositories on GitHub with launch files, URDF robot models, and nodes",
+      "Gazebo or Webots navigation/manipulation simulation demo videos",
+      "Demonstrated forward/inverse kinematics code or mobile robot navigation pipeline",
+    ],
+  },
+
+  // 32. Structural Design Engineer (Civil)
+  "Structural Design Engineer": {
+    roleName: "Structural Design Engineer",
+    category: "Civil & Infrastructure",
+    description: "Calculates building structural stability, reinforced concrete and steel designs, seismic loads, and code compliance.",
+    coreSkills: [
+      { skill: "STAAD.Pro", importance: "critical", minProficiency: "Proficient", evidenceType: ["project", "calculations"], observableEvidence: "Space frame 3D structural models with dead, live, wind, and seismic load combinations" },
+      { skill: "ETABS", importance: "critical", minProficiency: "Proficient", evidenceType: ["project", "calculations"], observableEvidence: "Multi-story reinforced concrete building response spectrum and dynamic modal analysis" },
+      { skill: "Reinforced Concrete Design", importance: "critical", minProficiency: "Proficient", evidenceType: ["project", "drawings"], observableEvidence: "Detailed structural drawings showing beam, column, and slab rebar scheduling adhering to IS 456/ACI 318" },
+      { skill: "Steel Structure Design", importance: "high", minProficiency: "Competent", evidenceType: ["project", "drawings"], observableEvidence: "Steel truss, portal frame, and welded/bolted connection design calculation reports" },
+      { skill: "AutoCAD", importance: "high", minProficiency: "Competent", evidenceType: ["drawings"], observableEvidence: "Structural drafting plans, structural sections, and foundation detail sheets" },
+    ],
+    recommendedSkills: [
+      { skill: "Seismic Analysis", importance: "high", minProficiency: "Competent" },
+      { skill: "Foundation Design", importance: "high", minProficiency: "Competent" },
+      { skill: "Excel Modeling", importance: "high", minProficiency: "Competent" },
+    ],
+    prerequisites: ["Strength of Materials", "Structural Analysis", "Soil Mechanics"],
+    observableEvidence: [
+      "ETABS or STAAD.Pro multi-story building models with shear and moment envelope results",
+      "Structural detailing drawings showing beam, column, and slab rebar scheduling",
+      "Hand or spreadsheet verification calculations adhering to IS 456, IS 800, or ACI codes",
+    ],
+  },
+
+  // 33. BIM Specialist (Civil & Architecture)
+  "BIM Specialist": {
+    roleName: "BIM Specialist",
+    category: "Civil & Infrastructure",
+    description: "Coordinates multidisciplinary building information models, clash detection, LOD standards, and construction coordination.",
+    coreSkills: [
+      { skill: "Autodesk Revit", importance: "critical", minProficiency: "Proficient", evidenceType: ["portfolio", "bim"], observableEvidence: "Parametric BIM models with custom families, shared parameters, and project worksets" },
+      { skill: "Navisworks", importance: "critical", minProficiency: "Proficient", evidenceType: ["portfolio", "bim"], observableEvidence: "Navisworks clash detection resolution reports with prioritized issue logs" },
+      { skill: "BIM Coordination", importance: "critical", minProficiency: "Proficient", evidenceType: ["portfolio", "reports"], observableEvidence: "Federated architectural, structural, and MEP coordination workflows with LOD 300+ models" },
+      { skill: "AutoCAD", importance: "high", minProficiency: "Competent", evidenceType: ["drawings"], observableEvidence: "Construction detail drawings exported and aligned with BIM deliverables" },
+      { skill: "Clash Detection", importance: "high", minProficiency: "Competent", evidenceType: ["reports"], observableEvidence: "Hard and soft clash detection matrices and issue clearance audit trails" },
+    ],
+    recommendedSkills: [
+      { skill: "LOD Standards", importance: "high", minProficiency: "Competent" },
+      { skill: "Construction Documentation", importance: "high", minProficiency: "Competent" },
+      { skill: "Dynamo / Python", importance: "medium", minProficiency: "Developing" },
+    ],
+    prerequisites: ["Building Construction Practices", "Architectural Drawing Fundamentals"],
+    observableEvidence: [
+      "Federated multi-disciplinary Revit project models (Architecture, Structure, MEP)",
+      "Navisworks clash detection resolution reports with prioritized issue logs",
+      "Coordinated construction sheets extracted from 3D models with schedules and quantities",
+    ],
+  },
+
+  // 34. Financial Analyst (Finance & Business)
+  "Financial Analyst": {
+    roleName: "Financial Analyst",
+    category: "Commerce & Business",
+    description: "Performs corporate financial modeling, DCF company valuations, statement forecasting, and capital budgeting.",
+    coreSkills: [
+      { skill: "Financial Modeling", importance: "critical", minProficiency: "Proficient", evidenceType: ["portfolio", "models"], observableEvidence: "Dynamic 3-statement integrated financial forecast models in Excel with scenario toggles" },
+      { skill: "Advanced Excel", importance: "critical", minProficiency: "Proficient", evidenceType: ["portfolio", "models"], observableEvidence: "Complex dynamic workbooks using INDEX/MATCH, XLOOKUP, dynamic arrays, and macros" },
+      { skill: "DCF Valuation", importance: "critical", minProficiency: "Proficient", evidenceType: ["portfolio", "reports"], observableEvidence: "Discounted Cash Flow (DCF) company valuation writeups with WACC calculations and sensitivity tables" },
+      { skill: "Financial Statement Analysis", importance: "critical", minProficiency: "Proficient", evidenceType: ["reports"], observableEvidence: "Ratio analysis reports dissecting historical liquidity, solvency, operating cycle, and profitability" },
+      { skill: "Corporate Finance", importance: "high", minProficiency: "Competent", evidenceType: ["coursework", "analysis"], observableEvidence: "Capital budgeting proposals evaluating project NPV, IRR, payback period, and hurdle rates" },
+    ],
+    recommendedSkills: [
+      { skill: "Power BI", importance: "high", minProficiency: "Competent" },
+      { skill: "SQL", importance: "medium", minProficiency: "Competent" },
+      { skill: "Python", importance: "medium", minProficiency: "Developing" },
+      { skill: "Ratio Analysis", importance: "high", minProficiency: "Competent" },
+    ],
+    prerequisites: ["Accounting Principles", "Corporate Finance Fundamentals", "Business Statistics"],
+    observableEvidence: [
+      "Dynamic 3-statement integrated financial forecast models in Excel with scenario toggles",
+      "Discounted Cash Flow (DCF) company valuation writeups with sensitivity tables",
+      "Executive financial presentation decks summarizing margin, liquidity, and return metrics",
+    ],
+  },
+
+  // 35. Business Intelligence Analyst (Data & Business)
+  "Business Intelligence Analyst": {
+    roleName: "Business Intelligence Analyst",
+    category: "Commerce & Business",
+    description: "Builds executive visual dashboards, star schema data models, DAX measures, and self-service analytics pipelines.",
+    coreSkills: [
+      { skill: "Power BI", importance: "critical", minProficiency: "Proficient", evidenceType: ["portfolio", "dashboards"], observableEvidence: "Interactive executive dashboards with drill-through pages, bookmarks, and slicers" },
+      { skill: "SQL", importance: "critical", minProficiency: "Proficient", evidenceType: ["github", "coding", "queries"], observableEvidence: "Complex analytical queries with CTEs, window functions, and subqueries" },
+      { skill: "Data Modeling", importance: "critical", minProficiency: "Proficient", evidenceType: ["portfolio", "dashboards"], observableEvidence: "Star and snowflake schema dimensional data models with relationship cardinality" },
+      { skill: "DAX", importance: "high", minProficiency: "Competent", evidenceType: ["portfolio", "dashboards"], observableEvidence: "Calculated columns and advanced DAX measures utilizing CALCULATE, FILTER, and time intelligence" },
+      { skill: "Data Cleaning", importance: "high", minProficiency: "Competent", evidenceType: ["portfolio", "github"], observableEvidence: "Power Query or Python data transformation pipelines resolving missing data and schema drift" },
+    ],
+    recommendedSkills: [
+      { skill: "Tableau", importance: "high", minProficiency: "Competent" },
+      { skill: "Python", importance: "high", minProficiency: "Competent" },
+      { skill: "Excel", importance: "high", minProficiency: "Competent" },
+      { skill: "Git", importance: "medium", minProficiency: "Competent" },
+    ],
+    prerequisites: ["Database Concepts", "Descriptive Statistics", "Business Metrics"],
+    observableEvidence: [
+      "Interactive Power BI (.pbix) or Tableau Public interactive dashboards with drill-downs",
+      "SQL scripts showcasing complex joins, window functions, and dimensional aggregation",
+      "Case study documentation explaining business KPIs and dashboard user workflow",
+    ],
+  },
 };
+
+// Seamless Canonical Aliases for Multi-Branch Roles
+ROLE_REQUIREMENTS["CAD Engineer"] = ROLE_REQUIREMENTS["CAD/CAM Engineer"];
+ROLE_REQUIREMENTS["Structural Engineer"] = ROLE_REQUIREMENTS["Structural Design Engineer"];
+ROLE_REQUIREMENTS["BIM Engineer"] = ROLE_REQUIREMENTS["BIM Specialist"];
+ROLE_REQUIREMENTS["Embedded Systems & IoT Engineer"] = ROLE_REQUIREMENTS["Embedded Systems Engineer"];
+

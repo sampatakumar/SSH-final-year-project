@@ -4,6 +4,7 @@ import {
   analyzeGaps,
   getAvailableRoles,
   getRoleGaps,
+  compareRolesController,
 } from "../controllers/gaps.controller.js";
 import { verifyFirebaseToken } from "../../../core/auth/auth.middleware.js";
 
@@ -20,6 +21,8 @@ router.get("/", getUserGaps);
 router.get("/analysis", getUserGaps);
 router.post("/analyze", analyzeGaps);
 router.post("/analysis", analyzeGaps);
+router.get("/compare", compareRolesController);
+router.post("/compare", compareRolesController);
 router.get("/role/:role", getRoleGaps);
 
 export default router;

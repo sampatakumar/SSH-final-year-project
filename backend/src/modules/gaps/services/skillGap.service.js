@@ -123,6 +123,10 @@ export function analyzeSkillGaps(
           status: GAP_STATUSES.MISSING,
           priority: req.importance === "critical" ? GAP_PRIORITIES.CRITICAL : req.isCore ? GAP_PRIORITIES.HIGH : GAP_PRIORITIES.MEDIUM,
           isCore: req.isCore,
+          evidenceType: req.evidenceType || ["project", "github", "coding"],
+          observableEvidence: req.observableEvidence || (roleConfig.observableEvidence && roleConfig.observableEvidence[0]) || "",
+          learningRoute: `/dashboard/edutube?search=${encodeURIComponent(canonicalReq)}`,
+          roadmapRoute: "/dashboard/roadmap",
           currentScore: 0,
           currentLevel: "None",
           requiredLevel: minRequired,
@@ -151,6 +155,10 @@ export function analyzeSkillGaps(
             status,
             priority,
             isCore: req.isCore,
+            evidenceType: req.evidenceType || ["project", "github", "coding"],
+            observableEvidence: req.observableEvidence || (roleConfig.observableEvidence && roleConfig.observableEvidence[0]) || "",
+            learningRoute: `/dashboard/edutube?search=${encodeURIComponent(canonicalReq)}`,
+            roadmapRoute: "/dashboard/roadmap",
             currentScore: userSkill.score,
             currentLevel: userSkill.level,
             requiredLevel: minRequired,
@@ -164,6 +172,8 @@ export function analyzeSkillGaps(
             status: GAP_STATUSES.MET,
             priority: GAP_PRIORITIES.NONE,
             isCore: req.isCore,
+            evidenceType: req.evidenceType || ["project", "github", "coding"],
+            observableEvidence: req.observableEvidence || (roleConfig.observableEvidence && roleConfig.observableEvidence[0]) || "",
             currentScore: userSkill.score,
             currentLevel: userSkill.level,
             requiredLevel: minRequired,
@@ -198,6 +208,8 @@ export function analyzeSkillGaps(
       gapsCount: gaps.length,
       gaps,
       metSkills,
+      prerequisites: roleConfig.prerequisites || [],
+      observableEvidence: roleConfig.observableEvidence || [],
     };
   }
 
@@ -242,6 +254,9 @@ export function analyzeSkillGaps(
           status: GAP_STATUSES.MISSING,
           priority: GAP_PRIORITIES.HIGH,
           isCore: true,
+          evidenceType: ["project", "coursework", "portfolio"],
+          learningRoute: `/dashboard/edutube?search=${encodeURIComponent(canonicalReq)}`,
+          roadmapRoute: "/dashboard/roadmap",
           currentScore: 0,
           currentLevel: "None",
           requiredLevel: "Competent",
@@ -258,6 +273,9 @@ export function analyzeSkillGaps(
             status: isWeak ? GAP_STATUSES.WEAK : GAP_STATUSES.DEVELOPING,
             priority: isWeak ? GAP_PRIORITIES.HIGH : GAP_PRIORITIES.MEDIUM,
             isCore: true,
+            evidenceType: ["project", "coursework", "portfolio"],
+            learningRoute: `/dashboard/edutube?search=${encodeURIComponent(canonicalReq)}`,
+            roadmapRoute: "/dashboard/roadmap",
             currentScore: userSkill.score,
             currentLevel: userSkill.level,
             requiredLevel: "Competent",
@@ -271,6 +289,7 @@ export function analyzeSkillGaps(
             status: GAP_STATUSES.MET,
             priority: GAP_PRIORITIES.NONE,
             isCore: true,
+            evidenceType: ["project", "coursework", "portfolio"],
             currentScore: userSkill.score,
             currentLevel: userSkill.level,
             requiredLevel: "Competent",
@@ -305,6 +324,8 @@ export function analyzeSkillGaps(
       gapsCount: gaps.length,
       gaps,
       metSkills,
+      prerequisites: catalogRole.prerequisiteSkills || [],
+      observableEvidence: ["Verified project or portfolio demonstration of core discipline competencies."],
     };
   }
 
@@ -321,6 +342,8 @@ export function analyzeSkillGaps(
     gapsCount: 0,
     gaps: [],
     metSkills: [],
+    prerequisites: [],
+    observableEvidence: [],
   };
 }
 
@@ -380,4 +403,219 @@ export async function analyzeUserGaps(user, requestedRole = null) {
 
   return gapAnalysis;
 }
+
+/**
+ * Perform a comparative skill-gap analysis across multiple target roles.
+ * Identifies shared skills, role-specific skills, high-leverage overlap skills,
+ * and individual role match summaries.
+ *
+ * @param {Array<object>} evaluatedSkills - Evaluated user skills
+ * @param {Array<string>} targetRoles - List of role names to compare
+ * @param {object} [options={}] - Optional config { catalogRoles }
+ * @returns {object} Comparative multi-role analysis
+ */
+export function compareRoles(
+  evaluatedSkills = [],
+  targetRoles = [],
+  options = {}
+) {
+  if (Array.isArray(targetRoles) && targetRoles.length === 0) {
+    return {
+      comparedRoles: [],
+      rolesCount: 0,
+      rolesSummary: [],
+      sharedSkillsCount: 0,
+      sharedSkills: [],
+      roleSpecificSkillsCount: 0,
+      roleSpecificSkills: {},
+      highLeverageSkillsCount: 0,
+      highLeverageSkills: [],
+      topCombinedGaps: [],
+      roleAnalyses: [],
+    };
+  }
+
+  const rawRoles = Array.isArray(targetRoles) && targetRoles.length > 0
+    ? targetRoles
+    : [TARGET_ROLES.FULL_STACK_DEVELOPER];
+
+  const uniqueRoles = Array.from(
+    new Set(rawRoles.map((r) => String(r || "").trim()).filter(Boolean))
+  );
+
+  const rolesToCompare = uniqueRoles.length > 0 ? uniqueRoles : [TARGET_ROLES.FULL_STACK_DEVELOPER];
+
+  const roleAnalyses = rolesToCompare.map((role) =>
+    analyzeSkillGaps(evaluatedSkills, role, options)
+  );
+
+  const skillUsageMap = new Map();
+
+  for (const analysis of roleAnalyses) {
+    const roleName = analysis.targetRole;
+    const allRoleSkills = [
+      ...analysis.gaps.map((g) => ({ ...g, isMet: false })),
+      ...analysis.metSkills.map((m) => ({ ...m, isMet: true })),
+    ];
+
+    for (const item of allRoleSkills) {
+      const key = item.canonicalName.toLowerCase();
+      if (!skillUsageMap.has(key)) {
+        skillUsageMap.set(key, {
+          skill: item.skill,
+          canonicalName: item.canonicalName,
+          category: item.category,
+          rolesRequiring: [],
+          rolesMet: [],
+          rolesMissing: [],
+          currentScore: item.currentScore,
+          currentLevel: item.currentLevel,
+          requiredLevel: item.requiredLevel,
+          priority: item.priority,
+          evidenceType: item.evidenceType || ["project", "github", "coding"],
+          observableEvidence: item.observableEvidence || "",
+          learningRoute: item.learningRoute || `/dashboard/edutube?search=${encodeURIComponent(item.canonicalName)}`,
+        });
+      }
+
+      const entry = skillUsageMap.get(key);
+      if (!entry.rolesRequiring.includes(roleName)) {
+        entry.rolesRequiring.push(roleName);
+      }
+      if (item.isMet) {
+        if (!entry.rolesMet.includes(roleName)) entry.rolesMet.push(roleName);
+      } else {
+        if (!entry.rolesMissing.includes(roleName)) entry.rolesMissing.push(roleName);
+      }
+      if (item.currentScore > entry.currentScore) {
+        entry.currentScore = item.currentScore;
+        entry.currentLevel = item.currentLevel;
+      }
+      if (!entry.observableEvidence && item.observableEvidence) {
+        entry.observableEvidence = item.observableEvidence;
+      }
+    }
+  }
+
+  const allSkills = Array.from(skillUsageMap.values());
+
+  // 1. Shared Skills: Required by >= 2 compared roles
+  const sharedSkills = allSkills
+    .filter((s) => s.rolesRequiring.length >= 2)
+    .sort((a, b) => b.rolesRequiring.length - a.rolesRequiring.length);
+
+  // 2. Role-Specific Skills: Required by only 1 role
+  const roleSpecificSkillsList = allSkills
+    .filter((s) => s.rolesRequiring.length === 1)
+    .sort((a, b) => a.rolesRequiring[0].localeCompare(b.rolesRequiring[0]));
+
+  const roleSpecificSkillsMap = {};
+  for (const role of rolesToCompare) {
+    roleSpecificSkillsMap[role] = roleSpecificSkillsList.filter((s) => s.rolesRequiring.includes(role));
+  }
+
+  // 3. High-Leverage Skills: Shared skills that are currently in gap/missing status in >= 2 roles
+  const highLeverageSkills = sharedSkills
+    .filter((s) => s.rolesMissing.length >= 2 || (s.rolesMissing.length > 0 && s.rolesRequiring.length >= 2))
+    .map((s) => ({
+      ...s,
+      roleCount: s.rolesRequiring.length,
+      roles: s.rolesRequiring,
+    }))
+    .sort((a, b) => b.rolesMissing.length - a.rolesMissing.length);
+
+  // 4. Roles Summary Matrix
+  const rolesSummary = roleAnalyses.map((a) => ({
+    roleName: a.targetRole,
+    targetRole: a.targetRole,
+    roleDescription: a.roleDescription,
+    benchmarkStatus: a.benchmarkStatus,
+    benchmarkPending: a.benchmarkPending,
+    roleMatchPercentage: a.roleMatchPercentage,
+    totalRequiredSkills: a.totalRequiredSkills,
+    metSkillsCount: a.metSkillsCount,
+    gapsCount: a.gapsCount,
+    topPriorityGap: a.gaps[0] || null,
+  }));
+
+  // 5. Combined Prioritized Gaps across all roles (deduplicated)
+  const combinedGapsMap = new Map();
+  for (const analysis of roleAnalyses) {
+    for (const gap of analysis.gaps) {
+      const key = gap.canonicalName.toLowerCase();
+      if (!combinedGapsMap.has(key)) {
+        combinedGapsMap.set(key, {
+          ...gap,
+          affectedRoles: [analysis.targetRole],
+        });
+      } else {
+        const existing = combinedGapsMap.get(key);
+        if (!existing.affectedRoles.includes(analysis.targetRole)) {
+          existing.affectedRoles.push(analysis.targetRole);
+        }
+      }
+    }
+  }
+
+  const priorityWeights = {
+    [GAP_PRIORITIES.CRITICAL]: 4,
+    [GAP_PRIORITIES.HIGH]: 3,
+    [GAP_PRIORITIES.MEDIUM]: 2,
+    [GAP_PRIORITIES.LOW]: 1,
+    [GAP_PRIORITIES.NONE]: 0,
+  };
+
+  const topCombinedGaps = Array.from(combinedGapsMap.values()).sort((a, b) => {
+    const weightDiff = (priorityWeights[b.priority] || 0) - (priorityWeights[a.priority] || 0);
+    if (weightDiff !== 0) return weightDiff;
+    return b.affectedRoles.length - a.affectedRoles.length;
+  });
+
+  return {
+    comparedRoles: rolesToCompare,
+    rolesCount: rolesToCompare.length,
+    rolesSummary,
+    sharedSkillsCount: sharedSkills.length,
+    sharedSkills,
+    roleSpecificSkillsCount: roleSpecificSkillsList.length,
+    roleSpecificSkills: roleSpecificSkillsMap,
+    roleSpecificSkillsList,
+    highLeverageSkillsCount: highLeverageSkills.length,
+    highLeverageSkills,
+    topCombinedGaps,
+    roleAnalyses,
+  };
+}
+
+/**
+ * Execute multi-role comparison for authenticated user.
+ *
+ * @param {object} user - Authenticated user object
+ * @param {Array<string>} [requestedRoles] - Optional roles array override
+ * @returns {Promise<object>} Comparative multi-role report
+ */
+export async function compareUserRoles(user, requestedRoles = null) {
+  if (!user || !user._id) {
+    throw new GapAnalysisError("Authentication required for role comparison", 401);
+  }
+
+  let roles = requestedRoles;
+  if (!Array.isArray(roles) || roles.length === 0) {
+    if (Array.isArray(user.targetRoles) && user.targetRoles.length > 0) {
+      roles = user.targetRoles;
+    } else if (user.targetRole) {
+      roles = [user.targetRole];
+    } else {
+      roles = [TARGET_ROLES.FULL_STACK_DEVELOPER];
+    }
+  }
+
+  const profile = await getOrCreateSkillProfile(user);
+  if (!profile || !Array.isArray(profile.skills)) {
+    throw new GapAnalysisError("Skill profile could not be loaded", 500);
+  }
+
+  return compareRoles(profile.skills, roles);
+}
+
 

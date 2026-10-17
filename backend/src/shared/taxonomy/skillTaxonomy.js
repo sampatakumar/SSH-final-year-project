@@ -12,6 +12,11 @@ export const SKILL_CATEGORIES = {
   CORE_CS: "Core Computer Science & Algorithms",
   TESTING: "Testing & Quality Assurance",
   TOOLS: "Developer Tools & Version Control",
+  ELECTRONICS: "Electronics & Embedded Systems",
+  ELECTRICAL: "Electrical & Power Systems",
+  MECHANICAL: "Mechanical, CAD & Robotics",
+  CIVIL: "Civil & BIM Architecture",
+  FINANCE_BI: "Finance & Business Intelligence",
 };
 
 export const CANONICAL_SKILL_TAXONOMY = {
@@ -104,4 +109,49 @@ export const CANONICAL_SKILL_TAXONOMY = {
   "Vitest": { category: SKILL_CATEGORIES.TESTING, tags: ["unit-testing", "vite"] },
   "Playwright": { category: SKILL_CATEGORIES.TESTING, tags: ["e2e-testing", "automation"] },
   "Cypress": { category: SKILL_CATEGORIES.TESTING, tags: ["e2e-testing", "frontend"] },
+
+  // Electronics & Embedded Systems
+  "Embedded C": { category: SKILL_CATEGORIES.ELECTRONICS, tags: ["embedded", "firmware", "c"] },
+  "RTOS": { category: SKILL_CATEGORIES.ELECTRONICS, tags: ["embedded", "realtime", "freertos"] },
+  "Microcontrollers": { category: SKILL_CATEGORIES.ELECTRONICS, tags: ["hardware", "arm", "stm32", "esp32"] },
+  "Verilog / SystemVerilog": { category: SKILL_CATEGORIES.ELECTRONICS, tags: ["vlsi", "fpga", "hdl", "asic"] },
+  "VHDL": { category: SKILL_CATEGORIES.ELECTRONICS, tags: ["vlsi", "fpga", "hdl"] },
+  "Static Timing Analysis": { category: SKILL_CATEGORIES.ELECTRONICS, tags: ["vlsi", "sta", "timing"] },
+  "FPGA Prototyping": { category: SKILL_CATEGORIES.ELECTRONICS, tags: ["vlsi", "fpga", "hardware"] },
+  "MQTT": { category: SKILL_CATEGORIES.ELECTRONICS, tags: ["iot", "protocols", "telemetry"] },
+
+  // Electrical & Power Systems
+  "MATLAB / Simulink": { category: SKILL_CATEGORIES.ELECTRICAL, tags: ["modeling", "simulation", "control", "power"] },
+  "ETAP": { category: SKILL_CATEGORIES.ELECTRICAL, tags: ["power-systems", "grid", "load-flow"] },
+  "Power Grid Modeling": { category: SKILL_CATEGORIES.ELECTRICAL, tags: ["electrical", "power", "grid"] },
+  "Relay Coordination": { category: SKILL_CATEGORIES.ELECTRICAL, tags: ["protection", "relays", "power"] },
+  "Control Systems": { category: SKILL_CATEGORIES.ELECTRICAL, tags: ["pid", "feedback", "stability"] },
+  "PLC Programming": { category: SKILL_CATEGORIES.ELECTRICAL, tags: ["automation", "industrial", "ladder-logic"] },
+  "SCADA": { category: SKILL_CATEGORIES.ELECTRICAL, tags: ["industrial", "monitoring", "hmi"] },
+
+  // Mechanical, CAD & Robotics
+  "SolidWorks": { category: SKILL_CATEGORIES.MECHANICAL, tags: ["cad", "3d-modeling", "mechanical"] },
+  "AutoCAD": { category: SKILL_CATEGORIES.MECHANICAL, tags: ["cad", "drafting", "2d-drawing"] },
+  "CATIA": { category: SKILL_CATEGORIES.MECHANICAL, tags: ["cad", "aerospace", "automotive"] },
+  "PTC Creo": { category: SKILL_CATEGORIES.MECHANICAL, tags: ["cad", "parametric", "mechanical"] },
+  "GD&T": { category: SKILL_CATEGORIES.MECHANICAL, tags: ["tolerancing", "manufacturing", "asme"] },
+  "CNC Programming": { category: SKILL_CATEGORIES.MECHANICAL, tags: ["machining", "g-code", "cam"] },
+  "ROS 2": { category: SKILL_CATEGORIES.MECHANICAL, tags: ["robotics", "ros", "autonomous-systems"] },
+  "Robot Kinematics": { category: SKILL_CATEGORIES.MECHANICAL, tags: ["robotics", "inverse-kinematics", "dynamics"] },
+  "SLAM": { category: SKILL_CATEGORIES.MECHANICAL, tags: ["robotics", "navigation", "mapping"] },
+
+  // Civil & BIM Architecture
+  "STAAD.Pro": { category: SKILL_CATEGORIES.CIVIL, tags: ["structural", "analysis", "civil"] },
+  "ETABS": { category: SKILL_CATEGORIES.CIVIL, tags: ["structural", "buildings", "fem"] },
+  "Autodesk Revit": { category: SKILL_CATEGORIES.CIVIL, tags: ["bim", "architecture", "mep", "structure"] },
+  "Navisworks": { category: SKILL_CATEGORIES.CIVIL, tags: ["bim", "clash-detection", "coordination"] },
+  "BIM Coordination": { category: SKILL_CATEGORIES.CIVIL, tags: ["bim", "lod", "collaboration"] },
+  "Civil 3D": { category: SKILL_CATEGORIES.CIVIL, tags: ["infrastructure", "grading", "civil"] },
+
+  // Finance & Business Intelligence
+  "Power BI": { category: SKILL_CATEGORIES.FINANCE_BI, tags: ["bi", "analytics", "dax", "dashboards"] },
+  "Tableau": { category: SKILL_CATEGORIES.FINANCE_BI, tags: ["bi", "visualization", "dashboards"] },
+  "Financial Modeling": { category: SKILL_CATEGORIES.FINANCE_BI, tags: ["finance", "valuation", "forecasting"] },
+  "DCF Valuation": { category: SKILL_CATEGORIES.FINANCE_BI, tags: ["corporate-finance", "valuation", "dcf"] },
+  "DAX": { category: SKILL_CATEGORIES.FINANCE_BI, tags: ["power-bi", "formulas", "measures"] },
 };

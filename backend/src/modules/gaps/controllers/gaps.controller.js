@@ -1,4 +1,4 @@
-import { analyzeUserGaps } from "../services/skillGap.service.js";
+import { analyzeUserGaps, compareUserRoles } from "../services/skillGap.service.js";
 import { TARGET_ROLES, ROLE_REQUIREMENTS } from "../benchmarks/roleRequirements.js";
 import { INITIAL_CAREER_ROLES } from "../../academic/constants/academicCatalog.js";
 import { GapAnalysisError } from "../../../core/errors/ApiError.js";
@@ -88,3 +88,34 @@ export const getRoleGaps = asyncHandler(async (req, res) => {
     new ApiResponse(200, { gapAnalysis }, `Skill gaps for ${roleParam}`)
   );
 });
+
+/**
+ * POST /api/v1/gaps/compare or GET /api/v1/gaps/compare
+ * Compare skill gaps and shared competencies across multiple target roles.
+ */
+export const compareRolesController = asyncHandler(async (req, res) => {
+  if (!req.user?._id) {
+    throw new GapAnalysisError("Authentication required.", 401);
+  }
+
+  let requestedRoles = [];
+  if (req.body?.roles && Array.isArray(req.body.roles)) {
+    requestedRoles = req.body.roles;
+  } else if (req.query?.roles) {
+    requestedRoles = String(req.query.roles)
+      .split(",")
+      .map((r) => decodeURIComponent(r.trim()))
+      .filter(Boolean);
+  } else if (Array.isArray(req.user.targetRoles) && req.user.targetRoles.length > 0) {
+    requestedRoles = req.user.targetRoles;
+  } else if (req.user.targetRole) {
+    requestedRoles = [req.user.targetRole];
+  }
+
+  const comparison = await compareUserRoles(req.user, requestedRoles);
+
+  return res.status(200).json(
+    new ApiResponse(200, { comparison }, "Multi-role skill comparison completed")
+  );
+});
+

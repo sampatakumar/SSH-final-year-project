@@ -127,6 +127,79 @@ export interface SkillGapItem {
   currentLevel?: string;
   requiredLevel?: string;
   reason?: string;
+  observableEvidence?: string;
+  evidenceType?: string[];
+  learningRoute?: string;
+  roadmapRoute?: string;
+}
+
+export interface MultiRoleComparisonReport {
+  comparedRoles: string[];
+  rolesCount: number;
+  rolesSummary: Array<{
+    roleName: string;
+    targetRole: string;
+    roleDescription?: string;
+    benchmarkStatus: "validated" | "benchmark_pending" | "unknown_role";
+    benchmarkPending?: boolean;
+    roleMatchPercentage: number | null;
+    totalRequiredSkills: number;
+    metSkillsCount: number;
+    gapsCount: number;
+    topPriorityGap?: SkillGapItem | null;
+  }>;
+  sharedSkillsCount: number;
+  sharedSkills: Array<{
+    skill: string;
+    canonicalName: string;
+    category?: string;
+    rolesRequiring: string[];
+    rolesMet: string[];
+    rolesMissing: string[];
+    currentScore?: number;
+    currentLevel?: string;
+    requiredLevel?: string;
+    priority?: string;
+    evidenceType?: string[];
+    observableEvidence?: string;
+    learningRoute?: string;
+  }>;
+  roleSpecificSkillsCount: number;
+  roleSpecificSkills: Record<string, Array<{
+    skill: string;
+    canonicalName: string;
+    category?: string;
+    rolesRequiring: string[];
+    rolesMet: string[];
+    rolesMissing: string[];
+    currentScore?: number;
+    currentLevel?: string;
+    requiredLevel?: string;
+    priority?: string;
+    evidenceType?: string[];
+    observableEvidence?: string;
+    learningRoute?: string;
+  }>>;
+  highLeverageSkillsCount: number;
+  highLeverageSkills: Array<{
+    skill: string;
+    canonicalName: string;
+    category?: string;
+    rolesRequiring: string[];
+    rolesMet: string[];
+    rolesMissing: string[];
+    roleCount: number;
+    roles: string[];
+    currentScore?: number;
+    currentLevel?: string;
+    requiredLevel?: string;
+    priority?: string;
+    evidenceType?: string[];
+    observableEvidence?: string;
+    learningRoute?: string;
+  }>;
+  topCombinedGaps: Array<SkillGapItem & { affectedRoles: string[] }>;
+  roleAnalyses?: any[];
 }
 
 export type SkillGapViewModel = {
@@ -140,6 +213,10 @@ export type SkillGapViewModel = {
   currentLevel: string;
   requiredLevel: string;
   reason: string;
+  observableEvidence?: string;
+  evidenceType?: string[];
+  learningRoute?: string;
+  roadmapRoute?: string;
 };
 
 export function normalizeSkillGap(raw: any): SkillGapViewModel {
@@ -155,6 +232,10 @@ export function normalizeSkillGap(raw: any): SkillGapViewModel {
       currentLevel: "None",
       requiredLevel: "Competent",
       reason: "No evidence observed across connected sources.",
+      observableEvidence: "",
+      evidenceType: ["project"],
+      learningRoute: "/dashboard/edutube",
+      roadmapRoute: "/dashboard/roadmap",
     };
   }
 
@@ -166,6 +247,10 @@ export function normalizeSkillGap(raw: any): SkillGapViewModel {
   const requiredLevel = String(raw.requiredLevel || "Competent").trim();
   const priority = String(raw.priority || (currentScore === 0 ? "High" : "Medium")).trim();
   const reason = String(raw.reason || raw.explanation || (currentScore === 0 ? "No evidence observed across connected sources." : "Proficiency is below target requirement.")).trim();
+  const observableEvidence = typeof raw.observableEvidence === "string" ? raw.observableEvidence : "";
+  const evidenceType = Array.isArray(raw.evidenceType) ? raw.evidenceType : ["project", "github"];
+  const learningRoute = raw.learningRoute || `/dashboard/edutube?search=${encodeURIComponent(canonicalName)}`;
+  const roadmapRoute = raw.roadmapRoute || "/dashboard/roadmap";
 
   // If status is present, use it safely; otherwise infer reliably from score / missingFrom
   let status = String(raw.status || "").trim();
@@ -192,6 +277,10 @@ export function normalizeSkillGap(raw: any): SkillGapViewModel {
     currentLevel,
     requiredLevel,
     reason,
+    observableEvidence,
+    evidenceType,
+    learningRoute,
+    roadmapRoute,
   };
 }
 
@@ -375,6 +464,21 @@ export const SmartSkillApi = {
     (await apiRequest<{ gapAnalysis: { targetRole: string; roleDescription: string; roleMatchPercentage: number; gaps: SkillGapItem[]; metSkills: any[] } }>(
       role ? `/gaps/role/${encodeURIComponent(role)}` : "/gaps"
     )).data.gapAnalysis,
+
+  compareRoles: async (roles?: string[]) => {
+    if (Array.isArray(roles) && roles.length > 0) {
+      return (await apiRequest<{ comparison: MultiRoleComparisonReport }>(
+        "/gaps/compare",
+        {
+          method: "POST",
+          body: { roles },
+        }
+      )).data.comparison;
+    }
+    return (await apiRequest<{ comparison: MultiRoleComparisonReport }>(
+      "/gaps/compare"
+    )).data.comparison;
+  },
 
   getRoles: async () =>
     (await apiRequest<{ roles: Array<{ key: string; roleName: string; description: string }> }>("/gaps/roles")).data.roles,

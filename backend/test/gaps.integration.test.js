@@ -3,6 +3,7 @@ import request from "supertest";
 import { app } from "../src/app.js";
 import {
   analyzeSkillGaps,
+  compareRoles,
   GAP_STATUSES,
   GAP_PRIORITIES,
 } from "../src/modules/gaps/services/skillGap.service.js";
@@ -47,16 +48,15 @@ describe("Step 6: Gap Analysis Module Verification Suite", () => {
       expect(result.gaps).toEqual([]);
     });
 
-    it("2b. accurately evaluates non-computing catalog role (e.g. Robotics Engineer) with benchmark_pending status", () => {
+    it("2b. accurately evaluates non-computing catalog role (Robotics Engineer) with validated rubric and domain skills", () => {
       const evaluatedSkills = [
         { canonicalName: "Python", score: 85, level: "Proficient", category: "Languages" },
       ];
       const result = analyzeSkillGaps(evaluatedSkills, "Robotics Engineer");
       expect(result).toBeDefined();
       expect(result.targetRole).toBe("Robotics Engineer");
-      expect(result.benchmarkPending).toBe(true);
-      expect(result.benchmarkStatus).toBe("benchmark_pending");
-      expect(result.benchmarkNotice).toContain("Detailed proficiency rubric is currently pending");
+      expect(result.benchmarkPending).toBe(false);
+      expect(result.benchmarkStatus).toBe("validated");
       
       // Crucial verification: zero React, Node.js, or HTML gaps
       const hasUnrelatedWebGaps = result.gaps.some((g) =>
@@ -64,10 +64,29 @@ describe("Step 6: Gap Analysis Module Verification Suite", () => {
       );
       expect(hasUnrelatedWebGaps).toBe(false);
 
-      // Core skills from catalog are required
+      // Core skills from validated rubric are present
       const requiredNames = result.gaps.map((g) => g.canonicalName).concat(result.metSkills.map((s) => s.canonicalName));
-      expect(requiredNames).toContain("Kinematics & Dynamics");
-      expect(result.metSkills.some((s) => s.canonicalName.includes("Python"))).toBe(true);
+      expect(requiredNames).toContain("Robot Kinematics");
+      expect(requiredNames).toContain("ROS 2");
+      expect(result.metSkills.some((s) => s.canonicalName === "Python")).toBe(true);
+    });
+
+    it("2c. accurately evaluates catalog role without detailed rubric (e.g. Chemical Process Engineer) with benchmark_pending status", () => {
+      const evaluatedSkills = [
+        { canonicalName: "Thermodynamics", score: 80, level: "Proficient" },
+      ];
+      const result = analyzeSkillGaps(evaluatedSkills, "Chemical Process Engineer");
+      expect(result).toBeDefined();
+      expect(result.targetRole).toBe("Chemical Process Engineer");
+      expect(result.benchmarkPending).toBe(true);
+      expect(result.benchmarkStatus).toBe("benchmark_pending");
+      expect(result.benchmarkNotice).toContain("Detailed proficiency rubric is currently pending");
+      
+      // Zero unrelated web development gaps
+      const hasUnrelatedWebGaps = result.gaps.some((g) =>
+        ["React", "Node.js", "HTML", "CSS", "Tailwind CSS"].includes(g.canonicalName)
+      );
+      expect(hasUnrelatedWebGaps).toBe(false);
     });
   });
 
@@ -294,6 +313,227 @@ describe("Step 6: Gap Analysis Module Verification Suite", () => {
     it("15. rejects unauthenticated POST /api/v1/gaps/analyze with 401", async () => {
       const res = await request(app).post("/api/v1/gaps/analyze").send({
         targetRole: "Full Stack Developer",
+      });
+      expect(res.status).toBe(401);
+      expect(res.body.success).toBe(false);
+    });
+  });
+
+  // 9. Phase 9 Multi-Branch Benchmark Rubrics
+  describe("Phase 9 Multi-Branch Benchmark Rubrics Verification", () => {
+    const phase9Roles = [
+      "Embedded Systems Engineer",
+      "VLSI Design Engineer",
+      "IoT Developer",
+      "Power Systems Engineer",
+      "Control Systems Engineer",
+      "CAD/CAM Engineer",
+      "Robotics Engineer",
+      "Structural Design Engineer",
+      "BIM Specialist",
+      "Financial Analyst",
+      "Business Intelligence Analyst",
+    ];
+
+    it("verifies all 11 multi-branch roles have validated benchmarks defined with observable evidence and scoring", () => {
+      for (const roleName of phase9Roles) {
+        const config = ROLE_REQUIREMENTS[roleName];
+        expect(config, `Missing rubric for ${roleName}`).toBeDefined();
+        expect(config.roleName).toBe(roleName);
+        expect(config.coreSkills.length).toBeGreaterThanOrEqual(4);
+        expect(Array.isArray(config.recommendedSkills)).toBe(true);
+
+        for (const skillReq of config.coreSkills) {
+          expect(skillReq.skill).toBeDefined();
+          expect(["critical", "high", "medium"]).toContain(skillReq.importance);
+          expect(skillReq.observableEvidence).toBeDefined();
+          expect(typeof skillReq.observableEvidence).toBe("string");
+        }
+      }
+    });
+
+    it("evaluates Electronics student against Embedded Systems Engineer with domain skills and evidence links", () => {
+      const evaluatedSkills = [
+        { canonicalName: "Embedded C", score: 85, level: "Proficient" },
+        { canonicalName: "RTOS", score: 75, level: "Proficient" },
+        { canonicalName: "ARM Cortex", score: 80, level: "Proficient" },
+      ];
+
+      const result = analyzeSkillGaps(evaluatedSkills, "Embedded Systems Engineer");
+      expect(result.benchmarkPending).toBe(false);
+      expect(result.benchmarkStatus).toBe("validated");
+      expect(result.metSkillsCount).toBe(3);
+      expect(result.roleMatchPercentage).toBe(30);
+
+      // Gaps have valid observable evidence and EduTube learning links
+      const missingI2c = result.gaps.find((g) => g.canonicalName === "UART/SPI/I2C" || g.canonicalName === "I2C / SPI / UART");
+      expect(missingI2c).toBeDefined();
+      expect(missingI2c.observableEvidence).toContain("Logic analyzer traces");
+      expect(missingI2c.learningRoute).toContain("/dashboard/edutube?search=");
+    });
+
+    it("evaluates Civil student against Structural Design Engineer with domain software benchmarks", () => {
+      const evaluatedSkills = [
+        { canonicalName: "STAAD.Pro", score: 85, level: "Proficient" },
+        { canonicalName: "ETABS", score: 80, level: "Proficient" },
+      ];
+
+      const result = analyzeSkillGaps(evaluatedSkills, "Structural Design Engineer");
+      expect(result.benchmarkPending).toBe(false);
+      expect(result.benchmarkStatus).toBe("validated");
+      expect(result.metSkills.some((s) => s.canonicalName === "STAAD.Pro")).toBe(true);
+      expect(result.metSkills.some((s) => s.canonicalName === "ETABS")).toBe(true);
+      
+      const rccGap = result.gaps.find((g) => g.canonicalName === "Reinforced Concrete Design" || g.canonicalName === "RCC Design");
+      expect(rccGap).toBeDefined();
+      expect(rccGap.observableEvidence).toContain("structural drawings");
+    });
+
+    it("evaluates Finance student against Financial Analyst with domain valuation benchmarks", () => {
+      const evaluatedSkills = [
+        { canonicalName: "Financial Modeling", score: 90, level: "Strong Evidence" },
+        { canonicalName: "Excel", score: 85, level: "Proficient" },
+      ];
+
+      const result = analyzeSkillGaps(evaluatedSkills, "Financial Analyst");
+      expect(result.benchmarkPending).toBe(false);
+      expect(result.metSkills.some((s) => s.canonicalName === "Financial Modeling")).toBe(true);
+      expect(result.gaps.some((g) => g.canonicalName === "DCF Valuation")).toBe(true);
+    });
+  });
+
+  // 10. Phase 9 Aliases and Technology Separation
+  describe("Phase 9 Domain Aliases & Strict Technology Distinction", () => {
+    it("correctly resolves multi-branch tool aliases to canonical skill names", () => {
+      const evaluatedSkills = [
+        { canonicalName: "ros", score: 80, level: "Proficient" },
+        { canonicalName: "staad", score: 85, level: "Proficient" },
+        { canonicalName: "revit", score: 75, level: "Proficient" },
+        { canonicalName: "powerbi", score: 90, level: "Proficient" },
+        { canonicalName: "dcf", score: 80, level: "Proficient" },
+        { canonicalName: "simulink", score: 85, level: "Proficient" },
+      ];
+
+      const roboticsResult = analyzeSkillGaps(evaluatedSkills, "Robotics Engineer");
+      expect(roboticsResult.metSkills.some((s) => s.canonicalName === "ROS 2")).toBe(true);
+
+      const civilResult = analyzeSkillGaps(evaluatedSkills, "Structural Design Engineer");
+      expect(civilResult.metSkills.some((s) => s.canonicalName === "STAAD.Pro")).toBe(true);
+
+      const bimResult = analyzeSkillGaps(evaluatedSkills, "BIM Specialist");
+      expect(bimResult.metSkills.some((s) => s.canonicalName === "Autodesk Revit")).toBe(true);
+
+      const biResult = analyzeSkillGaps(evaluatedSkills, "Business Intelligence Analyst");
+      expect(biResult.metSkills.some((s) => s.canonicalName === "Power BI")).toBe(true);
+
+      const financeResult = analyzeSkillGaps(evaluatedSkills, "Financial Analyst");
+      expect(financeResult.metSkills.some((s) => s.canonicalName === "DCF Valuation")).toBe(true);
+
+      const controlResult = analyzeSkillGaps(evaluatedSkills, "Control Systems Engineer");
+      expect(controlResult.metSkills.some((s) => s.canonicalName === "MATLAB / Simulink")).toBe(true);
+    });
+
+    it("does not treat distinct technologies as interchangeable (e.g. C++ != Python, SolidWorks != AutoCAD)", () => {
+      const evaluatedSkills = [
+        { canonicalName: "Python", score: 90, level: "Strong Evidence" },
+      ];
+
+      const roboticsResult = analyzeSkillGaps(evaluatedSkills, "Robotics Engineer");
+      // Python is met
+      expect(roboticsResult.metSkills.some((s) => s.canonicalName === "Python")).toBe(true);
+      // But C++ remains a gap and is NOT falsely satisfied by Python
+      expect(roboticsResult.gaps.some((g) => g.canonicalName === "C++")).toBe(true);
+
+      const cadSkills = [
+        { canonicalName: "AutoCAD", score: 85, level: "Proficient" },
+      ];
+      const cadResult = analyzeSkillGaps(cadSkills, "CAD/CAM Engineer");
+      expect(cadResult.metSkills.some((s) => s.canonicalName === "AutoCAD")).toBe(true);
+      // SolidWorks remains a gap and is NOT satisfied by AutoCAD
+      expect(cadResult.gaps.some((g) => g.canonicalName === "SolidWorks")).toBe(true);
+    });
+  });
+
+  // 11. Multi-Role Comparison Engine
+  describe("Phase 9 Multi-Role Comparison Engine", () => {
+    it("compares multiple roles and identifies shared skills, role-specific skills, and high-leverage skills", () => {
+      const evaluatedSkills = [
+        { canonicalName: "Python", score: 85, level: "Proficient" },
+        { canonicalName: "C++", score: 80, level: "Proficient" },
+        { canonicalName: "Embedded Systems", score: 75, level: "Proficient" },
+      ];
+
+      const targetRoles = [
+        "Robotics Engineer",
+        "Embedded Systems Engineer",
+        "IoT Developer",
+      ];
+
+      const comparison = compareRoles(evaluatedSkills, targetRoles);
+
+      expect(comparison).toBeDefined();
+      expect(comparison.rolesCount).toBe(3);
+      expect(comparison.rolesSummary.length).toBe(3);
+
+      // Verify roles summary independent readiness
+      const roboticsSummary = comparison.rolesSummary.find((r) => r.roleName === "Robotics Engineer");
+      const embeddedSummary = comparison.rolesSummary.find((r) => r.roleName === "Embedded Systems Engineer");
+      const iotSummary = comparison.rolesSummary.find((r) => r.roleName === "IoT Developer");
+
+      expect(roboticsSummary).toBeDefined();
+      expect(embeddedSummary).toBeDefined();
+      expect(iotSummary).toBeDefined();
+
+      expect(roboticsSummary.benchmarkStatus).toBe("validated");
+      expect(embeddedSummary.benchmarkStatus).toBe("validated");
+      expect(iotSummary.benchmarkStatus).toBe("validated");
+
+      // Verify shared skills
+      expect(Array.isArray(comparison.sharedSkills)).toBe(true);
+
+      // Verify high-leverage skills (skills that unlock progress in 2+ roles)
+      expect(Array.isArray(comparison.highLeverageSkills)).toBe(true);
+      for (const skill of comparison.highLeverageSkills) {
+        expect(skill.roleCount).toBeGreaterThanOrEqual(2);
+        expect(Array.isArray(skill.roles)).toBe(true);
+      }
+
+      // Verify role-specific skills
+      expect(comparison.roleSpecificSkills).toBeDefined();
+      expect(Array.isArray(comparison.roleSpecificSkills["Robotics Engineer"])).toBe(true);
+      const roboticsSpecific = comparison.roleSpecificSkills["Robotics Engineer"];
+      expect(roboticsSpecific.some((s) => s.canonicalName === "Robot Kinematics" || s.canonicalName === "ROS 2")).toBe(true);
+
+      // Verify top combined gaps
+      expect(Array.isArray(comparison.topCombinedGaps)).toBe(true);
+      expect(comparison.topCombinedGaps.length).toBeGreaterThan(0);
+    });
+
+    it("gracefully handles single role or empty roles input in compareRoles", () => {
+      const evaluatedSkills = [{ canonicalName: "Python", score: 85, level: "Proficient" }];
+      
+      // Single role
+      const singleComp = compareRoles(evaluatedSkills, ["Robotics Engineer"]);
+      expect(singleComp.rolesCount).toBe(1);
+      expect(singleComp.rolesSummary.length).toBe(1);
+      expect(singleComp.highLeverageSkills).toEqual([]);
+
+      // Empty roles
+      const emptyComp = compareRoles(evaluatedSkills, []);
+      expect(emptyComp.rolesCount).toBe(0);
+      expect(emptyComp.rolesSummary).toEqual([]);
+      expect(emptyComp.topCombinedGaps).toEqual([]);
+    });
+
+    it("rejects unauthenticated GET /api/v1/gaps/compare with 401", async () => {
+      const res = await request(app).get("/api/v1/gaps/compare?roles=Robotics%20Engineer,IoT%20Developer");
+      expect(res.status).toBe(401);
+      expect(res.body.success).toBe(false);
+    });
+
+    it("rejects unauthenticated POST /api/v1/gaps/compare with 401", async () => {
+      const res = await request(app).post("/api/v1/gaps/compare").send({
+        roles: ["Robotics Engineer", "IoT Developer"],
       });
       expect(res.status).toBe(401);
       expect(res.body.success).toBe(false);
