@@ -19,7 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
 
-const ADMIN_EMAIL = "sampatakumarsv@gmail.com";
+const DEFAULT_ADMIN_EMAIL = "sampatakumarsv@gmail.com";
 
 interface DailyAnalytics {
   date: string;
@@ -35,8 +35,9 @@ export default function AdminAnalytics() {
   const { firebaseUser, backendUser, loading: authLoading } = useAuth();
   const [data, setData] = useState<DailyAnalytics[]>([]);
   const [loading, setLoading] = useState(true);
-  const adminEmail = backendUser?.email || firebaseUser?.email || "";
-  const isAdmin = adminEmail === ADMIN_EMAIL;
+  const configuredAdminEmail = import.meta.env.VITE_ADMIN_EMAIL || DEFAULT_ADMIN_EMAIL;
+  const userEmail = backendUser?.email || firebaseUser?.email || "";
+  const isAdmin = backendUser?.role === "admin" || (Boolean(userEmail) && userEmail === configuredAdminEmail);
 
   useEffect(() => {
     if (authLoading) {

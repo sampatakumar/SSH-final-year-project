@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   AlertCircle,
@@ -9,37 +9,100 @@ import {
   Sparkles,
   Target,
   TrendingUp,
+  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SmartSkillApi, SkillGapItem } from "@/lib/api";
+import { academicApi, type CareerRoleOption } from "@/modules/profile/services/academic.api";
+import { useAuth } from "@/core/auth";
 import { toast } from "sonner";
 
-const AVAILABLE_ROLES = [
+const BASELINE_FALLBACK_ROLES = [
   "Full Stack Developer",
   "Frontend Engineer",
   "Backend Node.js Engineer",
   "Software Engineer (General / Core CS)",
 ];
 
+interface GapDataResponse {
+  targetRole: string;
+  roleDescription: string;
+  roleMatchPercentage: number | null;
+  benchmarkStatus?: "validated" | "benchmark_pending" | "unknown_role";
+  benchmarkPending?: boolean;
+  benchmarkNotice?: string;
+  totalRequiredSkills?: number;
+  metSkillsCount?: number;
+  gapsCount?: number;
+  gaps: SkillGapItem[];
+  metSkills: any[];
+}
+
 const SkillGapsPage = () => {
-  const [selectedRole, setSelectedRole] = useState("Full Stack Developer");
-  const [gapData, setGapData] = useState<{
-    targetRole: string;
-    roleDescription: string;
-    roleMatchPercentage: number;
-    gaps: SkillGapItem[];
-    metSkills: any[];
-  } | null>(null);
+  const { backendUser } = useAuth();
+
+  // Resolve initial role from authenticated user's targetRole, targetRoles array, or fallback
+  const userTargetRoles = useMemo(() => {
+    const list: string[] = [];
+    if (backendUser?.targetRole) list.push(backendUser.targetRole);
+    if (Array.isArray(backendUser?.targetRoles)) {
+      for (const r of backendUser.targetRoles) {
+        if (r && !list.includes(r)) list.push(r);
+      }
+    }
+    return list;
+  }, [backendUser?.targetRole, backendUser?.targetRoles]);
+
+  const [selectedRole, setSelectedRole] = useState<string>(
+    userTargetRoles[0] || "Full Stack Developer"
+  );
+  const [catalogRoles, setCatalogRoles] = useState<CareerRoleOption[]>([]);
+  const [isCatalogLoading, setIsCatalogLoading] = useState<boolean>(true);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
+
+  const [gapData, setGapData] = useState<GapDataResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Sync selectedRole if userTargetRoles changes and current selection is default
+  useEffect(() => {
+    if (userTargetRoles.length > 0 && selectedRole === "Full Stack Developer" && !userTargetRoles.includes("Full Stack Developer")) {
+      setSelectedRole(userTargetRoles[0]);
+    }
+  }, [userTargetRoles]);
+
+  // Load full academic catalog roles
+  useEffect(() => {
+    let isSubscribed = true;
+    const fetchCatalog = async () => {
+      try {
+        setIsCatalogLoading(true);
+        const options = await academicApi.getOptions();
+        if (isSubscribed && options?.careerRoles?.length > 0) {
+          setCatalogRoles(options.careerRoles);
+          setCatalogError(null);
+        }
+      } catch (err: any) {
+        if (isSubscribed) {
+          console.warn("Could not load full academic career roles catalog:", err);
+          setCatalogError("Catalog offline; showing profile roles and baseline tracks.");
+        }
+      } finally {
+        if (isSubscribed) setIsCatalogLoading(false);
+      }
+    };
+    fetchCatalog();
+    return () => { isSubscribed = false; };
+  }, []);
+
   const fetchGaps = async (role: string) => {
+    if (!role) return;
     try {
       setIsLoading(true);
       const data = await SmartSkillApi.getSkillGaps(role);
-      setGapData(data);
+      setGapData(data as GapDataResponse);
     } catch (err: any) {
       console.error("Failed to load gaps:", err);
-      toast.error(err.message || "Failed to load skill gaps");
+      toast.error(err.message || `Failed to load skill gaps for ${role}`);
     } finally {
       setIsLoading(false);
     }
@@ -49,9 +112,34 @@ const SkillGapsPage = () => {
     fetchGaps(selectedRole);
   }, [selectedRole]);
 
+  // Deduplicated role list for dropdown
+  const { userRolesList, catalogRolesList } = useMemo(() => {
+    const userList = userTargetRoles;
+    const otherRoles = catalogRoles
+      .map((c) => c.title)
+      .filter((title) => !userList.includes(title));
+
+    // Ensure baseline roles exist if catalog failed
+    for (const base of BASELINE_FALLBACK_ROLES) {
+      if (!userList.includes(base) && !otherRoles.includes(base)) {
+        otherRoles.push(base);
+      }
+    }
+
+    // Ensure currently selected role is in the list
+    if (selectedRole && !userList.includes(selectedRole) && !otherRoles.includes(selectedRole)) {
+      otherRoles.unshift(selectedRole);
+    }
+
+    return {
+      userRolesList: userList,
+      catalogRolesList: otherRoles.sort((a, b) => a.localeCompare(b)),
+    };
+  }, [userTargetRoles, catalogRoles, selectedRole]);
+
   const gaps = gapData?.gaps || [];
   const metSkills = gapData?.metSkills || [];
-  const matchPercentage = gapData?.roleMatchPercentage || 0;
+  const matchPercentage = gapData?.roleMatchPercentage;
 
   // Group gaps by status
   const missingGaps = gaps.filter((g) => g.status === "Missing");
@@ -71,27 +159,79 @@ const SkillGapsPage = () => {
           </p>
         </div>
 
-        {/* Role Selector */}
+        {/* Dynamic Role Selector */}
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-muted-foreground">Target Role:</span>
           <select
             value={selectedRole}
             onChange={(e) => setSelectedRole(e.target.value)}
-            className="bg-background text-foreground text-xs font-bold border border-border/40 rounded-xl px-3 py-2 h-9 focus:outline-none focus:ring-1 focus:ring-primary shadow-neo-raised-sm"
+            disabled={isLoading && !gapData}
+            className="bg-background text-foreground text-xs font-bold border border-border/40 rounded-xl px-3 py-2 h-9 focus:outline-none focus:ring-1 focus:ring-primary shadow-neo-raised-sm max-w-[280px] truncate"
           >
-            {AVAILABLE_ROLES.map((role) => (
-              <option key={role} value={role}>
-                {role}
-              </option>
-            ))}
+            {userRolesList.length > 0 && (
+              <optgroup label="My Target Roles">
+                {userRolesList.map((role) => (
+                  <option key={`user-${role}`} value={role}>
+                    ★ {role}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+
+            <optgroup label="All Career Pathways">
+              {catalogRolesList.map((role) => (
+                <option key={`cat-${role}`} value={role}>
+                  {role}
+                </option>
+              ))}
+            </optgroup>
           </select>
         </div>
       </div>
 
+      {/* Benchmark Status Banner */}
+      {gapData?.benchmarkStatus === "benchmark_pending" && (
+        <div className="p-4 rounded-2xl border border-primary/30 bg-primary/5 flex items-start gap-3 shadow-neo-raised-sm animate-in fade-in-50">
+          <Sparkles className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+          <div className="space-y-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="text-xs font-bold text-foreground">Catalog Core Skills Assessment</h3>
+              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-primary/15 text-primary border border-primary/30">
+                Rubric Pending
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {gapData.benchmarkNotice ||
+                "This career track is evaluated against canonical catalog core skills. Detailed weighted rubrics will be published in an upcoming update."}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {gapData?.benchmarkStatus === "unknown_role" && (
+        <div className="p-4 rounded-2xl border border-warning/40 bg-warning/5 flex items-start gap-3 shadow-neo-raised-sm animate-in fade-in-50">
+          <AlertCircle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
+          <div className="space-y-1 min-w-0">
+            <h3 className="text-xs font-bold text-foreground">Unrecognized Career Role</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {gapData.benchmarkNotice ||
+                `"${selectedRole}" is not recognized in system benchmarks or the academic catalog. Please select a recognized career track above.`}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Role Overview & Match Card */}
       <div className="p-6 bg-surface border border-border/40 rounded-2xl shadow-neo-raised flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="space-y-2 max-w-xl">
-          <span className="text-xs font-bold text-primary uppercase tracking-wider">Benchmark Evaluation</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-primary uppercase tracking-wider">Benchmark Evaluation</span>
+            {gapData?.benchmarkPending && (
+              <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-muted text-muted-foreground">
+                Catalog Track
+              </span>
+            )}
+          </div>
           <h2 className="text-xl font-bold text-foreground">{gapData?.targetRole || selectedRole}</h2>
           <p className="text-xs text-muted-foreground leading-relaxed">
             {gapData?.roleDescription || "Standard technical requirements and proficiency expectations for this track."}
@@ -99,15 +239,32 @@ const SkillGapsPage = () => {
           <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground pt-2">
             <span>Met Criteria: <b className="text-success">{metSkills.length}</b></span>
             <span>Identified Gaps: <b className="text-warning">{gaps.length}</b></span>
+            {gapData?.totalRequiredSkills !== undefined && (
+              <span>Total Core Track Skills: <b className="text-foreground">{gapData.totalRequiredSkills}</b></span>
+            )}
           </div>
         </div>
 
         {/* Match Percentage Visual */}
         <div className="flex flex-col items-center justify-center p-4 bg-background/80 rounded-2xl border border-border/30 min-w-[160px] text-center shadow-neo-pressed">
           <span className="text-xs font-bold text-muted-foreground uppercase">Role Match</span>
-          <span className="text-4xl font-black text-foreground my-1">{isLoading ? "--" : `${matchPercentage}%`}</span>
+          <span className="text-4xl font-black text-foreground my-1">
+            {isLoading
+              ? "--"
+              : matchPercentage !== null && matchPercentage !== undefined
+              ? `${matchPercentage}%`
+              : "N/A"}
+          </span>
           <span className="text-[11px] text-muted-foreground">
-            {matchPercentage >= 75 ? "Strong Candidate" : matchPercentage >= 50 ? "Developing Profile" : "Requires Preparation"}
+            {gapData?.benchmarkStatus === "unknown_role"
+              ? "Unknown Track"
+              : gapData?.benchmarkPending
+              ? "Core Skills Match (Rubric Pending)"
+              : (matchPercentage || 0) >= 75
+              ? "Strong Candidate"
+              : (matchPercentage || 0) >= 50
+              ? "Developing Profile"
+              : "Requires Preparation"}
           </span>
         </div>
       </div>
@@ -117,6 +274,24 @@ const SkillGapsPage = () => {
         <div className="py-16 text-center text-sm text-muted-foreground space-y-2">
           <RefreshCw className="h-6 w-6 animate-spin mx-auto text-primary" />
           <p>Analyzing role skill gaps...</p>
+        </div>
+      ) : gaps.length === 0 && metSkills.length === 0 ? (
+        <div className="py-16 text-center border border-border/40 bg-surface rounded-2xl p-8 space-y-3">
+          <Info className="h-8 w-8 text-primary mx-auto" />
+          <h3 className="text-base font-bold text-foreground">No Requirements Available</h3>
+          <p className="text-xs text-muted-foreground max-w-md mx-auto">
+            {gapData?.benchmarkStatus === "unknown_role"
+              ? "Please select a recognized career track from your target roles or the catalog dropdown above."
+              : "No core skills or benchmark requirements found for this role."}
+          </p>
+        </div>
+      ) : gaps.length === 0 && metSkills.length > 0 ? (
+        <div className="py-16 text-center border border-border/40 bg-surface rounded-2xl p-8 space-y-3">
+          <CheckCircle2 className="h-8 w-8 text-success mx-auto" />
+          <h3 className="text-base font-bold text-foreground">All Core Requirements Satisfied!</h3>
+          <p className="text-xs text-muted-foreground max-w-md mx-auto">
+            Your verified skill evidence meets all evaluated requirements for {gapData?.targetRole || selectedRole}.
+          </p>
         </div>
       ) : (
         <div className="space-y-6">
@@ -261,3 +436,4 @@ const SkillGapsPage = () => {
 };
 
 export default SkillGapsPage;
+

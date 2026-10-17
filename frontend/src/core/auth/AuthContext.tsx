@@ -43,6 +43,7 @@ export interface BackendUser {
   name?: string;
   displayName?: string;
   email?: string;
+  role?: string;
   emailVerified?: boolean;
   authProviders?: string[];
   photoURL?: string;

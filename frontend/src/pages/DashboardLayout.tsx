@@ -49,7 +49,7 @@ const DashboardLayout = () => {
         <nav className="px-3 pb-3 flex gap-2 overflow-x-auto no-scrollbar">
           {[
             ...dashboardLinks,
-            ...(backendUser?.email === "sampatakumarsv@gmail.com"
+            ...((backendUser?.role === "admin" || backendUser?.email === (import.meta.env.VITE_ADMIN_EMAIL || "sampatakumarsv@gmail.com"))
               ? [{ to: "/dashboard/admin/analytics", icon: ShieldAlert, label: "Admin Analytics" }]
               : []),
           ].map((link) => {

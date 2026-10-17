@@ -257,4 +257,43 @@ describe("Analytics Navigation & Split Dashboard Suite", () => {
     expect(screen.getByText("Admin Analytics")).toBeInTheDocument();
     expect(screen.getByText("Administrator")).toBeInTheDocument();
   });
+
+  it("renders Admin Analytics and Sidebar for database-backed admin with role === 'admin'", async () => {
+    vi.spyOn(apiModule, "apiRequest").mockResolvedValue({
+      status: 200,
+      data: [
+        {
+          date: "2026-08-27",
+          rateLimitHits: 1,
+          groqRequests: 20,
+          newUsers: 8,
+          portfoliosPublished: 2,
+          resumesUploaded: 5,
+          apiHits: { "/api/v1/auth/me": 30 },
+        },
+      ],
+      message: "OK",
+    } as any);
+
+    // Test AdminAnalytics component access with custom admin email
+    renderWithAuth(<AdminAnalytics />, {
+      firebaseUser: { email: "faculty.admin@university.edu" },
+      backendUser: { email: "faculty.admin@university.edu", role: "admin" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Admin Analytics")).toBeInTheDocument();
+      expect(screen.getByText("ADMIN ONLY")).toBeInTheDocument();
+      expect(screen.getByText("8")).toBeInTheDocument(); // New Users
+    });
+
+    // Test DashboardSidebar visibility with custom admin email
+    renderWithAuth(<DashboardSidebar />, {
+      firebaseUser: { email: "faculty.admin@university.edu" },
+      backendUser: { email: "faculty.admin@university.edu", role: "admin" },
+    });
+
+    expect(screen.getAllByText("Admin Analytics").length).toBeGreaterThan(0);
+    expect(screen.getByText("Administrator")).toBeInTheDocument();
+  });
 });

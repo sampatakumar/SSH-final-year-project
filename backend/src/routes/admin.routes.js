@@ -1,25 +1,10 @@
 import { Router } from "express";
-import { verifyFirebaseToken } from "../middlewares/auth.middleware.js";
+import { ensureAdmin } from "../core/middleware/admin.middleware.js";
 import { Analytics } from "../models/analytics.models.js";
 
 const router = Router();
 
-const ensureAdminMiddleware = (req, res, next) => {
-  verifyFirebaseToken(req, res, (error) => {
-    if (error) return next(error);
-    
-    const adminEmail = process.env.ADMIN_EMAIL || "sampatakumarsv@gmail.com";
-    const isRoleAdmin = req.user?.role === "admin" || req.auth?.email === adminEmail;
-
-    if (!isRoleAdmin) {
-      return res.status(403).json({ success: false, error: "Access Denied: Admins Only" });
-    }
-    
-    next();
-  });
-};
-
-router.get("/analytics", ensureAdminMiddleware, async (req, res) => {
+router.get("/analytics", ensureAdmin, async (req, res) => {
   try {
     // Fetch the last 14 days of data to construct a robust chart
     const analytics = await Analytics.find()

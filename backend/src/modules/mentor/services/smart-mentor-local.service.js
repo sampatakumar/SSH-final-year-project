@@ -277,9 +277,12 @@ ${gapList}
 
       case "career_progress": {
         const topSkillsStr = context.skills?.slice(0, 3).map((s) => `${s.name} (${s.level})`).join(", ") || "Core Programming";
+        const academicLine = context.career?.academic?.isConfigured
+          ? `- **Academic Pathway**: ${[context.career.academic.branchName, context.career.academic.degreeName].filter(Boolean).join(", ")}${context.career.academic.currentYear ? ` (Year ${context.career.academic.currentYear})` : ""}\n`
+          : "";
 
         answer = `### Career Progress Report for ${targetRole}
-- **Overall Role Readiness Score**: ${readiness}/100
+${academicLine}- **Overall Role Readiness Score**: ${readiness}/100
 - **Verified Strengths**: ${topSkillsStr}
 - **Primary Gaps to Close**: ${topGaps.slice(0, 2).map((g) => g.skill).join(", ") || "None"}
 - **GitHub Projects Tracked**: ${github.repositoryCount || 0} repositories

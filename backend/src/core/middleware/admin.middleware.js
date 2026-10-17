@@ -4,7 +4,10 @@ import { ApiError } from "../errors/ApiError.js";
 export const ensureAdmin = (req, res, next) => {
   const checkAdminPrivilege = () => {
     const adminEmail = process.env.ADMIN_EMAIL || "sampatakumarsv@gmail.com";
-    const isRoleAdmin = req.user?.role === "admin" || req.auth?.email === adminEmail;
+    const isRoleAdmin =
+      req.user?.role === "admin" ||
+      req.auth?.role === "admin" ||
+      Boolean(adminEmail && (req.user?.email === adminEmail || req.auth?.email === adminEmail));
 
     if (!isRoleAdmin) {
       return next(new ApiError(403, "Access Denied: Administrator privilege required."));

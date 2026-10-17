@@ -34,10 +34,27 @@ export interface MentorMessageItem {
   createdAt?: string;
 }
 
+export interface MentorAcademicContext {
+  degreeName?: string;
+  degreeSlug?: string;
+  branchName?: string;
+  branchSlug?: string;
+  specializationName?: string;
+  specializationSlug?: string;
+  currentYear?: number | null;
+  currentSemester?: number | null;
+  institution?: string;
+  academicScheme?: string;
+  isConfigured: boolean;
+}
+
 export interface MentorContextData {
   career: {
     name: string;
     targetRole: string;
+    targetRoles?: string[];
+    careerInterests?: string[];
+    academic?: MentorAcademicContext;
     headline: string;
     readinessScore: number;
     education: string[];

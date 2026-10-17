@@ -7,6 +7,7 @@ import { SmartMentorPage } from "../modules/mentor/pages/SmartMentorPage";
 import { SmartMentorApi } from "../modules/mentor/services/smartMentor.api";
 import { MentorMessage } from "../modules/mentor/components/MentorMessage";
 import { MentorActionCard } from "../modules/mentor/components/MentorActionCard";
+import { MentorContextPanel } from "../modules/mentor/components/MentorContextPanel";
 import type { MentorContextData } from "../modules/mentor/types/smartMentor.types";
 
 const mockContext: MentorContextData = {
@@ -221,5 +222,56 @@ describe("Smart Mentor Frontend Test Suite", () => {
     expect(screen.getByText("Smart Mentor")).toBeInTheDocument();
     expect(screen.getByText("Local Engine")).toBeInTheDocument();
     expect(screen.getByText(/Local fallback response with/i)).toBeInTheDocument();
+  });
+
+  it("5. MentorContextPanel renders verified academic discipline, year, and institution", () => {
+    const contextWithAcademic: MentorContextData = {
+      ...mockContext,
+      career: {
+        ...mockContext.career,
+        academic: {
+          degreeName: "Bachelor of Technology",
+          branchName: "Robotics and Automation",
+          specializationName: "Autonomous Systems",
+          currentYear: 4,
+          currentSemester: 7,
+          institution: "National Institute of Technology",
+          isConfigured: true,
+        },
+      },
+    };
+
+    render(
+      <MemoryRouter>
+        <MentorContextPanel context={contextWithAcademic} isLoading={false} onRefresh={vi.fn()} />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText("Academic Discipline")).toBeInTheDocument();
+    expect(screen.getByText("Robotics and Automation")).toBeInTheDocument();
+    expect(screen.getByText("Yr 4")).toBeInTheDocument();
+    expect(screen.getByText(/Bachelor of Technology • Autonomous Systems/i)).toBeInTheDocument();
+    expect(screen.getByText("National Institute of Technology")).toBeInTheDocument();
+  });
+
+  it("6. MentorContextPanel renders gracefully when academic profile is not configured", () => {
+    const contextWithoutAcademic: MentorContextData = {
+      ...mockContext,
+      career: {
+        ...mockContext.career,
+        academic: {
+          isConfigured: false,
+        },
+      },
+    };
+
+    render(
+      <MemoryRouter>
+        <MentorContextPanel context={contextWithoutAcademic} isLoading={false} onRefresh={vi.fn()} />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText("Academic Discipline")).toBeInTheDocument();
+    expect(screen.getByText("Academic profile not configured")).toBeInTheDocument();
   });
 });

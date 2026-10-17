@@ -1,5 +1,6 @@
 import { analyzeUserGaps } from "../services/skillGap.service.js";
 import { TARGET_ROLES, ROLE_REQUIREMENTS } from "../benchmarks/roleRequirements.js";
+import { INITIAL_CAREER_ROLES } from "../../academic/constants/academicCatalog.js";
 import { GapAnalysisError } from "../../../core/errors/ApiError.js";
 import { ApiResponse } from "../../../utils/ApiResponse.js";
 import { asyncHandler } from "../../../core/errors/asyncHandler.js";
@@ -43,16 +44,31 @@ export const analyzeGaps = asyncHandler(async (req, res) => {
  * List all available benchmark roles.
  */
 export const getAvailableRoles = asyncHandler(async (req, res) => {
-  const roles = Object.entries(ROLE_REQUIREMENTS).map(([key, config]) => ({
+  const benchmarkRoles = Object.entries(ROLE_REQUIREMENTS).map(([key, config]) => ({
     key,
     roleName: config.roleName,
     description: config.description,
     coreSkillsCount: config.coreSkills.length,
     recommendedSkillsCount: config.recommendedSkills.length,
+    hasValidatedBenchmark: true,
+    benchmarkStatus: "validated",
+  }));
+
+  const catalogRoles = INITIAL_CAREER_ROLES.filter(
+    (cr) => !benchmarkRoles.some((r) => r.roleName.toLowerCase() === cr.title.toLowerCase())
+  ).map((cr) => ({
+    key: cr.title,
+    roleName: cr.title,
+    description: cr.description,
+    category: cr.category,
+    coreSkillsCount: cr.coreSkills.length,
+    recommendedSkillsCount: 0,
+    hasValidatedBenchmark: false,
+    benchmarkStatus: "benchmark_pending",
   }));
 
   return res.status(200).json(
-    new ApiResponse(200, { roles }, "Available benchmark roles")
+    new ApiResponse(200, { roles: [...benchmarkRoles, ...catalogRoles] }, "Available benchmark roles")
   );
 });
 

@@ -35,6 +35,11 @@ export class SmartMentorService {
    * Format compact prompt context from unified user context.
    */
   buildSystemPrompt(context) {
+    const academic = context.career?.academic;
+    const academicDesc = academic?.isConfigured
+      ? `Degree: "${academic.degreeName || "N/A"}", Branch: "${academic.branchName || "N/A"}", Specialization: "${academic.specializationName || "N/A"}", Year: ${academic.currentYear || "N/A"}, Semester: ${academic.currentSemester || "N/A"}`
+      : "Not configured / Unknown";
+
     return `You are Smart Mentor, the personal technical career mentor inside Smart Skill Hub.
 You have access only to the structured user context provided to you.
 Your job is to help the candidate improve their technical career, close skill gaps, optimize their GitHub profile & repositories, guide their EduTube learning, and achieve job-readiness for their target role.
@@ -43,12 +48,13 @@ GROUNDED USER CONTEXT:
 ${JSON.stringify(context, null, 2)}
 
 CRITICAL OPERATIONAL RULES:
-1. Never invent user data, repositories, metrics, skills, or experience not present in the context.
+1. Never invent user data, repositories, metrics, skills, academic background, or experience not present in the context.
 2. If the user asks about GitHub, inspect the actual repository counts, descriptions, and README presence provided.
 3. If the user asks about skill gaps or what to learn, reference their actual identified skill gaps and required levels.
-4. If the user asks about their career or readiness, use their actual readiness score (${context.career?.readinessScore ?? 65}/100) and target role ("${context.career?.targetRole || "Full Stack Developer"}").
-5. Explain WHY each recommendation is useful and offer concrete next actions with time estimates.
-6. Return a valid raw JSON object matching this schema:
+4. If the user asks about their career or readiness, use their actual readiness score (${context.career?.readinessScore ?? 65}/100), target role ("${context.career?.targetRole || "Full Stack Developer"}"), and target roles list (${JSON.stringify(context.career?.targetRoles || [])}).
+5. Academic background is: ${academicDesc}. If academic background is "Not configured / Unknown", state that it is unconfigured when asked and NEVER invent, assume, or fabricate an engineering branch, college, degree, or semester. Ground domain advice within their verified branch when available.
+6. Explain WHY each recommendation is useful and offer concrete next actions with time estimates.
+7. Return a valid raw JSON object matching this schema:
 {
   "answer": "Comprehensive, structured markdown formatted answer directly addressing the query.",
   "summary": "1-sentence executive takeaway.",
@@ -63,7 +69,7 @@ CRITICAL OPERATIONAL RULES:
   ],
   "confidence": 0.95
 }
-7. Do not include markdown code block fences (like \`\`\`json) in your JSON output. Return pure JSON text.`;
+8. Do not include markdown code block fences (like \`\`\`json) in your JSON output. Return pure JSON text.`;
   }
 
   /**
@@ -207,11 +213,15 @@ CRITICAL OPERATIONAL RULES:
       if (!groq) throw new Error("Groq not configured");
 
       const targetModel = await getGroqModel({ taskTier: TASK_TIERS.HIGH_REASONING });
+      const academicDesc = context.career?.academic?.isConfigured
+        ? `Verified Academic Pathway: ${context.career.academic.branchName || ""} (${context.career.academic.degreeName || ""})`
+        : "Academic Pathway: Not configured";
       const systemPrompt = `You are Smart Mentor, the personal technical career mentor inside Smart Skill Hub.
 You have access only to the structured user context provided to you.
+${academicDesc}
 GROUNDED CONTEXT:
 ${JSON.stringify(context, null, 2)}
-Respond directly in clear, supportive, highly structured Markdown. Provide concrete steps and cite actual data. Do not hallucinate fake details.`;
+Respond directly in clear, supportive, highly structured Markdown. Provide concrete steps and cite actual data. Do not hallucinate fake details, and never invent unconfigured academic or personal information.`;
 
       const recentHistory = (conv.messages || []).slice(-6, -1).map((m) => ({
         role: m.role === "assistant" ? "assistant" : "user",

@@ -74,6 +74,11 @@ const userSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    role: {
+      type: String,
+      enum: ["student", "admin"],
+      default: "student",
+    },
     targetRole: {
       type: String,
       trim: true,

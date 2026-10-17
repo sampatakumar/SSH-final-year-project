@@ -95,9 +95,34 @@ export class SmartMentorContextService {
     const targetRole = user?.targetRole || skillProfile?.targetRole || "Full Stack Developer";
     const readinessScore = skillProfile?.overallReadinessScore ?? 65;
 
+    const academic = {
+      degreeName: user?.academic?.degreeName || "",
+      degreeSlug: user?.academic?.degreeSlug || "",
+      branchName: user?.academic?.branchName || "",
+      branchSlug: user?.academic?.branchSlug || "",
+      specializationName: user?.academic?.specializationName || "",
+      specializationSlug: user?.academic?.specializationSlug || "",
+      currentYear: user?.academic?.currentYear ?? null,
+      currentSemester: user?.academic?.currentSemester ?? null,
+      institution: user?.academic?.institution || "",
+      academicScheme: user?.academic?.academicScheme || "",
+      isConfigured: Boolean(user?.academic?.degreeName || user?.academic?.branchName),
+    };
+
+    const targetRoles = Array.isArray(user?.targetRoles) && user.targetRoles.length > 0
+      ? user.targetRoles
+      : [targetRole];
+
+    const careerInterests = Array.isArray(user?.careerInterests)
+      ? user.careerInterests
+      : [];
+
     const career = {
       name: user?.displayName || user?.email?.split("@")[0] || "Developer",
       targetRole,
+      targetRoles,
+      careerInterests,
+      academic,
       headline: user?.headline || "",
       readinessScore,
       education: (user?.educationEntries || []).map((e) => `${e.degree || "Degree"} in ${e.specialization || "Engineering"}`),
@@ -245,6 +270,14 @@ export class SmartMentorContextService {
     } else if (learning.videosWatched > 0) {
       insights.push(
         `▶️ You have active in-progress lessons on EduTube. Consistency will accelerate your roadmap.`
+      );
+    }
+
+    if (academic.isConfigured) {
+      const yearSem = academic.currentYear ? `Year ${academic.currentYear}` : (academic.currentSemester ? `Sem ${academic.currentSemester}` : "");
+      const branchDegree = [academic.branchName, academic.degreeName].filter(Boolean).join(", ");
+      insights.push(
+        `🏛️ Academic Pathway: ${branchDegree}${yearSem ? ` (${yearSem})` : ""}. Guidance is aligned with your verified degree.`
       );
     }
 

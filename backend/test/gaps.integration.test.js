@@ -31,13 +31,43 @@ describe("Step 6: Gap Analysis Module Verification Suite", () => {
       expect(result.totalRequiredSkills).toBeGreaterThanOrEqual(10);
       expect(result.metSkillsCount).toBe(2);
       expect(result.gapsCount).toBeGreaterThan(0);
+      expect(result.benchmarkPending).toBe(false);
+      expect(result.benchmarkStatus).toBe("validated");
     });
 
-    it("2. falls back safely or handles invalid target role without crashing", () => {
+    it("2. handles unknown target role without crashing or falsely claiming Full Stack Developer", () => {
       const evaluatedSkills = [{ canonicalName: "JavaScript", score: 80, level: "Proficient" }];
       const result = analyzeSkillGaps(evaluatedSkills, "NonExistentRole123");
       expect(result).toBeDefined();
-      expect(result.targetRole).toBe("Full Stack Developer");
+      expect(result.targetRole).toBe("NonExistentRole123");
+      expect(result.benchmarkPending).toBe(true);
+      expect(result.benchmarkStatus).toBe("unknown_role");
+      expect(result.roleMatchPercentage).toBeNull();
+      expect(result.totalRequiredSkills).toBe(0);
+      expect(result.gaps).toEqual([]);
+    });
+
+    it("2b. accurately evaluates non-computing catalog role (e.g. Robotics Engineer) with benchmark_pending status", () => {
+      const evaluatedSkills = [
+        { canonicalName: "Python", score: 85, level: "Proficient", category: "Languages" },
+      ];
+      const result = analyzeSkillGaps(evaluatedSkills, "Robotics Engineer");
+      expect(result).toBeDefined();
+      expect(result.targetRole).toBe("Robotics Engineer");
+      expect(result.benchmarkPending).toBe(true);
+      expect(result.benchmarkStatus).toBe("benchmark_pending");
+      expect(result.benchmarkNotice).toContain("Detailed proficiency rubric is currently pending");
+      
+      // Crucial verification: zero React, Node.js, or HTML gaps
+      const hasUnrelatedWebGaps = result.gaps.some((g) =>
+        ["React", "Node.js", "HTML", "CSS", "Tailwind CSS"].includes(g.canonicalName)
+      );
+      expect(hasUnrelatedWebGaps).toBe(false);
+
+      // Core skills from catalog are required
+      const requiredNames = result.gaps.map((g) => g.canonicalName).concat(result.metSkills.map((s) => s.canonicalName));
+      expect(requiredNames).toContain("Kinematics & Dynamics");
+      expect(result.metSkills.some((s) => s.canonicalName.includes("Python"))).toBe(true);
     });
   });
 

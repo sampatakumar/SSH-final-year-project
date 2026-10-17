@@ -1,4 +1,3 @@
-import React from "react";
 import {
   Briefcase,
   Sparkles,
@@ -9,6 +8,7 @@ import {
   Award,
   AlertTriangle,
   FileText,
+  BookOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { MentorContextData } from "../types/smartMentor.types";
@@ -85,6 +85,43 @@ export const MentorContextPanel: React.FC<MentorContextPanelProps> = ({
           </div>
         </div>
 
+        {/* Academic Discipline */}
+        <div className="space-y-2">
+          <span className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">
+            <GraduationCap className="h-3 w-3 text-primary" />
+            Academic Discipline
+          </span>
+          {career.academic?.isConfigured ? (
+            <div className="p-3 rounded-xl bg-surface/80 border border-border/40 space-y-1.5 shadow-neo-raised-sm">
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-xs font-bold text-foreground line-clamp-1">
+                  {career.academic.branchName || career.academic.degreeName || "Engineering Track"}
+                </span>
+                {(career.academic.currentYear || career.academic.currentSemester) && (
+                  <span className="text-[10px] font-black text-primary px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 shrink-0">
+                    {career.academic.currentYear ? `Yr ${career.academic.currentYear}` : `Sem ${career.academic.currentSemester}`}
+                  </span>
+                )}
+              </div>
+              {career.academic.degreeName && (
+                <p className="text-[11px] text-muted-foreground font-medium line-clamp-1">
+                  {career.academic.degreeName}
+                  {career.academic.specializationName ? ` • ${career.academic.specializationName}` : ""}
+                </p>
+              )}
+              {career.academic.institution && (
+                <p className="text-[10px] text-muted-foreground/80 line-clamp-1">
+                  {career.academic.institution}
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="p-2.5 rounded-xl bg-surface/50 border border-border/30 text-center">
+              <p className="text-[11px] text-muted-foreground italic">Academic profile not configured</p>
+            </div>
+          )}
+        </div>
+
         {/* Priority Skill Gap */}
         <div className="space-y-2">
           <span className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">
@@ -137,7 +174,7 @@ export const MentorContextPanel: React.FC<MentorContextPanelProps> = ({
         {/* EduTube Activity */}
         <div className="space-y-2">
           <span className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">
-            <GraduationCap className="h-3 w-3 text-primary" />
+            <BookOpen className="h-3 w-3 text-primary" />
             EduTube Learning
           </span>
           <div className="grid grid-cols-2 gap-2">

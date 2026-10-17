@@ -283,4 +283,164 @@ describe("Smart Mentor Backend Test Suite", () => {
     await expect(mentorService.processChatMessage(userId, "")).rejects.toThrow("Message content is required");
     await expect(mentorService.processChatMessage(userId, "   ")).rejects.toThrow("Message content is required");
   });
+
+  it("8. Aggregates complete academic profile and multi-role targets accurately", async () => {
+    vi.spyOn(User, "findById").mockReturnValue({
+      lean: async () => ({
+        _id: userId,
+        displayName: "Sampat",
+        targetRole: "Robotics Engineer",
+        targetRoles: ["Robotics Engineer", "Embedded Systems Engineer"],
+        careerInterests: ["Autonomous Navigation", "ROS2"],
+        academic: {
+          degreeName: "Bachelor of Technology",
+          degreeSlug: "btech",
+          branchName: "Robotics and Automation",
+          branchSlug: "robotics-and-automation",
+          specializationName: "Autonomous Systems",
+          specializationSlug: "autonomous-systems",
+          currentYear: 4,
+          currentSemester: 7,
+          institution: "National Institute of Technology",
+        },
+      }),
+    });
+    vi.spyOn(UserSettings, "findOne").mockReturnValue({ lean: async () => null });
+    vi.spyOn(SkillProfile, "findOne").mockReturnValue({ lean: async () => null });
+    vi.spyOn(GitHubAnalysis, "findOne").mockReturnValue({ sort: () => ({ lean: async () => null }) });
+    vi.spyOn(Project, "find").mockReturnValue({ limit: () => ({ lean: async () => [] }) });
+    vi.spyOn(Resume, "find").mockReturnValue({ limit: () => ({ lean: async () => [] }) });
+    vi.spyOn(EduTubeWatchHistory, "find").mockReturnValue({ sort: () => ({ limit: () => ({ lean: async () => [] }) }) });
+    vi.spyOn(EduTubeProgress, "find").mockReturnValue({ lean: async () => [] });
+    vi.spyOn(EduTubeSavedVideo, "find").mockReturnValue({ limit: () => ({ lean: async () => [] }) });
+    vi.spyOn(EduTubePlaylist, "find").mockReturnValue({ limit: () => ({ lean: async () => [] }) });
+    vi.spyOn(CodingSubmission, "find").mockReturnValue({ limit: () => ({ lean: async () => [] }) });
+
+    const context = await contextService.getUnifiedUserContext(userId, { forceRefresh: true });
+
+    expect(context.career.targetRole).toBe("Robotics Engineer");
+    expect(context.career.targetRoles).toEqual(["Robotics Engineer", "Embedded Systems Engineer"]);
+    expect(context.career.careerInterests).toEqual(["Autonomous Navigation", "ROS2"]);
+    expect(context.career.academic.isConfigured).toBe(true);
+    expect(context.career.academic.branchName).toBe("Robotics and Automation");
+    expect(context.career.academic.currentYear).toBe(4);
+    expect(context.career.academic.currentSemester).toBe(7);
+    expect(context.insights.some((i) => i.includes("Robotics and Automation"))).toBe(true);
+  });
+
+  it("9. Handles partial and missing academic profiles without fabricating data", async () => {
+    // Partial academic profile
+    vi.spyOn(User, "findById").mockReturnValue({
+      lean: async () => ({
+        _id: userId,
+        displayName: "Aarav",
+        targetRole: "Data Scientist",
+        academic: {
+          branchName: "Mechanical Engineering",
+          currentYear: 2,
+        },
+      }),
+    });
+    vi.spyOn(UserSettings, "findOne").mockReturnValue({ lean: async () => null });
+    vi.spyOn(SkillProfile, "findOne").mockReturnValue({ lean: async () => null });
+    vi.spyOn(GitHubAnalysis, "findOne").mockReturnValue({ sort: () => ({ lean: async () => null }) });
+    vi.spyOn(Project, "find").mockReturnValue({ limit: () => ({ lean: async () => [] }) });
+    vi.spyOn(Resume, "find").mockReturnValue({ limit: () => ({ lean: async () => [] }) });
+    vi.spyOn(EduTubeWatchHistory, "find").mockReturnValue({ sort: () => ({ limit: () => ({ lean: async () => [] }) }) });
+    vi.spyOn(EduTubeProgress, "find").mockReturnValue({ lean: async () => [] });
+    vi.spyOn(EduTubeSavedVideo, "find").mockReturnValue({ limit: () => ({ lean: async () => [] }) });
+    vi.spyOn(EduTubePlaylist, "find").mockReturnValue({ limit: () => ({ lean: async () => [] }) });
+    vi.spyOn(CodingSubmission, "find").mockReturnValue({ limit: () => ({ lean: async () => [] }) });
+
+    const partialContext = await contextService.getUnifiedUserContext(userId, { forceRefresh: true });
+    expect(partialContext.career.academic.isConfigured).toBe(true);
+    expect(partialContext.career.academic.branchName).toBe("Mechanical Engineering");
+    expect(partialContext.career.academic.degreeName).toBe("");
+    expect(partialContext.career.academic.currentYear).toBe(2);
+
+    // Completely missing academic profile
+    vi.spyOn(User, "findById").mockReturnValue({
+      lean: async () => ({
+        _id: userId,
+        displayName: "NoAcademic",
+        targetRole: "Full Stack Developer",
+        academic: null,
+      }),
+    });
+
+    const missingContext = await contextService.getUnifiedUserContext(userId, { forceRefresh: true });
+    expect(missingContext.career.academic.isConfigured).toBe(false);
+    expect(missingContext.career.academic.branchName).toBe("");
+    expect(missingContext.career.academic.currentYear).toBeNull();
+    expect(missingContext.insights.some((i) => i.includes("Academic Pathway"))).toBe(false);
+  });
+
+  it("10. System prompt grounds in verified academic discipline and forbids hallucination", () => {
+    const verifiedContext = {
+      career: {
+        targetRole: "VLSI Design Engineer",
+        targetRoles: ["VLSI Design Engineer", "Hardware Engineer"],
+        readinessScore: 70,
+        academic: {
+          isConfigured: true,
+          degreeName: "B.Tech",
+          branchName: "Electronics and Communication Engineering",
+          currentYear: 3,
+          currentSemester: 5,
+        },
+      },
+    };
+
+    const verifiedPrompt = mentorService.buildSystemPrompt(verifiedContext);
+    expect(verifiedPrompt).toContain("Electronics and Communication Engineering");
+    expect(verifiedPrompt).toContain("VLSI Design Engineer");
+    expect(verifiedPrompt).toContain("Ground domain advice within their verified branch");
+
+    const unconfiguredContext = {
+      career: {
+        targetRole: "Full Stack Developer",
+        readinessScore: 60,
+        academic: { isConfigured: false },
+      },
+    };
+
+    const unconfiguredPrompt = mentorService.buildSystemPrompt(unconfiguredContext);
+    expect(unconfiguredPrompt).toContain("Not configured / Unknown");
+    expect(unconfiguredPrompt).toContain("NEVER invent, assume, or fabricate an engineering branch");
+  });
+
+  it("11. Local NLP engine surfaces academic background in career progress when present", () => {
+    const contextWithAcademic = {
+      career: {
+        targetRole: "Robotics Engineer",
+        readinessScore: 80,
+        academic: {
+          isConfigured: true,
+          branchName: "Robotics Engineering",
+          degreeName: "B.Tech",
+          currentYear: 4,
+        },
+      },
+      skills: [{ name: "ROS2", level: "Proficient" }],
+      skillGaps: [{ skill: "SLAM", priority: "Critical", currentScore: 30, targetScore: 80 }],
+    };
+
+    const res = localService.generateLocalResponse("How is my career progress?", contextWithAcademic);
+    expect(res.answer).toContain("Academic Pathway");
+    expect(res.answer).toContain("Robotics Engineering");
+    expect(res.answer).toContain("Year 4");
+
+    const contextWithoutAcademic = {
+      career: {
+        targetRole: "Full Stack Developer",
+        readinessScore: 65,
+        academic: { isConfigured: false },
+      },
+    };
+
+    const resNoAcad = localService.generateLocalResponse("How is my career progress?", contextWithoutAcademic);
+    expect(resNoAcad.answer).not.toContain("Academic Pathway");
+    expect(resNoAcad.answer).toContain("Full Stack Developer");
+  });
 });
+

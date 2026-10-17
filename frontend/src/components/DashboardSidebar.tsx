@@ -63,8 +63,8 @@ const DashboardSidebar = () => {
           );
         })}
 
-        {/* Admin-Only Section */}
-        {backendUser?.email === "sampatakumarsv@gmail.com" && (
+        {/* Admin-Only Section (UI visibility; authoritative security enforced by backend ensureAdmin) */}
+        {(backendUser?.role === "admin" || backendUser?.email === (import.meta.env.VITE_ADMIN_EMAIL || "sampatakumarsv@gmail.com")) && (
           <div className="pt-3 mt-3 border-t border-border/30">
             <div className="hidden lg:block px-3.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
               Administrator
