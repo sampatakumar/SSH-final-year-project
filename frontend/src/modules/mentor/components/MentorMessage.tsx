@@ -209,7 +209,7 @@ export const MentorMessage: React.FC<MentorMessageProps> = ({ message }) => {
       className={`flex items-start gap-3 p-4 rounded-2xl animate-in fade-in duration-200 transition-all ${
         isUser
           ? "bg-primary/5 border border-primary/20 ml-auto max-w-2xl shadow-neo-raised-sm"
-          : "bg-surface/90 border border-border/40 max-w-3xl shadow-neo-raised-sm"
+          : "bg-surface/90 border border-border/40 w-full max-w-4xl lg:max-w-5xl shadow-neo-raised-sm"
       }`}
     >
       <div
@@ -278,7 +278,7 @@ export const MentorMessage: React.FC<MentorMessageProps> = ({ message }) => {
             </div>
 
             {/* Course Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
               {message.courseRecommendations.shortlist?.map((c) => (
                 <CourseRecommendationCard
                   key={c.id}

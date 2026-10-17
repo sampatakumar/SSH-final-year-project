@@ -1,3 +1,4 @@
+import React, { useEffect } from "react";
 import {
   Briefcase,
   Sparkles,
@@ -5,64 +6,58 @@ import {
   GitBranch,
   GraduationCap,
   RefreshCw,
-  Award,
   AlertTriangle,
-  FileText,
   BookOpen,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { MentorContextData } from "../types/smartMentor.types";
 
 interface MentorContextPanelProps {
   context: MentorContextData | null;
   isLoading: boolean;
   onRefresh: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
 export const MentorContextPanel: React.FC<MentorContextPanelProps> = ({
   context,
   isLoading,
   onRefresh,
+  isOpen = true,
+  onClose,
 }) => {
-  if (!context) {
-    return (
-      <div className="p-4 rounded-2xl bg-surface/80 border border-border/40 space-y-4 shadow-neo-raised-sm animate-pulse">
-        <div className="h-4 w-32 bg-muted/60 rounded"></div>
-        <div className="space-y-2">
-          <div className="h-12 bg-muted/40 rounded-xl"></div>
-          <div className="h-12 bg-muted/40 rounded-xl"></div>
-          <div className="h-12 bg-muted/40 rounded-xl"></div>
-        </div>
-      </div>
-    );
-  }
+  // Support Escape-key dismissal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isOpen && onClose) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
-  const { career, skills, skillGaps, github, learning } = context;
-
-  return (
-    <aside className="w-full lg:w-80 space-y-4 shrink-0">
-      {/* Header with Refresh */}
-      <div className="p-4 rounded-2xl bg-surface border border-border/50 shadow-neo-raised space-y-4">
-        <div className="flex items-center justify-between gap-2 border-b border-border/30 pb-3">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" />
-            <h3 className="text-xs font-black uppercase tracking-wider text-foreground">
-              Live Profile Signals
-            </h3>
+  const renderContent = () => {
+    if (!context) {
+      return (
+        <div className="p-4 rounded-2xl bg-surface/80 border border-border/40 space-y-4 shadow-neo-raised-sm animate-pulse">
+          <div className="h-4 w-32 bg-muted/60 rounded"></div>
+          <div className="space-y-2">
+            <div className="h-12 bg-muted/40 rounded-xl"></div>
+            <div className="h-12 bg-muted/40 rounded-xl"></div>
+            <div className="h-12 bg-muted/40 rounded-xl"></div>
           </div>
-
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={onRefresh}
-            disabled={isLoading}
-            className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-foreground"
-            title="Refresh Live Context"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin text-primary" : ""}`} />
-          </Button>
         </div>
+      );
+    }
 
+    const { career, skillGaps, github, learning } = context;
+
+    return (
+      <div className="space-y-4 pb-6">
         {/* Career & Readiness */}
         <div className="space-y-2">
           <span className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">
@@ -189,6 +184,78 @@ export const MentorContextPanel: React.FC<MentorContextPanelProps> = ({
           </div>
         </div>
       </div>
-    </aside>
+    );
+  };
+
+  return (
+    <>
+      {/* Backdrop */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 transition-opacity duration-300 animate-in fade-in"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Slide-out Drawer */}
+      <aside
+        id="live-profile-signals-drawer"
+        aria-label="Live Profile Signals Drawer"
+        className={cn(
+          "fixed inset-y-0 right-0 z-50 flex flex-col bg-background/95 backdrop-blur-2xl border-l border-border/50 shadow-2xl transition-transform duration-300 ease-in-out w-full sm:w-[380px] md:w-[400px] lg:w-[420px] max-w-full select-none",
+          isOpen ? "translate-x-0 pointer-events-auto" : "translate-x-full pointer-events-none"
+        )}
+      >
+        {/* Drawer Header */}
+        <div className="flex items-center justify-between gap-3 p-4 sm:px-5 border-b border-border/30 bg-surface/80 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0 shadow-neo-raised-sm">
+              <Sparkles className="h-4 w-4" />
+            </div>
+            <div>
+              <h3 className="text-xs font-black uppercase tracking-wider text-foreground">
+                Live Profile Signals
+              </h3>
+              <p className="text-[10px] text-muted-foreground font-medium">
+                Real-time grounding for AI Mentor
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={onRefresh}
+              disabled={isLoading}
+              className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-foreground shadow-neo-raised-sm"
+              title="Refresh Live Context"
+              aria-label="Refresh profile signals"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin text-primary" : ""}`} />
+            </Button>
+
+            {onClose && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={onClose}
+                className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shadow-neo-raised-sm"
+                title="Close Drawer (Esc)"
+                aria-label="Close profile signals drawer"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 custom-scrollbar">
+          {renderContent()}
+        </div>
+      </aside>
+    </>
   );
 };

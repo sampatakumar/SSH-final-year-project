@@ -5,9 +5,11 @@ import {
   AlertCircle,
   Lightbulb,
   Info,
+  Activity,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { MentorMessage } from "./MentorMessage";
 import { MentorInput } from "./MentorInput";
 import { MentorSuggestions } from "./MentorSuggestions";
@@ -21,9 +23,15 @@ import type {
 
 interface MentorChatProps {
   context: MentorContextData | null;
+  onOpenSignals?: () => void;
+  isSignalsOpen?: boolean;
 }
 
-export const MentorChat: React.FC<MentorChatProps> = ({ context }) => {
+export const MentorChat: React.FC<MentorChatProps> = ({
+  context,
+  onOpenSignals,
+  isSignalsOpen = false,
+}) => {
   const [messages, setMessages] = useState<MentorMessageItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -199,9 +207,9 @@ export const MentorChat: React.FC<MentorChatProps> = ({ context }) => {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-[calc(100vh-12rem)] min-h-[550px] bg-surface/60 border border-border/50 rounded-2xl shadow-neo-raised overflow-hidden">
+    <div className="flex-1 flex flex-col h-[calc(100vh-10.5rem)] md:h-[calc(100vh-11rem)] min-h-[580px] w-full bg-surface/60 border border-border/50 rounded-2xl shadow-neo-raised overflow-hidden">
       {/* Chat Header */}
-      <div className="flex items-center justify-between gap-3 px-5 py-3.5 bg-surface/90 border-b border-border/40 shrink-0">
+      <div className="flex items-center justify-between gap-3 px-4 sm:px-5 py-3 bg-surface/90 border-b border-border/40 shrink-0">
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary border border-primary/25 flex items-center justify-center shadow-neo-raised-sm shrink-0">
             <Sparkles className="h-5 w-5" />
@@ -219,6 +227,25 @@ export const MentorChat: React.FC<MentorChatProps> = ({ context }) => {
         <div className="flex items-center gap-2">
           <MentorStatusBadge source={activeSource} isStreaming={isStreaming} />
 
+          {onOpenSignals && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onOpenSignals}
+              aria-expanded={isSignalsOpen}
+              className={cn(
+                "h-8 px-2.5 rounded-lg text-xs font-semibold gap-1.5 transition-colors shadow-neo-raised-sm",
+                isSignalsOpen
+                  ? "bg-primary/10 text-primary border-primary/30"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              title="View Live Profile Signals"
+            >
+              <Activity className="h-3.5 w-3.5 text-primary" />
+              <span className="hidden sm:inline">Profile Signals</span>
+            </Button>
+          )}
+
           {messages.length > 0 && (
             <Button
               size="sm"
@@ -235,7 +262,7 @@ export const MentorChat: React.FC<MentorChatProps> = ({ context }) => {
       </div>
 
       {/* Messages Scroll Area */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 custom-scrollbar">
         {/* Proactive Grounded Insights Banner */}
         {context && context.insights && context.insights.length > 0 && (
           <div className="p-4 rounded-2xl bg-primary/5 border border-primary/20 space-y-2 shadow-neo-raised-sm animate-in fade-in-50 duration-200">
