@@ -1114,9 +1114,127 @@ When students request a full learning path, the system constructs a 10-point pac
 
 1. **Live YouTube API Quota Limits:** When Google YouTube Data API v3 daily quota (10,000 units) is reached, the system falls back gracefully to the verified curated course registry with 100% feature parity.
 2. **Subtitles & Transcripts Search:** Automated in-video timestamp search for specific concept bookmarks within 10-hour courses can be enhanced in future phases using YouTube Captions API when OAuth2 authorization is granted.
+---
+
+## 15. PHASE 15 RESOLUTION STATUS — AI MENTOR ACCURACY, CAREER INTELLIGENCE & PERSONALIZED LEARNING QUALITY (EMPIRICALLY VERIFIED)
+
+Phase 15 focuses on improving the quality, consistency, and explainability of the platform's AI Mentor, career intelligence, GitHub skill analysis, skill-gap scoring, and personalized learning roadmaps. It eliminates score inflation, grounds AI recommendations in verified evidence, prevents cross-user context leakage, resolves role slugs and aliases deterministically, and implements a reproducible evaluation framework.
+
+### 15.1 Git Safety & Branch Audit
+- **Repository Root:** `c:\ssh_expand\SSH_integrated_Project`
+- **Active Branch:** `expand-test`
+- **Starting Commit:** `8147b71` (Phase 15 Course Recommendations commit)
+- **Phase 14 Baseline Commit:** `c695360` (Docker Environment Enablement) verified in history
+- **Main Branch Protection:** No changes merged, cherry-picked, or pushed to `main`.
+- **Phase 16 Protection:** Phase 16 has not been started.
+
+---
+
+### 15.2 Confirmed Defects and Technical Root Causes
+
+| Defect ID | Component | Verified Defect & Root Cause | Technical Resolution Applied |
+|---|---|---|---|
+| **DEF-15-01** | GitHub Skill Extraction | Language bytes alone were converted into skill proficiency without checking whether repositories were original or forked. Accounts with only forked repos received high scores. | Upgraded `buildCareerMentorPlan` to evaluate original (non-forked) repositories, inspect test topics/frameworks, calculate multi-factor confidence, and cap single-source scores at 75. Forked-only repos receive max 35 score with "Limited Evidence". |
+| **DEF-15-02** | Zero-Repo Profiles | When a user had 0 public GitHub repositories, `undefined.bio` threw errors and default scores inflated readiness to 70+. | Added explicit zero-repo guard in `buildCareerMentorPlan`: sets `hasInsufficientData: true`, `insufficientDataReason: "No public GitHub repositories were found..."`, and all readiness dimensions to 0 with status "Insufficient Evidence". |
+| **DEF-15-03** | Role Slugs & Aliases | Slugs (e.g. `frontend-developer`, `embedded-systems-engineer`) and technical aliases (`frontend`, `backend`, `dsa`, `ml`) failed exact-match benchmark lookups, causing fallback or missing rubric errors. | Implemented `resolveRoleBenchmark(roleIdentifier)` supporting exact names, case-insensitive matching, kebab-case slugs, normalized spaces, and canonical technical alias mappings. Unknown roles return `unknown_role` with `benchmarkPending: true` without silent substitution. |
+| **DEF-15-04** | Gap Scoring Conflation | Skills with zero profile evidence were scored as 0 and grouped with tested failures, giving users the false impression they had "failed" a skill assessment. | Split gap states into `missing_evidence` (status `Missing`, currentScore 0, explicit `howToDemonstrate` guidance) versus `demonstrated_weakness` (tested below target rank, with `howToImprove` guidance). Added `sparse` evidence coverage notice when fewer than 3 skills are evaluated. |
+| **DEF-15-05** | Multi-Role Comparison | Catalog-only roles without static rubrics were not distinguished from validated benchmarks in multi-role comparisons. | Added `incompleteBenchmarksCount` and `benchmarkNotices` to `compareRoles`, identifying which compared roles have full benchmarks versus catalog-only definitions. |
+| **DEF-15-06** | AI Mentor Context | `smartMentorContextService` lacked evidence confidence flags, exposed raw emails in user names, and did not include coding challenge pass rates or roadmap milestones. | Sanitized PII in user names, added `confidence`, `evidenceSources`, and `isDirectEvidence` per skill, added coding submission stats and completed roadmap milestones, and enforced strict in-memory cache isolation per user ID. |
+| **DEF-15-07** | Roadmap Prerequisite Ordering | Skill recommendations strictly followed priority ranking, which could order dependent frameworks (e.g. React) before foundational prerequisites (e.g. JavaScript). | Implemented cycle-safe topological prerequisite reordering that respects priority tiers and places prerequisites before dependent skills within the same tier. Attached verified canonical EduTube resources (`isVerified: true`). |
+| **DEF-15-08** | Local NLP Fallback Uncertainty | When GitHub or academic profiles were unconfigured, the local fallback engine generated generic audit numbers instead of communicating uncertainty. | Updated `smart-mentor-local.service.js` to detect unconfigured profiles and un-synced GitHub accounts, outputting explicit guidance: *"No public GitHub repositories have been synchronized yet..."* and *"Additionally, your academic profile is not yet configured..."*. |
+
+---
+
+### 15.3 AI Context & Evidence-Based Scoring Changes
+
+1. **Confidence Indicators & Breakdown:**
+   Each evaluated skill now carries `confidence` (`High`, `Moderate`, `Low`), `evidenceSources`, and `isDirectEvidence`.
+2. **Missing Evidence vs. Demonstrated Weakness:**
+   - `missing_evidence`: Learner has not submitted any GitHub projects or coding challenges for this skill. Recommendation explains *how to demonstrate* (e.g., submit a repo or pass a sandbox challenge).
+   - `demonstrated_weakness`: Learner attempted the skill but achieved a score below the benchmark requirement. Recommendation explains *how to strengthen* through practical projects.
+3. **Sparse Evidence Transparency:**
+   If a learner has fewer than 3 total evaluated skills, `evidenceCoverage: "sparse"` is attached with the notice: *"Skill-gap analysis is based on sparse available profile evidence. Connect GitHub or complete sandbox challenges for higher accuracy."*
+4. **Anti-Hallucination & Anti-Inflation Guarantees:**
+   - Unsupported-skill assignment rate is strictly **0%**.
+   - No universal star ratings fabricated for YouTube resources.
+   - AI Mentor prompted to never claim custom model training and explicitly distinguish facts from inferences.
+
+---
+
+### 15.4 Evaluation Methodology and Verification Suite
+
+A dedicated, reproducible evaluation test suite was created in `backend/test/career-intelligence-evaluation.test.js` containing 20 deterministic evaluation tests across 7 evaluation dimensions:
+
+1. **Benchmark Selection & Role Resolution Accuracy (4 tests):**
+   - 100% resolution of 10 standard canonical role names.
+   - 100% resolution of kebab-case slugs (`frontend-developer`, `embedded-systems-engineer`, etc.).
+   - 100% resolution of technical role aliases (`frontend`, `backend`, `dsa`, `ml`, `fullstack`).
+   - Zero silent substitution for unknown roles (`Astronaut / Space Pilot` returns `unknown_role`).
+2. **Evidence-Based GitHub Analysis & Anti-Inflation Guarantees (4 tests):**
+   - Zero-repo profiles receive 0% score and `hasInsufficientData: true`.
+   - Forked-only profiles receive `<= 50` score and "Limited Evidence" status.
+   - Repositories with tests and documentation receive "Developing" and high confidence breakdown.
+   - Strictly 0% unsupported skill assignment rate (no phantom skills assigned).
+3. **Missing Evidence vs. Demonstrated Weakness Separation (3 tests):**
+   - Unevidenced skills marked as `missing_evidence` with demonstration guide.
+   - Tested skills below benchmark marked as `demonstrated_weakness` with improvement guide.
+   - Sparse evidence notice triggered when `< 3` skills are evaluated.
+4. **Multi-Role Comparative Analysis Quality (2 tests):**
+   - Correct identification of shared vs role-specific skills across multi-role comparison.
+   - Transparent reporting of incomplete benchmarks when catalog-only roles (`Mechatronics Engineer`) are compared.
+5. **Personalized Roadmap Prerequisite Ordering & EduTube Linkage (3 tests):**
+   - Prerequisite ordering: JavaScript precedes React within the same priority tier.
+   - Cycle safety: circular dependencies do not throw or enter infinite loops.
+   - Verified canonical EduTube links distinguished from dynamic search queries.
+6. **Cross-User Context Isolation & PII Sanitization (2 tests):**
+   - Strict cache key isolation between different user IDs.
+   - Clean cache invalidation without cross-user leakage.
+7. **AI Mentor Grounding & Local NLP Fallback (2 tests):**
+   - Grounded responses using local NLP engine when Groq is unavailable.
+   - Explicit uncertainty communication when academic profile or GitHub is unconfigured.
+
+---
+
+### 15.5 Test Execution and Regression Results
+
+| Test Suite | Command | Files | Passed | Failed | Skipped | Total Tests | Status |
+|---|---|---|---|---|---|---|---|
+| **Phase 15 Career Intelligence Evaluation** | `npx vitest run test/career-intelligence-evaluation.test.js` | 1 | 20 | 0 | 0 | 20 / 20 (100%) | **PASS** |
+| **AI Mentor Course Recommendations** | `npx vitest run test/mentor-course-recommendation.test.js` | 1 | 18 | 0 | 0 | 18 / 18 (100%) | **PASS** |
+| **Skill Gaps Module Verification** | `npx vitest run test/gaps.integration.test.js` | 1 | 24 | 0 | 0 | 24 / 24 (100%) | **PASS** |
+| **Recommendations Integration** | `npx vitest run test/recommendations.integration.test.js` | 1 | 12 | 0 | 0 | 12 / 12 (100%) | **PASS** |
+| **Full Backend Regression Suite** | `npx vitest run` | 45 | 493 | 0 | 0 | 493 / 493 (100%) | **PASS** |
+| **Full Frontend Regression Suite** | `npm test -- --run` | 39 | 274 | 0 | 0 | 274 / 274 (100%) | **PASS** |
+| **Frontend Production Build** | `npm run build` | 3,447 modules | Built in 11.24s | 0 errors | 0 | Clean bundle | **PASS** |
+
+---
+
+### 15.6 Remaining Limitations and Catalog Status
+
+1. **Benchmark Rubric Coverage:**
+   - 38 career roles across Computing, Electronics, Electrical, Mechanical, Civil, and Business have fully validated rubrics with core skills, recommended skills, weights, and minimum proficiency levels.
+   - 15 specialized academic catalog roles (e.g. Chemical Process Engineer, Laboratory Analyst, Mechatronics Engineer, Bioinformatics Analyst) evaluate catalog core skills and transparently report `benchmark_pending` status without fabricating rubrics or substituting unrelated web development roles.
+2. **Repository Code Inspection Depth:**
+   - Public GitHub API provides repository metadata, languages, sizes, topics, and descriptions. Full static AST code parsing of private repositories is intentionally omitted to avoid requesting intrusive GitHub OAuth permissions.
+
+---
+
+### 15.7 Files Changed in Phase 15
+
+| File | Nature of Change |
+|---|---|
+| `backend/src/modules/github/services/githubCareer.service.js` | Anti-inflation scoring, original repo filtering, testing evidence detection, 0-repo guard, confidence breakdown |
+| `backend/src/modules/gaps/services/skillGap.service.js` | `resolveRoleBenchmark` slug/alias engine, missing evidence vs demonstrated weakness separation, sparse evidence notice, multi-role incomplete benchmark detection |
+| `backend/src/modules/recommendations/services/recommendation.service.js` | Cycle-safe topological prerequisite reordering respecting priority tiers, verified canonical EduTube registry integration |
+| `backend/src/modules/mentor/services/smart-mentor-context.service.js` | PII sanitization, skill confidence & evidence breakdown, milestone tracking, coding pass rate inclusion |
+| `backend/src/modules/mentor/services/smart-mentor-local.service.js` | Explicit uncertainty handling when GitHub or academic background is unconfigured |
+| `backend/src/modules/mentor/services/smart-mentor.service.js` | Grounded system prompt rules: distinguish facts vs inferences, explicit uncertainty, no training claims |
+| `backend/test/career-intelligence-evaluation.test.js` | 20 reproducible unit and evaluation tests covering all Phase 15 criteria |
+| `docs/PHASE_7_FEATURE_GAP_AUDIT.md` | Comprehensive Phase 15 feature gap audit and verification documentation |
 
 ---
 *End of Report — Smart Skill Hub Architecture & Release Readiness Engineering Team*
+
 
 
 

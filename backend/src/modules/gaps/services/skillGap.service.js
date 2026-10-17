@@ -33,6 +33,84 @@ function escapeRegex(string) {
   return String(string || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+export const ROLE_ALIAS_MAP = {
+  frontend: "Frontend Developer",
+  "front-end": "Frontend Developer",
+  backend: "Backend Developer",
+  "back-end": "Backend Developer",
+  fullstack: "Full Stack Developer",
+  "full-stack": "Full Stack Developer",
+  devops: "DevOps Engineer",
+  cloud: "Cloud Engineer",
+  sre: "Site Reliability Engineer",
+  ml: "Machine Learning Engineer",
+  ai: "AI Application Developer",
+  dsa: "Software Engineer (General / Core CS)",
+  swe: "Software Engineer",
+  sde: "Software Engineer",
+  qa: "QA Automation Engineer",
+  testing: "Software Test Engineer",
+  cybersecurity: "Cybersecurity Analyst",
+  security: "Cybersecurity Analyst",
+  data: "Data Analyst",
+  mobile: "Mobile App Developer",
+  android: "Mobile App Developer",
+  ios: "Mobile App Developer",
+  embedded: "Embedded Systems Engineer",
+  vlsi: "VLSI Design Engineer",
+  iot: "IoT Developer",
+  robotics: "Robotics Engineer",
+};
+
+/**
+ * Resolve target role identifier against validated benchmarks and known aliases.
+ * Supports exact names, lowercase, slugs (e.g. "embedded-systems-engineer"), and aliases.
+ */
+export function resolveRoleBenchmark(roleIdentifier) {
+  if (!roleIdentifier || typeof roleIdentifier !== "string") return null;
+
+  const raw = roleIdentifier.trim();
+  if (!raw) return null;
+
+  // 1. Direct exact match in ROLE_REQUIREMENTS
+  if (ROLE_REQUIREMENTS[raw]) {
+    return ROLE_REQUIREMENTS[raw];
+  }
+
+  // 2. Case-insensitive exact match
+  const lower = raw.toLowerCase();
+  const directMatchKey = Object.keys(ROLE_REQUIREMENTS).find(
+    (k) => k.toLowerCase() === lower
+  );
+  if (directMatchKey) return ROLE_REQUIREMENTS[directMatchKey];
+
+  // 3. Slug / kebab-case / snake-case match
+  const slugified = lower.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  const slugMatchKey = Object.keys(ROLE_REQUIREMENTS).find((k) => {
+    const kSlug = k.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    return kSlug === slugified;
+  });
+  if (slugMatchKey) return ROLE_REQUIREMENTS[slugMatchKey];
+
+  // 4. Normalized spaces match
+  const normalizedSpaces = lower.replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
+  const spaceMatchKey = Object.keys(ROLE_REQUIREMENTS).find((k) => {
+    const kNorm = k.toLowerCase().replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
+    return kNorm === normalizedSpaces;
+  });
+  if (spaceMatchKey) return ROLE_REQUIREMENTS[spaceMatchKey];
+
+  // 5. Common role alias mapping
+  if (ROLE_ALIAS_MAP[slugified] && ROLE_REQUIREMENTS[ROLE_ALIAS_MAP[slugified]]) {
+    return ROLE_REQUIREMENTS[ROLE_ALIAS_MAP[slugified]];
+  }
+  if (ROLE_ALIAS_MAP[lower] && ROLE_REQUIREMENTS[ROLE_ALIAS_MAP[lower]]) {
+    return ROLE_REQUIREMENTS[ROLE_ALIAS_MAP[lower]];
+  }
+
+  return null;
+}
+
 /**
  * Locate a career role definition from static academic catalog constants or provided catalog doc.
  */
@@ -74,16 +152,8 @@ export function analyzeSkillGaps(
 ) {
   const roleName = String(targetRole || "").trim();
 
-  // 1. Check validated static rubrics
-  let roleConfig = ROLE_REQUIREMENTS[roleName];
-  if (!roleConfig) {
-    const matchKey = Object.keys(ROLE_REQUIREMENTS).find(
-      (k) => k.toLowerCase() === roleName.toLowerCase()
-    );
-    if (matchKey) {
-      roleConfig = ROLE_REQUIREMENTS[matchKey];
-    }
-  }
+  // 1. Resolve role benchmark using robust slug and alias resolution
+  const roleConfig = resolveRoleBenchmark(roleName);
 
   // 2. If validated rubric exists, perform full benchmark evaluation
   if (roleConfig) {
@@ -116,21 +186,24 @@ export function analyzeSkillGaps(
       const requiredRank = PROFICIENCY_RANK[minRequired] || 3;
 
       if (!userSkill) {
+        // Missing evidence: no records found across Resume, GitHub, or Coding
         gaps.push({
           skill: canonicalReq,
           canonicalName: canonicalReq,
           category: getSkillCategory(canonicalReq),
           status: GAP_STATUSES.MISSING,
+          evidenceState: "missing_evidence",
           priority: req.importance === "critical" ? GAP_PRIORITIES.CRITICAL : req.isCore ? GAP_PRIORITIES.HIGH : GAP_PRIORITIES.MEDIUM,
           isCore: req.isCore,
           evidenceType: req.evidenceType || ["project", "github", "coding"],
           observableEvidence: req.observableEvidence || (roleConfig.observableEvidence && roleConfig.observableEvidence[0]) || "",
+          howToDemonstrate: `Submit an original project repository or pass a verified coding sandbox challenge demonstrating ${canonicalReq}.`,
           learningRoute: `/dashboard/edutube?search=${encodeURIComponent(canonicalReq)}`,
           roadmapRoute: "/dashboard/roadmap",
           currentScore: 0,
           currentLevel: "None",
           requiredLevel: minRequired,
-          reason: `Target role "${roleConfig.roleName}" requires ${canonicalReq}, but no evidence was detected across Resume, GitHub, or Coding submissions.`,
+          reason: `Target role "${roleConfig.roleName}" requires ${canonicalReq}, but no evidence was detected across Resume, GitHub, or Coding submissions. (Status: Missing Evidence)`,
         });
       } else {
         const userRank = PROFICIENCY_RANK[userSkill.level] || 1;
@@ -153,16 +226,18 @@ export function analyzeSkillGaps(
             canonicalName: canonicalReq,
             category: userSkill.category || getSkillCategory(canonicalReq),
             status,
+            evidenceState: "demonstrated_weakness",
             priority,
             isCore: req.isCore,
             evidenceType: req.evidenceType || ["project", "github", "coding"],
             observableEvidence: req.observableEvidence || (roleConfig.observableEvidence && roleConfig.observableEvidence[0]) || "",
+            howToDemonstrate: `Strengthen ${canonicalReq} through practical projects with automated testing and documented APIs.`,
             learningRoute: `/dashboard/edutube?search=${encodeURIComponent(canonicalReq)}`,
             roadmapRoute: "/dashboard/roadmap",
             currentScore: userSkill.score,
             currentLevel: userSkill.level,
             requiredLevel: minRequired,
-            reason: `Current proficiency is "${userSkill.level}" (${userSkill.score}/100), but "${roleConfig.roleName}" recommends "${minRequired}". Additional verified projects or coding tasks needed.`,
+            reason: `Current evaluated proficiency is "${userSkill.level}" (${userSkill.score}/100), but "${roleConfig.roleName}" recommends "${minRequired}". Additional verified projects or coding tasks needed.`,
           });
         } else {
           metSkills.push({
@@ -170,6 +245,7 @@ export function analyzeSkillGaps(
             canonicalName: canonicalReq,
             category: userSkill.category || getSkillCategory(canonicalReq),
             status: GAP_STATUSES.MET,
+            evidenceState: "demonstrated_competence",
             priority: GAP_PRIORITIES.NONE,
             isCore: req.isCore,
             evidenceType: req.evidenceType || ["project", "github", "coding"],
@@ -197,12 +273,20 @@ export function analyzeSkillGaps(
       ? Math.round((metSkills.length / totalEvaluatedReqs) * 100)
       : 0;
 
+    const totalUserSkills = evaluatedSkills.length;
+    const isSparseEvidence = totalUserSkills < 3;
+    const evidenceCoverage = isSparseEvidence ? "sparse" : (totalUserSkills >= 6 ? "comprehensive" : "moderate");
+
     return {
       targetRole: roleConfig.roleName,
       roleDescription: roleConfig.description,
       benchmarkStatus: "validated",
       benchmarkPending: false,
       roleMatchPercentage,
+      evidenceCoverage,
+      evidenceNotice: isSparseEvidence
+        ? `Evaluation is based on sparse available profile evidence (${totalUserSkills} skill${totalUserSkills === 1 ? "" : "s"} evaluated). Role match percentage reflects evidence coverage rather than definitive lack of competence.`
+        : null,
       totalRequiredSkills: allRequirements.length,
       metSkillsCount: metSkills.length,
       gapsCount: gaps.length,
@@ -571,10 +655,18 @@ export function compareRoles(
     return b.affectedRoles.length - a.affectedRoles.length;
   });
 
+  const incompleteBenchmarks = roleAnalyses.filter((a) => a.benchmarkPending);
+
   return {
     comparedRoles: rolesToCompare,
     rolesCount: rolesToCompare.length,
     rolesSummary,
+    incompleteBenchmarksCount: incompleteBenchmarks.length,
+    benchmarkNotices: incompleteBenchmarks.map((a) => ({
+      role: a.targetRole,
+      status: a.benchmarkStatus,
+      notice: a.benchmarkNotice || `Role "${a.targetRole}" benchmark is pending full validation.`,
+    })),
     sharedSkillsCount: sharedSkills.length,
     sharedSkills,
     roleSpecificSkillsCount: roleSpecificSkillsList.length,

@@ -118,7 +118,7 @@ export class SmartMentorContextService {
       : [];
 
     const career = {
-      name: user?.displayName || user?.email?.split("@")[0] || "Developer",
+      name: user?.displayName || "Student Developer",
       targetRole,
       targetRoles,
       careerInterests,
@@ -129,20 +129,25 @@ export class SmartMentorContextService {
       experienceYears: user?.experience?.length ? `${user.experience.length} roles recorded` : "Entry Level / Student",
     };
 
-    // 2. Skills & Matrix
+    // 2. Skills & Matrix (Distinguishing Observed Evidence from Inferences)
     const skills = (skillProfile?.skills || []).map((s) => ({
       name: s.skill,
       level: s.level || "Limited Evidence",
       score: s.score || 0,
       category: s.category || "General",
+      confidence: s.confidence || (Array.isArray(s.sources) && s.sources.length >= 2 ? "high" : "medium"),
+      evidenceSources: s.sources || ["inferred"],
+      isDirectEvidence: Boolean(Array.isArray(s.sources) && (s.sources.includes("github") || s.sources.includes("coding"))),
     }));
 
-    // 3. Skill Gaps
+    // 3. Skill Gaps (Distinguishing Missing Evidence from Demonstrated Weakness)
     const skillGaps = (skillProfile?.skillGaps || []).map((g) => ({
       skill: g.skill,
       priority: g.priority || "Medium",
       currentScore: g.currentScore || 0,
       targetScore: g.targetScore || 75,
+      evidenceState: g.evidenceState || (g.currentScore === 0 ? "missing_evidence" : "demonstrated_weakness"),
+      howToDemonstrate: g.howToDemonstrate || (g.currentScore === 0 ? "Submit original project or pass sandbox coding challenge" : "Add automated tests and production architecture"),
       reason: g.reason || `Essential for ${targetRole}`,
     }));
 
@@ -152,6 +157,7 @@ export class SmartMentorContextService {
       title: r.title,
       type: r.type,
       description: r.description,
+      isCompleted: Boolean(r.isCompleted),
     }));
 
     // 5. GitHub Connection & Intelligence
@@ -219,6 +225,9 @@ export class SmartMentorContextService {
       playlistsCount: playlists.length,
       recentTopics: watchHistory.slice(0, 4).map((h) => h.title),
       continueLearningTitle: watchHistory.find((h) => !h.completed)?.title || null,
+      completedMilestonesCount: completedProgress.length,
+      activeRoadmapSteps: (skillProfile?.recommendations || []).filter((r) => !r.isCompleted).length,
+      completedRoadmapSteps: (skillProfile?.recommendations || []).filter((r) => r.isCompleted).length,
     };
 
     // 7. Projects
@@ -243,6 +252,8 @@ export class SmartMentorContextService {
     const coding = {
       totalSubmissions: codingSubs.length,
       passedCount: passedProblems.length,
+      passRate: codingSubs.length > 0 ? Math.round((passedProblems.length / codingSubs.length) * 100) : 0,
+      verifiedChallenges: passedProblems.map((p) => p.taskId || p.taskTitle).filter(Boolean).slice(0, 5),
     };
 
     // 10. Proactive Insights (2-4 grounded dynamic observations)

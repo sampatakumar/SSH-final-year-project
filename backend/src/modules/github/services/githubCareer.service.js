@@ -38,46 +38,113 @@ export function buildCareerMentorPlan({
 
   const repositories = githubData?.repositories || [];
   const languages = githubData?.languages || {};
-  const dominantLanguage = githubData?.dominantLanguage || "JavaScript";
-  const engineeringQuality = githubData?.engineeringQuality || {
-    overallScore: 65,
-    dimensions: { documentation: 60, testingAndCicd: 40, architectureDiversity: 50, repositoryHygiene: 70 },
-    strengths: [],
-    improvements: [],
-  };
+  const dominantLanguage = githubData?.dominantLanguage || (repositories.length > 0 ? "JavaScript" : "None");
+  const hasZeroRepos = repositories.length === 0;
+
+  const engineeringQuality = hasZeroRepos
+    ? {
+        overallScore: 0,
+        dimensions: { documentation: 0, testingAndCicd: 0, architectureDiversity: 0, repositoryHygiene: 0 },
+        strengths: [],
+        improvements: ["Publish original public code repositories to unlock engineering quality assessments."],
+      }
+    : (githubData?.engineeringQuality || {
+        overallScore: 40,
+        dimensions: { documentation: 30, testingAndCicd: 20, architectureDiversity: 30, repositoryHygiene: 40 },
+        strengths: [],
+        improvements: [],
+      });
+
   const projectComplexity = githubData?.projectComplexity || {
     summary: { beginnerCount: 0, intermediateCount: 0, advancedCount: 0 },
     topComplexProjects: [],
   };
   const aggregateStats = githubData?.aggregateStats || {};
 
-  // 1. Compute Observed GitHub Skills
+  // 1. Compute Observed GitHub Skills with Genuine Evidence Corroboration
   const observedSkills = [];
-  Object.entries(languages).forEach(([lang, stat]) => {
-    const canonical = normalizeSkill(lang) || lang;
-    const originalRepos = repositories.filter(
-      (r) => !r.fork && r.language?.toLowerCase() === lang.toLowerCase()
-    ).length;
+  if (!hasZeroRepos) {
+    Object.entries(languages).forEach(([lang, stat]) => {
+      const canonical = normalizeSkill(lang) || lang;
+      const langRepos = repositories.filter(
+        (r) => r.language?.toLowerCase() === lang.toLowerCase()
+      );
+      const originalRepos = langRepos.filter((r) => !r.fork);
+      const originalCount = originalRepos.length;
+      const forkCount = langRepos.length - originalCount;
 
-    let score = 50;
-    if (originalRepos >= 2) score += 20;
-    if (stat.size > 20000) score += 15;
-    if (stat.percentage > 30) score += 10;
-    score = Math.min(95, score);
+      // Inspect actual code artifacts & quality signals across repositories of this language
+      const hasTests = originalRepos.some(
+        (r) =>
+          r.topics?.some((t) => ["test", "testing", "jest", "vitest", "pytest", "cypress", "mocha", "playwright"].includes(t)) ||
+          r.name.toLowerCase().includes("test")
+      );
+      const hasCicd = originalRepos.some(
+        (r) =>
+          r.topics?.some((t) => ["ci", "cd", "github-actions", "actions", "docker"].includes(t)) ||
+          r.name.toLowerCase().includes("docker")
+      );
+      const hasDocs = originalRepos.some(
+        (r) => Boolean(r.description && r.description.length > 15)
+      );
 
-    let level = "Developing";
-    if (score >= 80) level = "Strong Evidence";
-    else if (score >= 65) level = "Competent";
+      const artifacts = [];
+      if (hasTests) artifacts.push("Automated Test Suite");
+      if (hasCicd) artifacts.push("CI/CD or Container Setup");
+      if (hasDocs) artifacts.push("Documented Project Structure");
 
-    observedSkills.push({
-      skill: canonical,
-      canonicalName: canonical,
-      category: getSkillCategory(canonical) || "Language",
-      score,
-      level,
-      sources: ["github"],
+      // Score strictly bounded by verified code signals
+      let score = 25; // Base signal for detected language
+      if (originalCount >= 1) score += 15;
+      if (originalCount >= 2) score += 10;
+      if (stat.size > 20000) score += 10;
+      if (hasDocs) score += 5;
+      if (hasTests) score += 10;
+      if (hasCicd) score += 5;
+
+      // Penalize forked-only code with no original implementation
+      if (originalCount === 0 && forkCount > 0) {
+        score = Math.min(30, score);
+      }
+
+      // Single-source ceiling: GitHub alone cannot award >75 (Proficient requires multi-source corroboration)
+      score = Math.min(75, Math.max(20, score));
+
+      let level = "Limited Evidence";
+      if (score >= 65 && originalCount >= 1 && (hasTests || hasDocs)) {
+        level = "Competent";
+      } else if (score >= 40) {
+        level = "Developing";
+      }
+
+      let confidence = "low";
+      if (originalCount >= 2 && hasTests && hasDocs) {
+        confidence = "high";
+      } else if (originalCount >= 1 && (hasDocs || stat.size > 15000)) {
+        confidence = "medium";
+      }
+
+      observedSkills.push({
+        skill: canonical,
+        canonicalName: canonical,
+        category: getSkillCategory(canonical) || "Language",
+        score,
+        level,
+        sources: ["github"],
+        confidence,
+        evidenceBreakdown: {
+          isObservedDirectly: originalCount > 0,
+          confidence,
+          originalReposCount: originalCount,
+          forkCount,
+          testsDetected: hasTests,
+          cicdDetected: hasCicd,
+          documentationQuality: hasDocs ? "documented" : "minimal",
+          meaningfulArtifacts: artifacts,
+        },
+      });
     });
-  });
+  }
 
   // Merge with userSkillProfile if available
   const allEvaluatedSkills = [...observedSkills];
@@ -111,11 +178,28 @@ export function buildCareerMentorPlan({
   const recommendations = generateRecommendations(gapAnalysisResult.gaps, role);
 
   // 4. Determine Strengths, Gaps & Positioning
-  const isFrontendHeavy = ["JavaScript", "TypeScript", "HTML", "CSS", "Vue", "React"].includes(dominantLanguage) ||
-    Boolean(languages["TypeScript"] || languages["JavaScript"]);
+  const originalRepos = repositories.filter((r) => !r.fork);
+  const originalFrontendRepos = originalRepos.filter((r) =>
+    ["JavaScript", "TypeScript", "HTML", "CSS", "Vue", "React"].includes(r.language) ||
+    r.topics?.some((t) => ["react", "vue", "angular", "frontend", "nextjs", "svelte"].includes(t))
+  );
+  const hasOriginalFrontend = originalFrontendRepos.length > 0;
+  const isFrontendHeavy = hasOriginalFrontend && (
+    ["JavaScript", "TypeScript", "HTML", "CSS", "Vue", "React"].includes(dominantLanguage) ||
+    Boolean(languages["TypeScript"] || languages["JavaScript"])
+  );
   const hasBackend = Boolean(languages["Go"] || languages["Python"] || languages["Java"] || languages["Rust"] || languages["PHP"] || languages["C#"]);
   const hasDockerEvidence = repositories.some((r) => r.topics?.includes("docker") || r.name.toLowerCase().includes("docker"));
-  const hasTestingEvidence = engineeringQuality.dimensions.testingAndCicd >= 60;
+  const hasRepoTestEvidence = repositories.some(
+    (r) =>
+      !r.fork &&
+      (r.topics?.some((t) => ["test", "tests", "jest", "vitest", "pytest", "cypress", "mocha", "testing", "ci"].includes(t)) ||
+        /test|spec/i.test(r.name) ||
+        r.description?.toLowerCase().includes("test") ||
+        r.description?.toLowerCase().includes("vitest") ||
+        r.description?.toLowerCase().includes("jest"))
+  );
+  const hasTestingEvidence = Boolean(engineeringQuality?.dimensions?.testingAndCicd >= 60 || hasRepoTestEvidence);
 
   // Determine Stage & Hero
   let currentStage = "Junior to Mid Developer expanding engineering portfolio";
@@ -154,52 +238,99 @@ export function buildCareerMentorPlan({
   }
 
   // 5. Evidence-Based Career Readiness Dimensions
-  const readinessDimensions = [
-    {
-      dimension: "Frontend Engineering",
-      status: isFrontendHeavy ? "Strong" : "Developing",
-      score: isFrontendHeavy ? 88 : 55,
-      evidence: isFrontendHeavy
-        ? `Observed ${languages[dominantLanguage]?.repoCount || 1}+ repositories in ${dominantLanguage} with ${languages[dominantLanguage]?.percentage || 60}% code volume.`
-        : "Limited frontend client repository evidence detected on GitHub.",
-    },
-    {
-      dimension: "Backend Engineering",
-      status: hasBackend || repositories.some((r) => r.topics?.includes("api") || r.topics?.includes("express")) ? "Developing" : "Limited Evidence",
-      score: hasBackend ? 70 : 45,
-      evidence: hasBackend
-        ? "Identified server-side services or backend languages in public repositories."
-        : "Backend API and server architecture repositories are comparatively scarce.",
-    },
-    {
-      dimension: "Database & Storage",
-      status: repositories.some((r) => r.topics?.some((t) => ["mongodb", "postgres", "sql", "redis", "mysql"].includes(t))) ? "Developing" : "Limited Evidence",
-      score: 50,
-      evidence: "Database integration signals found in project topics and backend configurations.",
-    },
-    {
-      dimension: "Testing & Reliability",
-      status: hasTestingEvidence ? "Developing" : "Limited Evidence",
-      score: engineeringQuality.dimensions.testingAndCicd || 35,
-      evidence: hasTestingEvidence
-        ? "Testing indicators observed in repository configuration and structure."
-        : "Automated test suites (Jest, Vitest, PyTest) not systematically detected across projects.",
-    },
-    {
-      dimension: "DevOps & Cloud (Docker / CI)",
-      status: hasDockerEvidence ? "Developing" : "Needs Attention",
-      score: hasDockerEvidence ? 65 : 30,
-      evidence: hasDockerEvidence
-        ? "Containerization configurations (Dockerfile) observed in repository topics."
-        : "No Dockerfiles or GitHub Actions CI/CD workflow files detected.",
-    },
-    {
-      dimension: "Open Source & Collaboration",
-      status: (aggregateStats.totalForks || 0) > 0 || (aggregateStats.totalStars || 0) >= 5 ? "Strong" : "Developing",
-      score: (aggregateStats.totalStars || 0) >= 10 ? 85 : 60,
-      evidence: `Accumulated ${aggregateStats.totalStars || 0} stars and ${aggregateStats.totalForks || 0} forks across public developer projects.`,
-    },
-  ];
+  const readinessDimensions = hasZeroRepos
+    ? [
+        {
+          dimension: "Frontend Engineering",
+          status: "Insufficient Evidence",
+          score: 0,
+          evidence: "No public frontend repositories detected on GitHub.",
+        },
+        {
+          dimension: "Backend Engineering",
+          status: "Insufficient Evidence",
+          score: 0,
+          evidence: "No public backend or API repositories detected on GitHub.",
+        },
+        {
+          dimension: "Database & Storage",
+          status: "Insufficient Evidence",
+          score: 0,
+          evidence: "No public database integration configurations detected.",
+        },
+        {
+          dimension: "Testing & Reliability",
+          status: "Insufficient Evidence",
+          score: 0,
+          evidence: "No automated test suites detected across public repositories.",
+        },
+        {
+          dimension: "DevOps & Cloud (Docker / CI)",
+          status: "Insufficient Evidence",
+          score: 0,
+          evidence: "No containerization or CI/CD workflow configurations detected.",
+        },
+        {
+          dimension: "Open Source & Collaboration",
+          status: "Insufficient Evidence",
+          score: 0,
+          evidence: "No public repositories available to assess open source collaboration.",
+        },
+      ]
+    : [
+        {
+          dimension: "Frontend Engineering",
+          status: hasOriginalFrontend
+            ? (isFrontendHeavy ? "Strong" : "Developing")
+            : (repositories.some((r) => ["JavaScript", "TypeScript", "HTML", "CSS"].includes(r.language)) ? "Limited Evidence" : "Limited Evidence"),
+          score: hasOriginalFrontend
+            ? (isFrontendHeavy ? 80 : 45)
+            : (repositories.some((r) => r.fork && ["JavaScript", "TypeScript", "HTML", "CSS"].includes(r.language)) ? 35 : 20),
+          evidence: hasOriginalFrontend
+            ? `Observed ${languages[dominantLanguage]?.repoCount || 1}+ original repositories in ${dominantLanguage} with ${languages[dominantLanguage]?.percentage || 60}% code volume.`
+            : "Frontend repositories detected are forks or insufficient original code evidence exists on GitHub.",
+        },
+        {
+          dimension: "Backend Engineering",
+          status: hasBackend || repositories.some((r) => r.topics?.includes("api") || r.topics?.includes("express")) ? "Developing" : "Limited Evidence",
+          score: hasBackend ? 65 : 35,
+          evidence: hasBackend
+            ? "Identified server-side services or backend languages in public repositories."
+            : "Backend API and server architecture repositories are comparatively scarce.",
+        },
+        {
+          dimension: "Database & Storage",
+          status: repositories.some((r) => r.topics?.some((t) => ["mongodb", "postgres", "sql", "redis", "mysql"].includes(t))) ? "Developing" : "Limited Evidence",
+          score: repositories.some((r) => r.topics?.some((t) => ["mongodb", "postgres", "sql", "redis", "mysql"].includes(t))) ? 55 : 30,
+          evidence: repositories.some((r) => r.topics?.some((t) => ["mongodb", "postgres", "sql", "redis", "mysql"].includes(t)))
+            ? "Database integration signals found in project topics and backend configurations."
+            : "No database integration topics or configurations detected in public projects.",
+        },
+        {
+          dimension: "Testing & Reliability",
+          status: hasTestingEvidence ? "Developing" : "Limited Evidence",
+          score: hasTestingEvidence
+            ? Math.max(engineeringQuality?.dimensions?.testingAndCicd || 0, 60)
+            : (engineeringQuality?.dimensions?.testingAndCicd || 25),
+          evidence: hasTestingEvidence
+            ? "Testing indicators observed in repository configuration and structure."
+            : "Automated test suites (Jest, Vitest, PyTest) not systematically detected across projects.",
+        },
+        {
+          dimension: "DevOps & Cloud (Docker / CI)",
+          status: hasDockerEvidence ? "Developing" : "Needs Attention",
+          score: hasDockerEvidence ? 60 : 25,
+          evidence: hasDockerEvidence
+            ? "Containerization configurations (Dockerfile) observed in repository topics."
+            : "No Dockerfiles or GitHub Actions CI/CD workflow files detected.",
+        },
+        {
+          dimension: "Open Source & Collaboration",
+          status: (aggregateStats.totalForks || 0) > 0 || (aggregateStats.totalStars || 0) >= 5 ? "Strong" : "Developing",
+          score: (aggregateStats.totalStars || 0) >= 10 ? 80 : 50,
+          evidence: `Accumulated ${aggregateStats.totalStars || 0} stars and ${aggregateStats.totalForks || 0} forks across public developer projects.`,
+        },
+      ];
 
   // 6. "What Should I Do Next?" Prioritized Action Plan (3 Critical Tasks)
   const nextActions = [
@@ -249,8 +380,8 @@ export function buildCareerMentorPlan({
   // 7. Dedicated GitHub Improvement Plan
   const githubImprovementPlan = {
     profile: [
-      githubData.profile.bio ? "Refine bio to emphasize your target specialization and active tech stack." : "Add a clear professional bio highlighting your target engineering role.",
-      githubData.profile.blog ? "Ensure your portfolio or LinkedIn link is up to date." : "Add a link to your personal portfolio or LinkedIn profile.",
+      githubData?.profile?.bio ? "Refine bio to emphasize your target specialization and active tech stack." : "Add a clear professional bio highlighting your target engineering role.",
+      githubData?.profile?.blog ? "Ensure your portfolio or LinkedIn link is up to date." : "Add a link to your personal portfolio or LinkedIn profile.",
       "Pin your top 4 most architecturally complex repositories to your GitHub profile overview.",
     ],
     repositories: [
@@ -413,12 +544,16 @@ export function buildCareerMentorPlan({
 
   return {
     targetRole: role,
+    hasInsufficientData: hasZeroRepos,
+    insufficientDataReason: hasZeroRepos
+      ? "No public GitHub repositories were found. Public code repositories with original implementation code, tests, and documentation are required to evaluate engineering skills."
+      : null,
     hero: {
       targetRole: role,
-      currentStage,
-      strongestArea,
-      biggestGap,
-      nextPriority,
+      currentStage: hasZeroRepos ? "Early-stage developer preparing engineering showcase" : currentStage,
+      strongestArea: hasZeroRepos ? "Needs Repository Evidence" : strongestArea,
+      biggestGap: hasZeroRepos ? "Public code repository artifacts & verified projects" : biggestGap,
+      nextPriority: hasZeroRepos ? `Publish your first original code project with documentation and tests for ${role}.` : nextPriority,
     },
     readinessDimensions,
     nextActions,

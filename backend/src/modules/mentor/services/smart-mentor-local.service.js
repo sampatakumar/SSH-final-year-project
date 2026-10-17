@@ -155,14 +155,13 @@ Please click **Sync Now** in Settings to refresh your repository data.`;
 
       case "github_repository":
       case "github_review": {
-        if (github.connectionState === "not_connected") {
-          answer = `Your **GitHub account is not connected** yet.
+        if (github.connectionState === "not_connected" || (!github.hasAnalysis && (github.repositoryCount || 0) === 0)) {
+          const academicNote = !context.career?.academic?.isConfigured
+            ? "\n\nAdditionally, your academic profile is not yet configured. Please configure your degree, branch, and semester in Academic Profile settings."
+            : "";
 
-To receive an in-depth repository review, quality audit, and portfolio optimization suggestions:
-1. Go to **Settings → Connected Accounts**.
-2. Click **Connect GitHub**.
-3. Smart Skill Hub will sync and analyze your repositories.`;
-          summary = "GitHub not connected. Connect in Settings.";
+          answer = `Your **GitHub account is not connected** yet (or no public repositories have been synchronized). Connect GitHub in Settings to unlock automated repository auditing and career intelligence.${academicNote}`;
+          summary = "GitHub not connected or no repositories synced.";
           actions.push({
             title: "Connect GitHub in Settings",
             priority: "high",

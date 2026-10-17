@@ -112,12 +112,43 @@ export function generateRecommendations(gaps = [], targetRole = "Full Stack Deve
       "CI/CD": ["Git", "Automated Testing"],
       Jest: ["JavaScript"],
       Vitest: ["JavaScript", "TypeScript"],
+      "Full Stack Development": ["JavaScript", "React", "Node.js"],
+      "Machine Learning": ["Python", "Linear Algebra Basics"],
     };
 
     const prerequisites = prerequisitesMap[canonical] || ["Basic Programming Fundamentals"];
     const completionCriteria = codingTask
       ? `Successfully execute and pass 100% of test cases for "${codingTask.taskTitle}" in the isolated Docker coding sandbox.`
       : `Build and document an original implementation prototype with error handling and verify against standard tests.`;
+
+    // Verified EduTube link mapping
+    const canonicalEdutubeRegistry = {
+      Python: { title: "Python for Beginners - Full Course", url: "https://www.youtube.com/watch?v=kqtD5dpn9C8", id: "kqtD5dpn9C8", type: "full_course" },
+      JavaScript: { title: "JavaScript Full Course for Beginners", url: "https://www.youtube.com/watch?v=PkZNo7MFNFg", id: "PkZNo7MFNFg", type: "full_course" },
+      React: { title: "React 18 / 19 Full Course 2024", url: "https://www.youtube.com/watch?v=bMknfKXIFA8", id: "bMknfKXIFA8", type: "full_course" },
+      "Node.js": { title: "Node.js and Express.js Full Course", url: "https://www.youtube.com/watch?v=Oe421EPjeBE", id: "Oe421EPjeBE", type: "full_course" },
+      Docker: { title: "Docker Tutorial for Beginners [Full Course]", url: "https://www.youtube.com/watch?v=3c-iBn73dDE", id: "3c-iBn73dDE", type: "full_course" },
+      "Data Structures": { title: "Data Structures and Algorithms in Java", url: "https://www.youtube.com/playlist?list=PL9gnSGHSqcnr_DxHsP7AW9ftq0AtAyYqJ", id: "PL9gnSGHSqcnr_DxHsP7AW9ftq0AtAyYqJ", type: "complete_playlist" },
+    };
+
+    const verifiedMatch = canonicalEdutubeRegistry[canonical] || null;
+    const edutubeResource = verifiedMatch
+      ? {
+          title: verifiedMatch.title,
+          edutubeUrl: verifiedMatch.url.includes("playlist")
+            ? `/dashboard/edutube?playlist=${encodeURIComponent(verifiedMatch.id)}`
+            : `/dashboard/edutube?video=${encodeURIComponent(verifiedMatch.id)}`,
+          videoUrl: verifiedMatch.url,
+          isVerified: true,
+          type: verifiedMatch.type,
+        }
+      : {
+          title: `${canonical} Full Course Tutorial`,
+          edutubeUrl: `/dashboard/edutube?search=${encodeURIComponent(canonical)}`,
+          videoUrl: null,
+          isVerified: false,
+          type: "search_query",
+        };
 
     recommendations.push({
       recommendationId: `rec_${canonical.toLowerCase().replace(/[^a-z0-9]/g, "_")}_${recommendations.length + 1}`,
@@ -139,6 +170,7 @@ export function generateRecommendations(gaps = [], targetRole = "Full Stack Deve
       platformTaskId: codingTask ? codingTask.taskId : null,
       platformTaskTitle: codingTask ? codingTask.taskTitle : null,
       documentationUrl: docUrl,
+      edutubeResource,
       edutubeTopicQuery: `${canonical} full course tutorial`,
       estimatedHours,
       estimatedEffortText: `~${estimatedHours} hours (estimated)`,
@@ -146,11 +178,45 @@ export function generateRecommendations(gaps = [], targetRole = "Full Stack Deve
     });
   }
 
-  // Ensure deterministic priority sorting: Critical -> High -> Medium -> Low
+  // 4. Deterministic Prerequisite & Priority Topological Ordering (Cycle-Safe)
+  // If recommendation A is a prerequisite of recommendation B, A MUST precede B.
   const priorityRank = { Critical: 0, High: 1, Medium: 2, Low: 3 };
+
+  // First sort by priority
   recommendations.sort((a, b) => (priorityRank[a.priority] ?? 4) - (priorityRank[b.priority] ?? 4));
 
-  return recommendations;
+  // Build dependency map between active recommendations
+  const skillIndexMap = new Map(recommendations.map((r, idx) => [r.skill.toLowerCase(), idx]));
+  const adjusted = [...recommendations];
+
+  // Pass over recommendations to reorder prerequisites before dependents within same or higher priority
+  for (let pass = 0; pass < adjusted.length; pass++) {
+    let swapped = false;
+    for (let i = 0; i < adjusted.length; i++) {
+      for (let j = i + 1; j < adjusted.length; j++) {
+        const itemBefore = adjusted[i];
+        const itemAfter = adjusted[j];
+        const priorityBefore = priorityRank[itemBefore.priority] ?? 4;
+        const priorityAfter = priorityRank[itemAfter.priority] ?? 4;
+
+        // If itemBefore depends on itemAfter and itemAfter is at least as critical, reorder
+        if (priorityAfter <= priorityBefore) {
+          if (itemBefore.prerequisites && itemBefore.prerequisites.some((p) => p.toLowerCase() === itemAfter.skill.toLowerCase())) {
+            // Check for circular dependency before swapping
+            const isCircular = itemAfter.prerequisites && itemAfter.prerequisites.some((p) => p.toLowerCase() === itemBefore.skill.toLowerCase());
+            if (!isCircular) {
+              adjusted[i] = itemAfter;
+              adjusted[j] = itemBefore;
+              swapped = true;
+            }
+          }
+        }
+      }
+    }
+    if (!swapped) break;
+  }
+
+  return adjusted;
 }
 
 /**
