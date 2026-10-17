@@ -28,9 +28,10 @@ export async function listAdminUsers(options = {}) {
 
   // Branch filter (matches slug or branch name)
   if (branch) {
+    const escapedBranch = branch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     filter.$or = [
-      { "academic.branchSlug": branch },
-      { "academic.branchName": { $regex: branch, $options: "i" } },
+      { "academic.branchSlug": branch.toLowerCase() },
+      { "academic.branchName": { $regex: escapedBranch, $options: "i" } },
     ];
   }
 

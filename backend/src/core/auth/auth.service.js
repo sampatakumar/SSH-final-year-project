@@ -18,8 +18,8 @@ export const upsertUserFromFirebase = async (decodedToken) => {
   // 1. Search by canonical Firebase UID
   let user = await User.findOne({ firebaseUid });
 
-  // 2. If not found by UID, search by normalized email to prevent duplicate accounts
-  if (!user && normalizedEmail) {
+  // 2. If not found by UID, search by normalized email to prevent duplicate accounts (only if verified)
+  if (!user && normalizedEmail && isEmailVerified) {
     user = await User.findOne({ email: normalizedEmail });
     if (user) {
       // Reconcile the user's primary Firebase UID with the new provider identity

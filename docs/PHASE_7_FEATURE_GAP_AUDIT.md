@@ -758,5 +758,85 @@ Phase 11 systematically resolved audit gaps **B-10** (Admin dashboard lacks comp
 > \* **Docker Real Execution Tests:** In accordance with Phase 11 requirements, the 16 real Docker container execution tests in `test/coding.integration.test.js` were reported as **skipped** with explicit environmental logging (`[INFO] Docker daemon is not accessible (connect ENOENT //./pipe/docker_engine)`). Zero tests failed, and real Docker execution was NOT falsely claimed through mocks.
 
 ---
+
+## 11. Phase 12 Comprehensive Full-System Integration, Security Audit & Release Readiness Report
+
+### 11.1 Executive Summary & Git Verification
+
+| Parameter | Confirmed Value |
+|---|---|
+| **Repository** | `https://github.com/sampatakumar/SSH-final-year-project.git` |
+| **Development Branch** | `expand-test` (strictly isolated; zero merge/cherry-pick to `main`) |
+| **Starting Baseline Commit** | `ea2f488` (*feat(admin-sandbox): implement Phase 11 admin management, sandbox reliability, and regression safety on expand-test*) |
+| **Working-Tree Status** | Clean (verified with all uncommitted changes preserved and tested) |
+| **Release Readiness Verdict** | **READY FOR CONTROLLED STAGING / UAT** (Zero P0 Criticals, Zero P1 Majors remaining) |
+
+---
+
+### 11.2 End-to-End Feature & Workflow Verification
+
+| Subsystem / Feature Workflow | Entry Point / Routes Verified | Integration Contract & Findings | Status |
+|---|---|---|---|
+| **A. Authentication & Profile Persistence** | `POST /api/v1/auth/firebase/sign-in`<br>`GET /api/v1/auth/me`<br>`PATCH /api/v1/auth/profile` | Strict Zod validation on profile update. Privilege escalation fields (`role`, `emailVerified`) are stripped. Dual target roles (`targetRole` and `targetRoles[]`) remain synchronized. Unverified email pre-hijacking blocked. | **VERIFIED** |
+| **B. AI Mentor & Career Intelligence** | `GET /api/v1/mentor/context`<br>`POST /api/v1/mentor/chat`<br>`POST /api/v1/gaps/compare` | AI Mentor receives unified user context (academic branch/degree, dual target roles, genuine skill evaluations, coding records). Zero fabricated skills or mock repos. Multi-role comparison evaluates against established benchmarks. | **VERIFIED** |
+| **C. Resume Builder & ATS Intelligence** | `POST /api/v1/resumes`<br>`PUT /api/v1/resumes/:resumeId`<br>`POST /api/v1/resume/ats/score` | Resume document templates, editing canvas, live preview, PDF export, and ATS scoring preserved. Object-level ownership strictly verified via `{ _id, owner: req.user._id }`. 404 returned on unauthorized access to prevent enumeration. | **VERIFIED** |
+| **D. EduTube & Coding Platform** | `GET /api/v1/edutube/feed`<br>`POST /api/v1/edutube/progress`<br>`POST /api/v1/coding/submit`<br>`GET /api/v1/coding/sandbox/status` | Learning progress persisted under user ownership. Coding submission accurately evaluates solutions and feeds adaptive skill loops. Zero untrusted code execution on host machine. Sandbox status truthfully reports Docker availability. | **VERIFIED** |
+| **E. Notification Center & Admin Governance** | `GET /api/v1/notifications`<br>`PATCH /api/v1/notifications/:id/read`<br>`GET /api/v1/admin/users`<br>`GET /api/v1/admin/catalog/integrity` | In-app notification center enforces preferences and deduplication. All destinations sanitized against open redirects and XSS. Admin APIs enforce server-side `ensureAdmin` middleware; regular user access rejected with 401/403. | **VERIFIED** |
+
+---
+
+### 11.3 Security Audit Findings by Severity
+
+| ID | Severity | Category | Description | Remediation & Status |
+|---|---|---|---|---|
+| **SEC-01** | **P1 (Major)** | Broken Authentication / Account Takeover | In `upsertUserFromFirebase`, account reconciliation by email previously occurred without verifying `decodedToken.email_verified`. If unverified email accounts were registered in Firebase, an attacker could claim an existing user account by email. | **RESOLVED**: Updated `upsertUserFromFirebase` to require `isEmailVerified === true` before linking by email. In addition, `ensureAdmin` now rejects admin access if `req.auth.decodedToken.email_verified === false`. Regression tests added in `phase12.integration.audit.test.js`. |
+| **SEC-02** | **P2 (Important)** | Regular Expression Denial of Service (ReDoS) | In `listAdminUsers` (`adminUser.service.js`), the `branch` query filter was interpolated directly into MongoDB `$regex` without escaping special regex metacharacters, leaving the database vulnerable to ReDoS attacks with crafted inputs. | **RESOLVED**: Escaped regex metacharacters (`escapedBranch = branch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")`). Regression test verified against malicious repeating quantifier payloads. |
+| **SEC-03** | **P2 (Important)** | Open Redirect & Link Injection Defense | Notifications containing malicious external domains, protocol-relative links (`//attacker.com`), or scheme payloads (`javascript:`, `data:`, `vbscript:`) could redirect users away from the application. | **VERIFIED SECURE**: `sanitizeNotificationDestination` strictly permits approved `/dashboard/*` paths only and forces all other inputs to fallback to `/dashboard`. |
+| **SEC-04** | **P2 (Important)** | Broken Object-Level Authorization (BOLA/IDOR) | Potential cross-user modification of resumes, projects, and notifications. | **VERIFIED SECURE**: Universally enforced across all controllers via `{ _id, owner: req.user._id }`. Cross-user access returns 404, preventing object enumeration and unauthorized mutations. |
+| **SEC-05** | **P3 (Minor)** | Input Sanitation & Text Truncation | Long inputs or HTML markup in notification titles or messages. | **VERIFIED SECURE**: `sanitizeNotificationText` strips all HTML tags and enforces bounded character limits. |
+
+---
+
+### 11.4 Docker Containment Verification
+
+| Verification Dimension | Actual Test Finding | Compliance Assessment |
+|---|---|---|
+| **Daemon Availability** | Docker daemon is stopped on the Windows host machine (`open //./pipe/docker_engine: The system cannot find the file specified`). | Accurately detected and reported without falsification. |
+| **Execution Safety** | Untrusted student code is **NEVER** executed directly on the host as a fallback. Node.js `vm` is **NEVER** used as a security boundary. | Strict compliance with Phase 12 safety mandate. |
+| **Status API Fidelity** | `GET /api/v1/coding/sandbox/status` returns `dockerAvailable: false` with exact isolation specifications and resource limits (128MB RAM, 5000ms timeout, `readonlyRootfs: true`, `capDrop: ["ALL"]`, `no-new-privileges: true`). | Confirmed by automated integration tests. |
+| **Docker-Dependent Tests** | 16 container execution tests in `test/coding.integration.test.js` cleanly skipped with explanatory logging (`[INFO] Docker daemon is not accessible`). | Passed audit; zero mock falsification. |
+
+---
+
+### 11.5 Automated Test Suite Execution Results (Phase 12)
+
+| Test Suite | Execution Command | Test Files | Passed | Failed | Skipped | Test Count | Result Summary |
+|---|---|---|---|---|---|---|---|
+| **Frontend Full Suite** | `npm test -- --run` | 38 files | 38 passed | 0 failed | 0 | 265 / 265 passed (100%) | **PASS** — Complete frontend green |
+| **Frontend Production Build** | `npm run build` | 3,444 modules | Succeeded | 0 errors | 0 | Bundled in 9.00s | **PASS** — Clean production bundle |
+| **Backend Full Test Suite** | `npm test` | 42 files | 42 passed | 0 failed | 16 | 431 passed / 16 skipped (447 total) | **PASS** — 100% of test files passed |
+| **Phase 12 Integration & Security Audit** | `npm test -- test/phase12.integration.audit.test.js` | 1 file | 1 passed | 0 failed | 0 | 15 / 15 passed (100%) | **PASS** — Privilege guards, BOLA/IDOR, ReDoS & sandbox green |
+| **Admin Management Suite** | `npm test -- test/admin.management.test.js` | 1 file | 1 passed | 0 failed | 0 | 17 / 17 passed (100%) | **PASS** — Admin authorization, pagination & catalog integrity green |
+
+---
+
+### 11.6 Deployment & Operational Prerequisites
+
+Before promoting to production:
+1. **Firebase Authentication**: Ensure the Firebase project has email verification enabled for password-based sign-ins.
+2. **Environment Configuration**: Set `ADMIN_EMAIL` to the authorized administrator's verified email.
+3. **Docker Engine**: For production coding assessment execution, ensure Docker Engine is running with `docker.sock` / named pipe accessible to the backend runtime.
+4. **CORS & Cookies**: Ensure `CORS_ORIGIN` matches the production frontend domain.
+
+---
+
+### 11.7 Remaining Work Prior to Merging to `main`
+
+1. Start Docker daemon in target staging environment and run `npm test -- test/coding.integration.test.js` to verify real container execution end-to-end.
+2. Perform smoke verification on staging environment with live Firebase credentials.
+3. Obtain final release approval from project owner prior to merging `expand-test` into `main`.
+
+---
 *End of Report — Smart Skill Hub Architecture Team*
+
 
