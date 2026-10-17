@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import DashboardSidebar from "@/components/DashboardSidebar";
 import ThemeToggle from "@/components/ThemeToggle";
+import NotificationBell from "@/components/notifications/NotificationBell";
 import { LogOut, ShieldAlert, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { dashboardLinks } from "@/lib/dashboard-links";
@@ -33,6 +34,7 @@ const DashboardLayout = () => {
             <span className="text-sm font-bold tracking-tight text-foreground">Smart Skill Hub</span>
           </div>
           <div className="flex items-center gap-2">
+            <NotificationBell />
             <ThemeToggle className="h-8 w-8" />
             <Button
               variant="outline"
@@ -78,6 +80,25 @@ const DashboardLayout = () => {
 
       {/* Main Content Area */}
       <main className="flex-1 h-full min-w-0 overflow-y-auto overflow-x-hidden relative pt-[7.25rem] md:pt-0">
+        {/* Desktop Header */}
+        <header className="hidden md:flex items-center justify-between px-6 lg:px-8 py-3.5 border-b border-border/30 bg-background/80 backdrop-blur-md sticky top-0 z-30">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="font-semibold text-foreground">Dashboard</span>
+            {location.pathname !== "/dashboard" && (
+              <>
+                <span>/</span>
+                <span className="capitalize text-primary font-medium">
+                  {location.pathname.replace("/dashboard/", "").replace(/-/g, " ")}
+                </span>
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <NotificationBell />
+            <ThemeToggle className="h-9 w-9" />
+          </div>
+        </header>
+
         <div className="min-h-full flex flex-col p-4 md:p-6 lg:p-8 max-w-7xl mx-auto w-full">
           <Outlet />
         </div>

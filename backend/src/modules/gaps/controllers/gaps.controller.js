@@ -4,6 +4,8 @@ import { INITIAL_CAREER_ROLES } from "../../academic/constants/academicCatalog.j
 import { GapAnalysisError } from "../../../core/errors/ApiError.js";
 import { ApiResponse } from "../../../utils/ApiResponse.js";
 import { asyncHandler } from "../../../core/errors/asyncHandler.js";
+import { createNotification } from "../../notifications/services/notification.service.js";
+import { NOTIFICATION_TYPES } from "../../notifications/models/notification.models.js";
 
 /**
  * GET /api/v1/gaps
@@ -33,6 +35,19 @@ export const analyzeGaps = asyncHandler(async (req, res) => {
 
   const { targetRole } = req.body || {};
   const gapAnalysis = await analyzeUserGaps(req.user, targetRole);
+
+  if (gapAnalysis?.targetRole) {
+    const roleSlug = gapAnalysis.targetRole.toLowerCase().replace(/\s+/g, "_");
+    const today = new Date().toISOString().slice(0, 10);
+    createNotification(req.user._id, {
+      type: NOTIFICATION_TYPES.SKILL_GAP,
+      title: `Skill Gap Benchmark: ${gapAnalysis.targetRole}`,
+      message: `Your gap analysis against ${gapAnalysis.targetRole} identified ${gapAnalysis.gaps?.length || 0} priority gaps and verified ${gapAnalysis.metSkills?.length || 0} met skills.`,
+      destination: "/dashboard/gaps",
+      eventId: `gap_analysis_${req.user._id}_${roleSlug}_${today}`,
+      metadata: { targetRole: gapAnalysis.targetRole, gapsCount: gapAnalysis.gaps?.length || 0 },
+    }).catch(() => null);
+  }
 
   return res.status(200).json(
     new ApiResponse(200, { gapAnalysis }, "Gap analysis computed successfully")

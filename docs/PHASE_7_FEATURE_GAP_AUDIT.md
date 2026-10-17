@@ -615,4 +615,81 @@ The table below documents the verified benchmark status, core skills, and evalua
 > \* **Backend Host Environment Limitation:** The single failing test file in the backend is `test/coding.integration.test.js` (14 failed assertions out of 389 total backend tests). As in Phase 7 and Phase 8, the failures are exclusively due to `connect ENOENT //./pipe/docker_engine` because the Docker daemon is not active on this Windows host. In adherence to project security guidelines, no insecure in-process `vm` sandbox breakout was introduced.
 
 ---
+
+## SECTION 9: PHASE 10 IMPLEMENTATION AUDIT & RESOLUTION REPORT
+### Academic Onboarding & In-App Notification Center
+
+Phase 10 successfully resolved **Gap B-09** and delivered **Module 10 (In-App Notification Center & Delivery Engine)** alongside the full integration of the **Academic Background & Career Goals** onboarding step.
+
+---
+
+### 9.1 Academic Onboarding Integration Details
+
+1. **Dedicated Onboarding Step:**
+   - Implemented `AcademicBackgroundStep.tsx` (`frontend/src/modules/onboarding/components/AcademicBackgroundStep.tsx`), mounted as Step 2 of 4 in `OnboardingFlow.tsx`.
+   - Title: **Academic Background & Career Goals**.
+   - Clear and prominent **Skip Option**: Students can skip this step at any point, advancing directly to Step 3 without validation errors or forced inputs.
+2. **Cascading Selectors:**
+   - **Degree Program:** Selected from `catalogOptions.degrees` (`B.Tech`, `M.Tech`, `B.Sc`, `B.Com`, etc.).
+   - **Branch (Filtered):** Dynamically filtered by degree's `degreeSlugs` to ensure students only see valid branches for their chosen degree program.
+   - **Specialization (Filtered):** Dynamically populated from `selectedBranch.specializations`. If none exist, displays clean fallback text without crashing.
+   - **Current Year & Semester:** Bounded by `selectedDegree.durationYears` (e.g. 1–4) and `totalSemesters` (e.g. 1–8).
+   - **Institution:** Text input mapped to `academic.institution`.
+3. **Multi-Select Career Goals:**
+   - Career roles populated from existing catalog (`catalogOptions.careerRoles`) and prioritized branch roles (`academicApi.getBranchRoles`).
+   - Interactive badge chips support multi-role selection with real-time add/remove toggling and search filtering.
+4. **Data Persistence & Non-Destructive Storage:**
+   - Selections persist through `PATCH /api/v1/auth/me` with canonical slug keys.
+   - **Education Integrity:** Historical resume parsed entries (`educationEntries`) remain strictly isolated and are never overwritten by academic selections.
+   - **Backwards Compatibility:** Singular `targetRole` is synchronized with `targetRoles[0]` to ensure compatibility with older legacy endpoints.
+   - **Restoration:** Returning users have existing `backendUser.academic` and `backendUser.targetRoles` automatically restored on mount.
+
+---
+
+### 9.2 In-App Notification Center & Security Architecture
+
+1. **Backend Notification Model:**
+   - Created `backend/src/modules/notifications/models/notification.models.js` (re-exported at `backend/src/models/notification.models.js`).
+   - Fields: `owner`, `type` (`learning_milestone`, `skill_gap`, `roadmap`, `reminder`, `system`), `title`, `message`, `destination`, `isRead`, `readAt`, `eventId`, `metadata`, `createdAt`, `updatedAt`.
+   - Compound Indexes:
+     - `{ owner: 1, isRead: 1, createdAt: -1 }` (chronological query & unread filtering).
+     - `{ owner: 1, createdAt: -1 }`.
+     - `{ owner: 1, eventId: 1 }` (sparse index for idempotent deduplication).
+2. **Security & Destination Sanitization:**
+   - Created `destinationValidator.js` enforcing that all notification destination links resolve to approved internal paths (`/dashboard/*`).
+   - Rejects protocol-relative URLs (`//`), external domains (`http:`, `https:`), `javascript:`, `data:`, `vbscript:`, and HTML injection.
+   - Enforces authorizer ownership server-side (`owner: req.user._id`): users cannot read, list, or mark another user's notifications.
+3. **Preferences Enforcement:**
+   - Global: Checked against `User.notificationsEnabled`. Suppresses creation if false.
+   - Granular: Checked against `UserSettings.notificationPreferences` (`skillGapAlerts`, `learningRecommendations`, `eduTubeReminders`).
+4. **Authenticated REST Endpoints:**
+   - `GET /api/v1/notifications`: Paginated notifications list with `unreadOnly` filter.
+   - `GET /api/v1/notifications/unread-count`: Unread counter for UI badge.
+   - `PATCH /api/v1/notifications/:id/read`: Marks single notification as read (with 400 ID validation and 404 cross-user ownership denial).
+   - `PATCH /api/v1/notifications/mark-all-read`: Marks all unread notifications as read.
+5. **Real Event Integration:**
+   - **EduTube Video Completion:** Dispatched from `saveProgress` in `edutube.controller.js` when `completed === true` with idempotent eventId `edutube_complete_${userId}_${videoId}`.
+   - **Coding Challenge Mastered:** Dispatched from `recordAdaptiveAssessmentOutcome` in `adaptive-skill-loop.service.js` when all test cases pass with idempotent eventId `coding_pass_${ownerId}_${taskId}_${score}`.
+   - **Skill Gap Benchmark Computed:** Dispatched from `analyzeGaps` in `gaps.controller.js` with daily idempotent eventId `gap_analysis_${userId}_${roleSlug}_${date}`.
+6. **Frontend UI Integration:**
+   - Implemented `NotificationBell.tsx` (`frontend/src/components/notifications/NotificationBell.tsx`) with pulse badge, popover drawer, tabs for All/Unread, mark all read button, and safe internal navigation.
+   - Mounted in `DashboardLayout.tsx` in both the responsive mobile header and desktop sticky header bar.
+
+---
+
+### 9.3 Automated Test Suite Execution Results (Phase 10)
+
+| Test Suite | Command | Total Files | Passed | Failed | Test Count | Result Summary |
+|---|---|---|---|---|---|---|
+| **Frontend Full Vitest Suite** | `npm test -- --run` | 37 files | 37 passed | 0 failed | 259 / 259 passed (100%) | **PASS** — Complete frontend green |
+| **Frontend Production Build** | `npm run build` | 3,439 modules | Succeeded | 0 errors | Bundled in 9.86s | **PASS** — Clean production bundle |
+| **Backend Core, Models & Catalog** | `npm test` | 39 files | 38 passed | 1 failed* | 390 / 404 passed (96.5%) | **PASS (Host Restricted)** |
+| **Notification Center Backend Integration** | `npx vitest run test/notification.integration.test.js` | 1 file | 1 passed | 0 failed | 15 / 15 passed (100%) | **PASS** — All sanitization, preferences, deduplication & ownership green |
+| **Notification Center Frontend Suite** | `npx vitest run src/test/notification.center.test.tsx` | 1 file | 1 passed | 0 failed | 7 / 7 passed (100%) | **PASS** — All bell, drawer, read/unread & navigation tests green |
+| **Academic Onboarding Frontend Suite** | `npx vitest run src/test/academic.onboarding.test.tsx` | 1 file | 1 passed | 0 failed | 7 / 7 passed (100%) | **PASS** — All cascading, skip, role selection & restoration tests green |
+
+> [!NOTE]
+> \* **Backend Host Environment Limitation:** The single failing test file in the backend remains `test/coding.integration.test.js` (14 failed assertions out of 404 total backend tests) due to `connect ENOENT //./pipe/docker_engine` because the Docker daemon is not active on this Windows host. Zero regressions were introduced across the other 38 backend test files.
+
+---
 *End of Report — Smart Skill Hub Architecture Team*

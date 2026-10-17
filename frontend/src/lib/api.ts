@@ -675,3 +675,65 @@ export interface DashboardIntelligenceData {
   generatedAt: string;
 }
 
+export interface InAppNotification {
+  _id: string;
+  owner: string;
+  type: "learning_milestone" | "skill_gap" | "roadmap" | "reminder" | "system";
+  title: string;
+  message: string;
+  destination?: string;
+  isRead: boolean;
+  readAt?: string | null;
+  eventId?: string | null;
+  metadata?: Record<string, any>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NotificationsListResponse {
+  notifications: InAppNotification[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+  };
+}
+
+export const NotificationsApi = {
+  getNotifications: async (params?: {
+    page?: number;
+    limit?: number;
+    unreadOnly?: boolean;
+  }): Promise<NotificationsListResponse> => {
+    const query = new URLSearchParams();
+    if (params?.page) query.set("page", String(params.page));
+    if (params?.limit) query.set("limit", String(params.limit));
+    if (params?.unreadOnly) query.set("unreadOnly", "true");
+    const qs = query.toString();
+    const res = await apiRequest<NotificationsListResponse>(`/notifications${qs ? `?${qs}` : ""}`);
+    return res.data;
+  },
+
+  getUnreadCount: async (): Promise<number> => {
+    const res = await apiRequest<{ unreadCount: number }>("/notifications/unread-count");
+    return res.data?.unreadCount ?? 0;
+  },
+
+  markAsRead: async (id: string): Promise<InAppNotification> => {
+    const res = await apiRequest<{ notification: InAppNotification }>(
+      `/notifications/${encodeURIComponent(id)}/read`,
+      { method: "PATCH" }
+    );
+    return res.data.notification;
+  },
+
+  markAllAsRead: async (): Promise<number> => {
+    const res = await apiRequest<{ modifiedCount: number }>("/notifications/mark-all-read", {
+      method: "PATCH",
+    });
+    return res.data?.modifiedCount ?? 0;
+  },
+};
+

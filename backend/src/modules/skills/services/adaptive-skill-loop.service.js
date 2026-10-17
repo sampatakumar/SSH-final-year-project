@@ -20,6 +20,8 @@ import { AUTHORITATIVE_DOCS } from "../../recommendations/catalog/documentationC
 import { normalizeSkill, getSkillCategory } from "../../../shared/taxonomy/skillTaxonomy.service.js";
 import { edutubeSearchService } from "../../edutube/services/edutube-search.service.js";
 import { edutubeQualityGateService } from "../../edutube/services/edutube-quality-gate.service.js";
+import { createNotification } from "../../notifications/services/notification.service.js";
+import { NOTIFICATION_TYPES } from "../../notifications/models/notification.models.js";
 
 // Canonical prerequisite dependency graph
 export const SKILL_PREREQUISITE_GRAPH = {
@@ -382,6 +384,17 @@ export class AdaptiveSkillLoopService {
       promptQuestion: `Retrieval practice: Implement ${canonicalName} core functions without reference solutions.`,
       recommendedExerciseId: taskId,
     });
+
+    if (testCasesPassed === testCasesTotal && testCasesTotal > 0) {
+      createNotification(ownerId, {
+        type: NOTIFICATION_TYPES.LEARNING_MILESTONE,
+        title: `Coding Challenge Mastered: ${canonicalName}`,
+        message: `You passed all ${testCasesPassed}/${testCasesTotal} test cases for ${canonicalName}! Score updated to ${updatedScore}/100.`,
+        destination: "/dashboard/coding",
+        eventId: `coding_pass_${ownerId}_${taskId || canonicalName}_${normalizedScore}`,
+        metadata: { skill: canonicalName, score: normalizedScore, taskId },
+      }).catch(() => null);
+    }
 
     return {
       skill: canonicalName,

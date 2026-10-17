@@ -10,6 +10,8 @@ import { EduTubeError, ApiError } from "../../../core/errors/ApiError.js";
 import { edutubeSearchService } from "../services/edutube-search.service.js";
 import { edutubePersistenceService } from "../services/edutube-persistence.service.js";
 import { edutubeRecommendationService } from "../services/edutube-recommendation.service.js";
+import { createNotification } from "../../notifications/services/notification.service.js";
+import { NOTIFICATION_TYPES } from "../../notifications/models/notification.models.js";
 
 // ==========================================
 // PHASE 2: SEARCH & VIDEO DETAILS (PUBLIC / AUTH)
@@ -144,6 +146,17 @@ export const saveProgress = asyncHandler(async (req, res) => {
     durationSeconds,
     completed,
   });
+
+  if (completed || progress?.completed) {
+    createNotification(req.user._id, {
+      type: NOTIFICATION_TYPES.LEARNING_MILESTONE,
+      title: "Learning Milestone Completed",
+      message: `Great job! You completed an educational video lesson on EduTube. Keep up the momentum!`,
+      destination: "/dashboard/edutube",
+      eventId: `edutube_complete_${req.user._id}_${videoId}`,
+      metadata: { videoId, positionSeconds, durationSeconds },
+    }).catch(() => null);
+  }
 
   return res.status(200).json(
     new ApiResponse(200, { progress }, "Playback progress saved successfully")

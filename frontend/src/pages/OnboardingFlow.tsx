@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import AcademicBackgroundStep, { type AcademicState } from "@/modules/onboarding/components/AcademicBackgroundStep";
 
 type ProfileState = {
   displayName: string;
@@ -221,7 +222,7 @@ export default function OnboardingFlow() {
   const { idToken, backendUser, refreshProfile } = useAuth();
 
   const [step, setStep] = useState(1);
-  const totalSteps = 3;
+  const totalSteps = 4;
   const [submitting, setSubmitting] = useState(false);
   const [generatingSummary, setGeneratingSummary] = useState(false);
   const [parsingResume, setParsingResume] = useState(false);
@@ -232,6 +233,19 @@ export default function OnboardingFlow() {
     phone: "",
     about: ""
   });
+
+  const [academic, setAcademic] = useState<AcademicState>({
+    degreeSlug: "",
+    degreeName: "",
+    branchSlug: "",
+    branchName: "",
+    specializationSlug: "",
+    specializationName: "",
+    currentYear: null,
+    currentSemester: null,
+    institution: ""
+  });
+  const [targetRoles, setTargetRoles] = useState<string[]>([]);
 
   const [preferences, setPreferences] = useState<PreferencesState>({
     linkedInUrl: "",
@@ -270,6 +284,27 @@ export default function OnboardingFlow() {
     setEducationRows(normalizeEducationRows(backendUser.educationEntries));
     setSkillSections(normalizeSkillSections(backendUser));
     setExperienceRows(normalizeExperienceRows(backendUser.experience));
+
+    if (backendUser.academic) {
+      setAcademic({
+        degreeSlug: backendUser.academic.degreeSlug || "",
+        degreeName: backendUser.academic.degreeName || "",
+        branchSlug: backendUser.academic.branchSlug || "",
+        branchName: backendUser.academic.branchName || "",
+        specializationSlug: backendUser.academic.specializationSlug || "",
+        specializationName: backendUser.academic.specializationName || "",
+        currentYear: backendUser.academic.currentYear ?? null,
+        currentSemester: backendUser.academic.currentSemester ?? null,
+        institution: backendUser.academic.institution || ""
+      });
+    }
+
+    if (Array.isArray(backendUser.targetRoles) && backendUser.targetRoles.length > 0) {
+      setTargetRoles(backendUser.targetRoles);
+    } else if (backendUser.targetRole) {
+      setTargetRoles([backendUser.targetRole]);
+    }
+
     setInitializedFromBackend(true);
   }, [backendUser, initializedFromBackend]);
 
@@ -367,6 +402,11 @@ export default function OnboardingFlow() {
     }
 
     if (step === 2) {
+      // Step 2: Academic Background & Career Goals is strictly optional
+      return true;
+    }
+
+    if (step === 3) {
       const linkedIn = normalizeOptionalUrl(preferences.linkedInUrl);
       const github = normalizeOptionalUrl(preferences.githubUrl);
       if (!linkedIn && !github) {
@@ -406,7 +446,7 @@ export default function OnboardingFlow() {
       return true;
     }
 
-    if (step === 3) {
+    if (step === 4) {
       const nonEmptyProjects = projectRows
         .map((row, index) => ({ row, index }))
         .filter(({ row }) => hasAnyProjectContent(row));
@@ -462,6 +502,10 @@ export default function OnboardingFlow() {
   };
 
   const handleBack = () => setStep((current) => Math.max(current - 1, 1));
+
+  const handleSkipAcademic = () => {
+    setStep(3);
+  };
 
   const handleResumeUploadForAutofill = async (file: File | null) => {
     if (!file) {
@@ -630,7 +674,23 @@ export default function OnboardingFlow() {
           headline: profile.headline.trim(),
           phone: profile.phone.trim(),
           linkedInUrl: normalizeOptionalUrl(preferences.linkedInUrl),
-          githubUrl: normalizeOptionalUrl(preferences.githubUrl)
+          githubUrl: normalizeOptionalUrl(preferences.githubUrl),
+          ...(academic.degreeSlug
+            ? {
+                academic: {
+                  degreeSlug: academic.degreeSlug || undefined,
+                  degreeName: academic.degreeName || undefined,
+                  branchSlug: academic.branchSlug || undefined,
+                  branchName: academic.branchName || undefined,
+                  specializationSlug: academic.specializationSlug || undefined,
+                  specializationName: academic.specializationName || undefined,
+                  currentYear: academic.currentYear || undefined,
+                  currentSemester: academic.currentSemester || undefined,
+                  institution: academic.institution.trim() || undefined
+                }
+              }
+            : {}),
+          ...(targetRoles.length > 0 ? { targetRoles, targetRole: targetRoles[0] } : {})
         }
       });
 
@@ -832,6 +892,23 @@ export default function OnboardingFlow() {
           notificationsEnabled: preferences.notificationsEnabled,
           linkedInUrl: normalizeOptionalUrl(preferences.linkedInUrl),
           githubUrl: normalizeOptionalUrl(preferences.githubUrl),
+          academic: {
+            degreeSlug: academic.degreeSlug || undefined,
+            degreeName: academic.degreeName || undefined,
+            branchSlug: academic.branchSlug || undefined,
+            branchName: academic.branchName || undefined,
+            specializationSlug: academic.specializationSlug || undefined,
+            specializationName: academic.specializationName || undefined,
+            currentYear: academic.currentYear || undefined,
+            currentSemester: academic.currentSemester || undefined,
+            institution: academic.institution.trim() || undefined
+          },
+          ...(targetRoles.length > 0
+            ? {
+                targetRoles,
+                targetRole: targetRoles[0]
+              }
+            : {}),
           education: normalizedEducationEntries
             .map((item) =>
               [item.degree, item.specialization, item.college, item.location, item.endDate, item.grade]
@@ -919,6 +996,15 @@ export default function OnboardingFlow() {
             />
           )}
           {step === 2 && (
+            <AcademicBackgroundStep
+              academic={academic}
+              setAcademic={setAcademic}
+              targetRoles={targetRoles}
+              setTargetRoles={setTargetRoles}
+              onSkip={handleSkipAcademic}
+            />
+          )}
+          {step === 3 && (
             <PreferencesStep
               preferences={preferences}
               setPreferences={setPreferences}
@@ -939,7 +1025,7 @@ export default function OnboardingFlow() {
               onRemoveExperienceRow={removeExperienceRow}
             />
           )}
-          {step === 3 && (
+          {step === 4 && (
             <ProjectStep
               projectRows={projectRows}
               onUpdateProjectRow={updateProjectRow}
