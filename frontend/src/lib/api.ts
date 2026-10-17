@@ -515,6 +515,15 @@ export const SmartSkillApi = {
   getCodingSubmissions: async () =>
     (await apiRequest<{ submissions: any[] }>("/coding/submissions")).data.submissions,
 
+  getSandboxStatus: async () =>
+    (await apiRequest<{
+      dockerAvailable: boolean;
+      reason: string | null;
+      executionLimits: any;
+      isolation: any;
+      supportedLanguages: string[];
+    }>("/coding/sandbox/status")).data,
+
   // GitHub
   analyzeGitHub: async (username?: string) =>
     (await apiRequest<GitHubProfileAnalysis>("/github/analyze", {
@@ -736,4 +745,172 @@ export const NotificationsApi = {
     return res.data?.modifiedCount ?? 0;
   },
 };
+
+export interface AdminUserItem {
+  _id: string;
+  displayName?: string;
+  email: string;
+  role: "student" | "admin";
+  emailVerified: boolean;
+  photoURL?: string;
+  headline?: string;
+  academic?: {
+    degreeSlug?: string;
+    degreeName?: string;
+    branchSlug?: string;
+    branchName?: string;
+    specializationSlug?: string;
+    specializationName?: string;
+    currentSemester?: number;
+    institution?: string;
+    graduationYear?: number;
+  };
+  targetRole?: string;
+  targetRoles?: string[];
+  onboardingCompletedAt?: string | null;
+  createdAt: string;
+  lastLoginAt?: string;
+}
+
+export interface AdminUsersListResponse {
+  users: AdminUserItem[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+  };
+}
+
+export interface AdminUserDetailsResponse {
+  user: AdminUserItem & Record<string, any>;
+  stats: {
+    projectsCount: number;
+    submissionsCount: number;
+    skillsEvaluated: number;
+    readinessScore: number | null;
+    empiricalMastery: number | null;
+  };
+}
+
+export interface CatalogIntegrityReport {
+  status: "healthy" | "attention_needed";
+  issuesCount: number;
+  totals: {
+    degreesCount: number;
+    branchesCount: number;
+    careerRolesCount: number;
+    mappingsCount: number;
+    validatedBenchmarksCount: number;
+    pendingBenchmarksCount: number;
+  };
+  orphanDegreeReferences: Array<{
+    branchSlug: string;
+    branchName: string;
+    invalidDegreeSlugs: string[];
+  }>;
+  invalidMappings: Array<{
+    mappingId: string;
+    branchSlug: string;
+    roleSlug: string;
+    branchExists: boolean;
+    roleExists: boolean;
+  }>;
+  unmappedRoles: Array<{
+    slug: string;
+    title: string;
+    category?: string;
+  }>;
+  pendingBenchmarkRoles: Array<{
+    slug: string;
+    title: string;
+    category?: string;
+    coreSkillsCount: number;
+  }>;
+}
+
+export const AdminApi = {
+  getUsers: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    role?: string;
+    branch?: string;
+    semester?: number;
+    status?: string;
+  }): Promise<AdminUsersListResponse> => {
+    const query = new URLSearchParams();
+    if (params?.page) query.set("page", String(params.page));
+    if (params?.limit) query.set("limit", String(params.limit));
+    if (params?.search) query.set("search", params.search);
+    if (params?.role) query.set("role", params.role);
+    if (params?.branch) query.set("branch", params.branch);
+    if (params?.semester) query.set("semester", String(params.semester));
+    if (params?.status) query.set("status", params.status);
+    const qs = query.toString();
+    const res = await apiRequest<AdminUsersListResponse>(`/admin/users${qs ? `?${qs}` : ""}`);
+    return res.data;
+  },
+
+  getUserDetails: async (userId: string): Promise<AdminUserDetailsResponse> => {
+    const res = await apiRequest<AdminUserDetailsResponse>(`/admin/users/${encodeURIComponent(userId)}`);
+    return res.data;
+  },
+
+  updateUserRole: async (userId: string, role: "student" | "admin"): Promise<{ _id: string; role: string }> => {
+    const res = await apiRequest<{ _id: string; role: string }>(
+      `/admin/users/${encodeURIComponent(userId)}/role`,
+      {
+        method: "PATCH",
+        body: { role },
+      }
+    );
+    return res.data;
+  },
+
+  updateUserStatus: async (
+    userId: string,
+    patch: { emailVerified?: boolean; onboardingCompleted?: boolean }
+  ): Promise<any> => {
+    const res = await apiRequest(
+      `/admin/users/${encodeURIComponent(userId)}/status`,
+      {
+        method: "PATCH",
+        body: patch,
+      }
+    );
+    return res.data;
+  },
+
+  getCatalogIntegrity: async (): Promise<CatalogIntegrityReport> => {
+    const res = await apiRequest<CatalogIntegrityReport>("/admin/catalog/integrity");
+    return res.data;
+  },
+
+  safeDeleteDegree: async (slug: string): Promise<{ success: boolean; action: string; message: string }> => {
+    const res = await apiRequest<{ success: boolean; action: string; message: string }>(
+      `/admin/catalog/degrees/${encodeURIComponent(slug)}`,
+      { method: "DELETE" }
+    );
+    return res.data;
+  },
+
+  safeDeleteBranch: async (slug: string): Promise<{ success: boolean; action: string; message: string }> => {
+    const res = await apiRequest<{ success: boolean; action: string; message: string }>(
+      `/admin/catalog/branches/${encodeURIComponent(slug)}`,
+      { method: "DELETE" }
+    );
+    return res.data;
+  },
+
+  safeDeleteCareerRole: async (slug: string): Promise<{ success: boolean; action: string; message: string }> => {
+    const res = await apiRequest<{ success: boolean; action: string; message: string }>(
+      `/admin/catalog/career-roles/${encodeURIComponent(slug)}`,
+      { method: "DELETE" }
+    );
+    return res.data;
+  },
+};
+
 

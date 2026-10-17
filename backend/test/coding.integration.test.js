@@ -4,12 +4,20 @@ import Docker from "dockerode";
 import { app } from "../src/app.js";
 import { getAllTasks, getPublicTask, getRawTask } from "../src/modules/coding/services/taskCatalog.service.js";
 import { evaluateTask } from "../src/modules/coding/services/codingExecution.service.js";
-import { executeJavaScript, executeJavaScriptTask } from "../src/modules/coding/sandbox/dockerExecutor.js";
+import { executeJavaScript, executeJavaScriptTask, checkDockerAvailability } from "../src/modules/coding/sandbox/dockerExecutor.js";
 import { extractCodingEvidence } from "../src/modules/coding/adapters/codingEvidenceAdapter.js";
 import { EXECUTION_LIMITS } from "../src/modules/coding/sandbox/sandboxConfig.js";
 import { EVIDENCE_SOURCES, EVIDENCE_TYPES } from "../src/shared/evidence/skillEvidenceContract.js";
 
 const docker = new Docker();
+const dockerStatus = await checkDockerAvailability(docker);
+const isDockerAvailable = dockerStatus.available;
+
+if (!isDockerAvailable) {
+  console.info(
+    `[INFO] Docker daemon is not accessible (${dockerStatus.reason}). Real Docker container execution tests will be cleanly skipped.`
+  );
+}
 
 describe("Coding Module Security Hardening & Complete Sandbox Verification Suite", () => {
   // =========================================================================
@@ -39,7 +47,7 @@ describe("Coding Module Security Hardening & Complete Sandbox Verification Suite
       expect(task).toBeNull();
     });
 
-    it("22. gracefully handles invalid syntax in student code", async () => {
+    it.skipIf(!isDockerAvailable)("22. gracefully handles invalid syntax in student code", async () => {
       const syntaxErrorCode = `function broken( { return 123; }`;
       const result = await evaluateTask("add-two-numbers", syntaxErrorCode);
       expect(result.status).toBe("error");
@@ -50,9 +58,9 @@ describe("Coding Module Security Hardening & Complete Sandbox Verification Suite
   });
 
   // =========================================================================
-  // GROUP B: Sandbox Security & Containment Tests (Empirically Verified)
+  // GROUP B: Sandbox Security & Containment Tests (Empirically Verified in Container)
   // =========================================================================
-  describe("Group B: Docker Sandbox Security Controls (Empirically Verified)", () => {
+  describe.skipIf(!isDockerAvailable)("Group B: Docker Sandbox Security Controls (Empirically Verified)", () => {
     it("1. handles infinite loop timeout within configured 5000ms limit", async () => {
       const infiniteLoopCode = `while(true) {}`;
       const result = await executeJavaScript(infiniteLoopCode);
@@ -339,6 +347,23 @@ for (let i = 0; i < 20000; i++) {
       expect(res.body.success).toBe(true);
       expect(res.body.data.task.id).toBe("two-sum");
       expect(res.body.data.task.sampleTests).toBeDefined();
+    });
+
+    it("serves GET /api/v1/coding/sandbox/status with environment status and execution limits", async () => {
+      const res = await request(app).get("/api/v1/coding/sandbox/status");
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(typeof res.body.data.dockerAvailable).toBe("boolean");
+      expect(res.body.data.executionLimits).toBeDefined();
+      expect(res.body.data.executionLimits.timeoutMs).toBe(5000);
+      expect(res.body.data.isolation).toBeDefined();
+      expect(res.body.data.isolation.readonlyRootfs).toBe(true);
+    });
+
+    it("rejects empty code in POST /api/v1/coding/run with 400", async () => {
+      const res = await request(app).post("/api/v1/coding/run").send({ code: "   " });
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
     });
 
     it("23. rejects unauthenticated POST /api/v1/coding/submit with 401", async () => {

@@ -1,5 +1,6 @@
 import { getAllTasks, getPublicTask, getRawTask } from "../services/taskCatalog.service.js";
-import { executeJavaScript, executeJavaScriptTask } from "../sandbox/dockerExecutor.js";
+import { executeJavaScript, executeJavaScriptTask, checkDockerAvailability } from "../sandbox/dockerExecutor.js";
+import { EXECUTION_LIMITS } from "../sandbox/sandboxConfig.js";
 import { evaluateTask } from "../services/codingExecution.service.js";
 import { generateCodingIntelligenceReport } from "../services/codeIntelligence.service.js";
 import { adaptiveSkillLoopService } from "../../skills/services/adaptive-skill-loop.service.js";
@@ -188,3 +189,40 @@ export const getUserSubmissionHistory = asyncHandler(async (req, res) => {
     new ApiResponse(200, { submissions }, "User submission history")
   );
 });
+
+/**
+ * GET /api/v1/coding/sandbox/status
+ * Proactively check Docker sandbox availability, resource limits, and execution status.
+ */
+export const getSandboxStatus = asyncHandler(async (req, res) => {
+  const availability = await checkDockerAvailability();
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        dockerAvailable: availability.available,
+        reason: availability.reason || null,
+        executionLimits: {
+          memory: "128MB",
+          timeoutMs: EXECUTION_LIMITS.timeoutMs || 5000,
+          maxCodeLengthBytes: EXECUTION_LIMITS.maxCodeLengthBytes || 65536,
+          maxConcurrentContainers: EXECUTION_LIMITS.maxConcurrentContainers || 4,
+          maxStdoutBytes: EXECUTION_LIMITS.maxStdoutBytes || 65536,
+          maxStderrBytes: EXECUTION_LIMITS.maxStderrBytes || 65536,
+        },
+        isolation: {
+          networkDisabled: true,
+          readonlyRootfs: true,
+          tmpfsMounted: true,
+          capDrop: ["ALL"],
+          securityOpt: ["no-new-privileges:true"],
+          nonRootUser: "node",
+        },
+        supportedLanguages: ["javascript"],
+      },
+      "Sandbox status retrieved successfully"
+    )
+  );
+});
+

@@ -6,6 +6,7 @@ import {
   listTasks,
   runCodeSample,
   submitSolution,
+  getSandboxStatus,
 } from "../controllers/coding.controller.js";
 import { verifyFirebaseToken } from "../../../core/auth/auth.middleware.js";
 
@@ -18,6 +19,7 @@ const executionLimiter = rateLimit({
 });
 
 // Public endpoints
+router.get("/sandbox/status", getSandboxStatus);
 router.get("/tasks", listTasks);
 router.get("/tasks/:taskId", getTaskById);
 router.post("/run", executionLimiter, runCodeSample);

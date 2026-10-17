@@ -30,13 +30,20 @@ const CodingAssessmentPage = () => {
   const [executionResult, setExecutionResult] = useState<CodingExecutionResult | null>(null);
   const [activeTab, setActiveTab] = useState<"description" | "tests" | "console">("description");
   const [showTaskListModal, setShowTaskListModal] = useState(false);
+  const [sandboxStatus, setSandboxStatus] = useState<{ dockerAvailable: boolean } | null>(null);
 
-  // Load all tasks on mount
+  // Load all tasks and sandbox status on mount
   useEffect(() => {
     const fetchTasks = async () => {
       try {
-        const list = await SmartSkillApi.getCodingTasks();
+        const [list, status] = await Promise.all([
+          SmartSkillApi.getCodingTasks(),
+          SmartSkillApi.getSandboxStatus().catch(() => null),
+        ]);
         setTasks(list);
+        if (status) {
+          setSandboxStatus(status);
+        }
         const paramId = searchParams.get("taskId");
         if (paramId && list.some((t) => t.id === paramId)) {
           setSelectedTaskId(paramId);
@@ -151,6 +158,28 @@ const CodingAssessmentPage = () => {
           <span className="text-xs text-muted-foreground font-medium hidden md:inline">
             💎 {taskDetail?.points || 10} points • 🔒 {taskDetail?.totalTestsCount || 0} Test Suites
           </span>
+
+          {sandboxStatus && (
+            <div
+              className={`hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border ${
+                sandboxStatus.dockerAvailable
+                  ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
+                  : "bg-amber-500/10 text-amber-500 border-amber-500/30"
+              }`}
+              title={
+                sandboxStatus.dockerAvailable
+                  ? "Active Docker Container Isolation (128MB RAM, 5s timeout, Read-only FS)"
+                  : "Docker daemon offline. Code execution requires an active Docker daemon."
+              }
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  sandboxStatus.dockerAvailable ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
+                }`}
+              />
+              <span>{sandboxStatus.dockerAvailable ? "Sandbox Active" : "Sandbox Offline"}</span>
+            </div>
+          )}
         </div>
 
         {/* Run & Submit Actions */}

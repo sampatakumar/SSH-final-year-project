@@ -12,12 +12,25 @@ import {
   Legend,
   ResponsiveContainer
 } from "recharts";
-import { ShieldAlert, Users, FolderCheck, Cpu, UploadCloud, ArrowLeft, Loader2 } from "lucide-react";
+import {
+  ShieldAlert,
+  Users,
+  FolderCheck,
+  Cpu,
+  UploadCloud,
+  ArrowLeft,
+  Loader2,
+  Layers,
+  BarChart3,
+} from "lucide-react";
 import { apiRequest } from "@/lib/api";
 import { useAuth } from "@/core/auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
+import { AdminUserManagement } from "@/modules/admin/components/AdminUserManagement";
+import { AdminCatalogGovernance } from "@/modules/admin/components/AdminCatalogGovernance";
 
 const DEFAULT_ADMIN_EMAIL = "sampatakumarsv@gmail.com";
 
@@ -128,16 +141,8 @@ export default function AdminAnalytics() {
     );
   }
 
-  if (!kpis) {
-    return (
-      <div className="p-8 text-center text-muted-foreground">
-        No analytics data available yet. Data is generated upon API usage.
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col gap-8 pb-12 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="flex flex-col gap-6 pb-12 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center gap-4">
         <Link to="/dashboard" className="rounded-full p-2 hover:bg-muted transition-colors">
           <ArrowLeft className="h-5 w-5" />
@@ -149,129 +154,166 @@ export default function AdminAnalytics() {
               ADMIN ONLY
             </span>
           </div>
-          <p className="text-muted-foreground mt-0.5">System-wide platform performance and usage overview.</p>
+          <p className="text-muted-foreground mt-0.5">
+            Platform governance, user management, and academic/career catalog maintenance.
+          </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card className="border-border/50 bg-card/40 backdrop-blur pb-2">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">New Users</CardTitle>
-            <Users className="h-4 w-4 text-emerald-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{kpis.newUsers}</div>
-          </CardContent>
-        </Card>
+      <Tabs defaultValue="analytics" className="w-full space-y-6">
+        <TabsList className="bg-muted/40 p-1 rounded-xl">
+          <TabsTrigger value="analytics" className="flex items-center gap-2">
+            <BarChart3 className="w-4 h-4" /> System Analytics
+          </TabsTrigger>
+          <TabsTrigger value="users" className="flex items-center gap-2">
+            <Users className="w-4 h-4" /> User Management
+          </TabsTrigger>
+          <TabsTrigger value="catalog" className="flex items-center gap-2">
+            <Layers className="w-4 h-4" /> Academic & Career Catalog
+          </TabsTrigger>
+        </TabsList>
 
-        <Card className="border-border/50 bg-card/40 backdrop-blur pb-2">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">AI Requests</CardTitle>
-            <Cpu className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{kpis.groqRequests}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/50 bg-card/40 backdrop-blur pb-2">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Portfolios Implemented</CardTitle>
-            <FolderCheck className="h-4 w-4 text-indigo-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{kpis.portfoliosPublished}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/50 bg-card/40 backdrop-blur pb-2">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Resumes Parsed</CardTitle>
-            <UploadCloud className="h-4 w-4 text-orange-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{kpis.resumesUploaded}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/50 bg-red-950/20 backdrop-blur pb-2">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Rate Limit Blocks</CardTitle>
-            <ShieldAlert className="h-4 w-4 text-destructive" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-destructive">{kpis.rateLimitHits}</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Separator className="my-2 opacity-50" />
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <Card className="col-span-1 border-border/50 shadow-sm">
-          <CardHeader>
-            <CardTitle>14-Day Growth Trend</CardTitle>
-            <CardDescription>Visualizing AI and conversion growth over time.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[350px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted-foreground)/0.2)" />
-                  <XAxis
-                    dataKey="date"
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={(value) => String(value).split("-").slice(1).join("/")}
-                  />
-                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
-                  <RechartsTooltip
-                    contentStyle={{ backgroundColor: "hsl(var(--background))", borderColor: "hsl(var(--border))", borderRadius: "8px" }}
-                    itemStyle={{ color: "hsl(var(--foreground))" }}
-                  />
-                  <Legend iconType="circle" wrapperStyle={{ paddingTop: "20px" }} />
-                  <Line type="monotone" name="Portfolios" dataKey="portfoliosPublished" stroke="hsl(230, 80%, 65%)" strokeWidth={3} dot={false} />
-                  <Line type="monotone" name="AI Generates" dataKey="groqRequests" stroke="hsl(200, 90%, 50%)" strokeWidth={2} dot={false} />
-                  <Line type="monotone" name="New Users" dataKey="newUsers" stroke="hsl(150, 70%, 45%)" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
+        {/* Tab 1: System Analytics */}
+        <TabsContent value="analytics" className="space-y-6">
+          {!kpis ? (
+            <div className="p-12 text-center text-muted-foreground border border-dashed rounded-xl">
+              No analytics data recorded yet. Metrics accumulate automatically as students interact with the platform.
             </div>
-          </CardContent>
-        </Card>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <Card className="border-border/50 bg-card/40 backdrop-blur pb-2">
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">New Users</CardTitle>
+                    <Users className="h-4 w-4 text-emerald-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{kpis.newUsers}</div>
+                  </CardContent>
+                </Card>
 
-        <Card className="col-span-1 border-border/50 shadow-sm">
-          <CardHeader>
-            <CardTitle>Top API Endpoints</CardTitle>
-            <CardDescription>Most frequently hit backend routes measured across aggregate.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[350px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={aggregatedApiHits} layout="vertical" margin={{ top: 0, right: 0, left: 10, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--muted-foreground)/0.2)" />
-                  <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis
-                    type="category"
-                    dataKey="route"
-                    stroke="hsl(var(--foreground))"
-                    fontSize={11}
-                    tickLine={false}
-                    axisLine={false}
-                    width={140}
-                  />
-                  <RechartsTooltip
-                    cursor={{ fill: "transparent" }}
-                    contentStyle={{ backgroundColor: "hsl(var(--background))", borderColor: "hsl(var(--border))", borderRadius: "8px" }}
-                  />
-                  <Bar dataKey="hits" name="Total Hits" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                <Card className="border-border/50 bg-card/40 backdrop-blur pb-2">
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">AI Requests</CardTitle>
+                    <Cpu className="h-4 w-4 text-blue-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{kpis.groqRequests}</div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-border/50 bg-card/40 backdrop-blur pb-2">
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Portfolios Implemented</CardTitle>
+                    <FolderCheck className="h-4 w-4 text-indigo-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{kpis.portfoliosPublished}</div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-border/50 bg-card/40 backdrop-blur pb-2">
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Resumes Parsed</CardTitle>
+                    <UploadCloud className="h-4 w-4 text-orange-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{kpis.resumesUploaded}</div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-border/50 bg-red-950/20 backdrop-blur pb-2">
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Rate Limit Blocks</CardTitle>
+                    <ShieldAlert className="h-4 w-4 text-destructive" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-destructive">{kpis.rateLimitHits}</div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Separator className="my-2 opacity-50" />
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <Card className="col-span-1 border-border/50 shadow-sm">
+                  <CardHeader>
+                    <CardTitle>14-Day Growth Trend</CardTitle>
+                    <CardDescription>Visualizing AI and conversion growth over time.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-[350px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={data} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted-foreground)/0.2)" />
+                          <XAxis
+                            dataKey="date"
+                            stroke="hsl(var(--muted-foreground))"
+                            fontSize={12}
+                            tickLine={false}
+                            axisLine={false}
+                            tickFormatter={(value) => String(value).split("-").slice(1).join("/")}
+                          />
+                          <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+                          <RechartsTooltip
+                            contentStyle={{ backgroundColor: "hsl(var(--background))", borderColor: "hsl(var(--border))", borderRadius: "8px" }}
+                            itemStyle={{ color: "hsl(var(--foreground))" }}
+                          />
+                          <Legend iconType="circle" wrapperStyle={{ paddingTop: "20px" }} />
+                          <Line type="monotone" name="Portfolios" dataKey="portfoliosPublished" stroke="hsl(230, 80%, 65%)" strokeWidth={3} dot={false} />
+                          <Line type="monotone" name="AI Generates" dataKey="groqRequests" stroke="hsl(200, 90%, 50%)" strokeWidth={2} dot={false} />
+                          <Line type="monotone" name="New Users" dataKey="newUsers" stroke="hsl(150, 70%, 45%)" strokeWidth={2} dot={false} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="col-span-1 border-border/50 shadow-sm">
+                  <CardHeader>
+                    <CardTitle>Top API Endpoints</CardTitle>
+                    <CardDescription>Most frequently hit backend routes measured across aggregate.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-[350px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={aggregatedApiHits} layout="vertical" margin={{ top: 0, right: 0, left: 10, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--muted-foreground)/0.2)" />
+                          <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+                          <YAxis
+                            type="category"
+                            dataKey="route"
+                            stroke="hsl(var(--foreground))"
+                            fontSize={11}
+                            tickLine={false}
+                            axisLine={false}
+                            width={140}
+                          />
+                          <RechartsTooltip
+                            cursor={{ fill: "transparent" }}
+                            contentStyle={{ backgroundColor: "hsl(var(--background))", borderColor: "hsl(var(--border))", borderRadius: "8px" }}
+                          />
+                          <Bar dataKey="hits" name="Total Hits" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </>
+          )}
+        </TabsContent>
+
+        {/* Tab 2: User Management */}
+        <TabsContent value="users">
+          <AdminUserManagement />
+        </TabsContent>
+
+        {/* Tab 3: Academic & Career Catalog */}
+        <TabsContent value="catalog">
+          <AdminCatalogGovernance />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

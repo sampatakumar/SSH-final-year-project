@@ -10,6 +10,29 @@ const docker = new Docker();
 const containerExecutionLimit = pLimit(EXECUTION_LIMITS.maxConcurrentContainers || 4);
 
 /**
+ * Proactively check Docker daemon connectivity with a strict timeout.
+ */
+export async function checkDockerAvailability(dockerInstance = docker) {
+  try {
+    const pingPromise = dockerInstance.ping();
+    let timeoutHandle;
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutHandle = setTimeout(() => reject(new Error("Docker ping timed out (1500ms)")), 1500);
+    });
+
+    await Promise.race([pingPromise, timeoutPromise]);
+    clearTimeout(timeoutHandle);
+    return { available: true };
+  } catch (err) {
+    return {
+      available: false,
+      reason: err?.message || "Docker daemon unreachable",
+      code: err?.code || "DOCKER_UNAVAILABLE",
+    };
+  }
+}
+
+/**
  * Collect Docker stdout/stderr streams with bounded buffers.
  */
 function demuxDockerStream(container, stream) {
@@ -48,17 +71,19 @@ function demuxDockerStream(container, stream) {
 /**
  * Raw script execution (Run Code mode).
  */
-export async function executeJavaScript(code) {
+export async function executeJavaScript(code, options = {}) {
   return executeInDocker({
     studentCode: code,
     isRawScript: true,
+    dockerClient: options.dockerClient || docker,
+    timeoutMs: options.timeoutMs,
   });
 }
 
 /**
  * Task execution against structured test cases.
  */
-export async function executeJavaScriptTask(code, tests, functionName = "add") {
+export async function executeJavaScriptTask(code, tests, functionName = "add", options = {}) {
   if (!Array.isArray(tests)) {
     throw new TypeError("executeJavaScriptTask() requires tests to be an array.");
   }
@@ -68,6 +93,8 @@ export async function executeJavaScriptTask(code, tests, functionName = "add") {
     tests,
     functionName,
     isRawScript: false,
+    dockerClient: options.dockerClient || docker,
+    timeoutMs: options.timeoutMs,
   });
 }
 
@@ -86,10 +113,13 @@ async function executeInDockerCore({
   tests = null,
   functionName = "add",
   isRawScript = false,
+  dockerClient = docker,
+  timeoutMs = EXECUTION_LIMITS.timeoutMs,
 }) {
   let container = null;
   let tempDir = null;
   const startedAt = Date.now();
+  const client = dockerClient || docker;
 
   try {
     if (typeof studentCode !== "string" || studentCode.length > EXECUTION_LIMITS.maxCodeLengthBytes) {
@@ -143,7 +173,7 @@ async function executeInDockerCore({
       : ["node", "test-runner.js"];
 
     // 6. Create isolated Docker container
-    container = await docker.createContainer({
+    container = await client.createContainer({
       Image: SANDBOX_IMAGE_NAME,
       Cmd: cmd,
       NetworkDisabled: true,
@@ -184,7 +214,7 @@ async function executeInDockerCore({
     const timeoutPromise = new Promise((resolve) => {
       timeoutHandle = setTimeout(() => {
         resolve({ timedOut: true });
-      }, EXECUTION_LIMITS.timeoutMs);
+      }, timeoutMs);
     });
 
     const result = await Promise.race([waitPromise, timeoutPromise]);
@@ -201,7 +231,7 @@ async function executeInDockerCore({
       return {
         status: "timeout",
         stdout: streams.stdout,
-        stderr: streams.stderr + "\nExecution Timed Out (exceeded 5000ms limit).",
+        stderr: streams.stderr + `\nExecution Timed Out (exceeded ${timeoutMs}ms limit).`,
         executionTime: Date.now() - startedAt,
       };
     }
@@ -231,11 +261,27 @@ async function executeInDockerCore({
       taskResults,
     };
   } catch (error) {
+    const isConnError =
+      error.code === "ENOENT" ||
+      error.code === "ECONNREFUSED" ||
+      error.code === "EACCES" ||
+      (typeof error.message === "string" &&
+        (error.message.includes("docker_engine") ||
+          error.message.includes("docker.sock") ||
+          error.message.includes("connect")));
+
+    const errorMessage = isConnError
+      ? "Coding sandbox is unavailable: Docker daemon is not running or accessible. Please ensure Docker Desktop is running."
+      : (error.message || "Failed to execute in sandbox.");
+
     return {
       status: "system_error",
-      error: error.message || "Failed to execute in sandbox.",
+      dockerAvailable: !isConnError,
+      error: errorMessage,
       stdout: "",
-      stderr: error.message || "Internal sandbox error",
+      stderr: isConnError
+        ? "Docker daemon unavailable. Code execution requires an active Docker daemon for secure isolation."
+        : (error.message || "Internal sandbox error"),
       executionTime: Date.now() - startedAt,
     };
   } finally {
