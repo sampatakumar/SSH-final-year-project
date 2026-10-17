@@ -296,6 +296,14 @@ export class SmartMentorContextService {
       `💼 Current Target Role: ${targetRole} • Skill Readiness Score: ${readinessScore}/100.`
     );
 
+    let adaptivePlan = null;
+    try {
+      const { adaptiveLearningPlanService } = await import("../../recommendations/services/adaptiveLearningPlan.service.js");
+      adaptivePlan = await adaptiveLearningPlanService.generateAdaptivePlan(ownerId, targetRole);
+    } catch {
+      // Non-blocking fallback
+    }
+
     const context = {
       career,
       skills,
@@ -306,6 +314,14 @@ export class SmartMentorContextService {
       projects: userProjects,
       resume,
       coding,
+      adaptivePlan: adaptivePlan
+        ? {
+            currentObjective: adaptivePlan.currentObjective,
+            nextAction: adaptivePlan.nextAction,
+            verifiedCompetenciesCount: adaptivePlan.verifiedCompetenciesCount,
+            pendingActionsCount: adaptivePlan.pendingActionsCount,
+          }
+        : null,
       insights: insights.slice(0, 4),
       updatedAt: new Date().toISOString(),
     };

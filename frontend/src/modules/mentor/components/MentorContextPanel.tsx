@@ -9,6 +9,8 @@ import {
   AlertTriangle,
   BookOpen,
   X,
+  Zap,
+  CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -180,6 +182,53 @@ export const MentorContextPanel: React.FC<MentorContextPanelProps> = ({
             <div className="p-2.5 rounded-xl bg-surface/80 border border-border/40 text-center shadow-neo-raised-sm">
               <p className="text-xs font-black text-success">{learning.completedVideos}</p>
               <p className="text-[10px] text-muted-foreground font-medium">Completed</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Adaptive Learning Loop & Demonstrated Competency */}
+        <div className="space-y-2">
+          <span className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">
+            <Zap className="h-3 w-3 text-primary" />
+            Adaptive Learning Loop
+          </span>
+          <div className="p-3 rounded-xl bg-surface/80 border border-border/40 space-y-2 shadow-neo-raised-sm">
+            <div className="space-y-1">
+              <span className="text-[10px] font-black uppercase text-primary tracking-wider">
+                Current Objective
+              </span>
+              <p className="text-xs font-semibold text-foreground leading-snug">
+                {context.adaptivePlan?.currentObjective || (skillGaps.length > 0 ? `Master ${skillGaps[0].skill} fundamentals and pass sandbox challenge` : `Reinforce full-stack competencies`)}
+              </p>
+            </div>
+
+            {context.adaptivePlan?.nextAction && (
+              <div className="pt-2 border-t border-border/30 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase">
+                    Next Recommended Action
+                  </span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-primary/10 text-primary border border-primary/20 capitalize">
+                    {context.adaptivePlan.nextAction.priority}
+                  </span>
+                </div>
+                <p className="text-[11px] text-foreground/90 font-medium">
+                  {context.adaptivePlan.nextAction.practicalAction}
+                </p>
+                <p className="text-[10px] text-muted-foreground italic">
+                  Criteria: {context.adaptivePlan.nextAction.completionCriteria}
+                </p>
+              </div>
+            )}
+
+            <div className="pt-1.5 border-t border-border/30 flex items-center justify-between text-[11px]">
+              <span className="text-muted-foreground font-medium flex items-center gap-1">
+                <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                Verified in Sandbox:
+              </span>
+              <span className="font-black text-foreground">
+                {context.coding?.passedCount || context.adaptivePlan?.verifiedCompetenciesCount || 0} passed
+              </span>
             </div>
           </div>
         </div>

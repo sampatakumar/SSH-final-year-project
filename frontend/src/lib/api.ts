@@ -591,12 +591,93 @@ export const SmartSkillApi = {
       body: payload,
     })).data,
 
+  getAdaptiveLearningPlan: async (role?: string) =>
+    (await apiRequest<AdaptiveLearningPlanData>(`/skills/learning-loop/plan${role ? `?role=${encodeURIComponent(role)}` : ""}`)).data,
+
+  recordLearningActivity: async (payload: {
+    activityType: string;
+    skill: string;
+    targetRole?: string;
+    entityId?: string;
+    title?: string;
+    status?: string;
+    evidence?: any;
+    idempotencyKey?: string;
+  }) =>
+    (await apiRequest<any>("/skills/learning-loop/activity", {
+      method: "POST",
+      body: payload,
+    })).data,
+
+  getLearnerActivities: async (params?: { limit?: number; skip?: number; activityType?: string; skill?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.limit) searchParams.set("limit", String(params.limit));
+    if (params?.skip) searchParams.set("skip", String(params.skip));
+    if (params?.activityType) searchParams.set("activityType", params.activityType);
+    if (params?.skill) searchParams.set("skill", params.skill);
+    const qs = searchParams.toString();
+    return (await apiRequest<any>(`/skills/learning-loop/activities${qs ? `?${qs}` : ""}`)).data;
+  },
+
+  compareMultiRolePlans: async (roles?: string[]) => {
+    const qs = roles && roles.length > 0 ? `?roles=${encodeURIComponent(roles.join(","))}` : "";
+    return (await apiRequest<any>(`/skills/learning-loop/compare${qs}`)).data;
+  },
+
   logRecommendationImpressions: async (impressions: any[]) =>
     (await apiRequest<{ count: number }>("/edutube/recommendations/impression", {
       method: "POST",
       body: { impressions },
     })).data,
 };
+
+export interface AdaptivePlanAction {
+  actionId: string;
+  skill: string;
+  canonicalName: string;
+  category: string;
+  targetRole: string;
+  actionType: string;
+  priority: "Critical" | "High" | "Medium" | "Low";
+  evidenceState: string;
+  currentScore: number;
+  targetScore: number;
+  isDemonstratedCompetency: boolean;
+  prerequisites?: any[];
+  missingPrerequisites?: string[];
+  hasPrerequisitesMet?: boolean;
+  failureCount?: number;
+  reasoning: string;
+  practicalAction: string;
+  completionCriteria: string;
+  codingTask?: {
+    taskId: string;
+    taskTitle: string;
+    category?: string;
+    language?: string;
+  } | null;
+  educationalResource?: {
+    title: string;
+    youtubeUrl: string | null;
+    edutubeUrl: string;
+    type: string;
+    duration?: string;
+  };
+  documentationUrl?: string;
+  estimatedMinutes?: number;
+}
+
+export interface AdaptiveLearningPlanData {
+  targetRole: string;
+  overallReadinessScore: number;
+  currentObjective: string;
+  nextAction: AdaptivePlanAction | null;
+  actionsCount: number;
+  pendingActionsCount: number;
+  verifiedCompetenciesCount: number;
+  actions: AdaptivePlanAction[];
+  generatedAt: string;
+}
 
 export interface DashboardIntelligenceData {
   overview: {

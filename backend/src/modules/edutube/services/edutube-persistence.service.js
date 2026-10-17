@@ -152,6 +152,29 @@ export class EduTubePersistenceService {
       }
     );
 
+    if (isCompleted) {
+      try {
+        const { learningOutcomeTrackerService } = await import("../../skills/services/learningOutcomeTracker.service.js");
+        const watchItem = await EduTubeWatchHistory.findOne({ owner: ownerId, videoId: cleanVideoId }).lean();
+        const skill = watchItem?.primarySkill || (watchItem?.title ? watchItem.title.split(" ")[0] : "Programming");
+        await learningOutcomeTrackerService.recordActivity(ownerId, {
+          activityType: "module_completed",
+          skill,
+          entityId: cleanVideoId,
+          title: watchItem?.title || `EduTube Video ${cleanVideoId}`,
+          status: "completed",
+          evidence: {
+            details: `Completed educational video module (${percentage}% watched)`,
+            evidenceSource: "edutube",
+            sandboxVerified: false,
+          },
+          idempotencyKey: `edutube_complete_${ownerId.toString()}_${cleanVideoId}`,
+        });
+      } catch (err) {
+        // Non-blocking background sync
+      }
+    }
+
     return progress;
   }
 

@@ -122,6 +122,12 @@ export interface MentorContextData {
     totalSubmissions: number;
     passedCount: number;
   };
+  adaptivePlan?: {
+    currentObjective?: string;
+    nextAction?: any;
+    verifiedCompetenciesCount?: number;
+    pendingActionsCount?: number;
+  } | null;
   insights: string[];
   updatedAt: string;
 }

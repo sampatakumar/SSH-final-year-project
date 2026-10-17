@@ -4,6 +4,7 @@ import { EXECUTION_LIMITS } from "../sandbox/sandboxConfig.js";
 import { evaluateTask } from "../services/codingExecution.service.js";
 import { generateCodingIntelligenceReport } from "../services/codeIntelligence.service.js";
 import { adaptiveSkillLoopService } from "../../skills/services/adaptive-skill-loop.service.js";
+import { learningOutcomeTrackerService } from "../../skills/services/learningOutcomeTracker.service.js";
 import { CodingSubmission } from "../models/codingSubmission.models.js";
 import { ApiError, CodingExecutionError, CodingEvaluationError } from "../../../core/errors/ApiError.js";
 import { ApiResponse } from "../../../core/errors/ApiResponse.js";
@@ -140,17 +141,30 @@ export const submitSolution = asyncHandler(async (req, res) => {
 
     try {
       const primarySkill = task?.skills?.[0] || task?.category || "Problem Solving";
-      await adaptiveSkillLoopService.recordAssessmentOutcome(req.user._id, {
+      const isPass = result.status === "passed";
+
+      await learningOutcomeTrackerService.recordActivity(req.user._id, {
+        activityType: isPass ? "coding_passed" : "coding_failed",
         skill: primarySkill,
-        taskId,
-        score: result.score,
-        maxScore: result.maxScore,
-        testCasesPassed: result.passed,
-        testCasesTotal: result.total,
-        assessmentType: "coding_challenge",
+        entityId: taskId,
+        title: task?.title || taskId,
+        status: isPass ? "passed" : "failed",
+        evidence: {
+          score: result.score,
+          maxScore: result.maxScore,
+          testCasesPassed: result.passed,
+          testCasesTotal: result.total,
+          executionTimeMs: result.executionTimeMs || 0,
+          evidenceSource: "coding",
+          sandboxVerified: true,
+          details: isPass
+            ? `Passed all ${result.passed}/${result.total} test cases in Docker sandbox`
+            : `Failed ${result.failed}/${result.total} test cases in Docker sandbox`,
+        },
+        idempotencyKey: `coding_sub_${savedSubmission._id.toString()}`,
       });
     } catch (err) {
-      console.warn("[coding-controller] Error updating adaptive skill loop:", err.message);
+      console.warn("[coding-controller] Error updating adaptive learning loop:", err.message);
     }
   }
 

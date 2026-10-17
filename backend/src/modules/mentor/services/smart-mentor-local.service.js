@@ -13,6 +13,28 @@ export class SmartMentorLocalService {
   classifyIntent(message) {
     const text = (message || "").toLowerCase().trim();
 
+    // 1. High-priority specific adaptive learning coaching queries (Phase 16)
+    if (/failed.*(challenge|task|code|coding|test)|teach.*missing concept/i.test(text)) {
+      return "failed_challenge_remediation";
+    }
+
+    if (/completed.*(module|video|lesson)|what (should i|do i|to) practice/i.test(text)) {
+      return "post_module_practice";
+    }
+
+    if (/compare.*(role|progress)|frontend.*(vs|and).*backend|compare.*frontend.*backend/i.test(text)) {
+      return "multi_role_comparison";
+    }
+
+    if (/why (am i|is my|are we).*weak|why.*gap|why.*low.*score/i.test(text)) {
+      return "why_skill_weak";
+    }
+
+    if (/ready for.*milestone|next.*milestone|roadmap milestone|am i ready for the next/i.test(text)) {
+      return "milestone_readiness";
+    }
+
+    // 2. GitHub and project queries
     if (/github|repo|repositories|commit|push|pull request/i.test(text)) {
       if (/readme/i.test(text)) return "github_readme";
       if (/description|desc|about/i.test(text)) return "github_repository";
@@ -467,6 +489,155 @@ ${comparisonLines}
           courseRecommendations: rec,
           learningPackage: pkg,
         };
+      }
+
+      case "failed_challenge_remediation": {
+        const topGaps = context.skillGaps || [];
+        const focalSkill = topGaps[0]?.skill || "Coding Challenge";
+
+        answer = `### Targeted Remediation: Overcoming Challenge Difficulty in ${focalSkill}
+
+Failing automated sandbox tests is a **normal and essential part of engineering growth**. It reveals concrete edge cases and hidden boundary conditions that require refinement.
+
+### Diagnostic Strategy:
+1. **Isolate the Failing Test Cases**: Review input edge cases (e.g., empty arrays, null inputs, unexpected types, off-by-one indices).
+2. **Step Through Missing Concepts**: Often a failed test stems from unhandled asynchronous logic, memory mutations, or inefficient time complexity.
+3. **Foundational Concept Review**: Review the core syntax and pattern on EduTube before re-executing.
+4. **Iterative Local Testing**: Test boundary values on your local machine or in the sample test runner first before submitting against all hidden unit tests.`;
+
+        summary = `Targeted remediation plan for failed coding challenge in ${focalSkill}.`;
+        actions.push({
+          title: `Retry ${focalSkill} challenge in Sandbox`,
+          priority: "critical",
+          category: "skills",
+          estimatedMinutes: 30,
+          route: "/dashboard/coding",
+        });
+        actions.push({
+          title: `Review ${focalSkill} core concepts on EduTube`,
+          priority: "high",
+          category: "edutube",
+          estimatedMinutes: 45,
+          route: "/dashboard/edutube",
+        });
+        break;
+      }
+
+      case "post_module_practice": {
+        const focalSkill = topGaps[0]?.skill || "Core Programming";
+        const coding = context.coding || {};
+
+        answer = `### Learning Outcome Validation: Next Practice Step
+
+Congratulations on completing your educational lesson!
+
+> **Competency Boundary**: Watching videos builds valuable conceptual understanding and mental models, but **true technical competency requires writing code that passes automated test suites in an isolated environment**.
+
+### Immediate Practical Action:
+- Put the concepts into practice right now in the **Smart Skill Hub Coding Sandbox**.
+- Your profile records **${coding.passedCount || 0} verified test suite passes** out of ${coding.totalSubmissions || 0} attempts.
+- Solving the corresponding challenge will immediately update your empirical mastery and narrow your skill gap for **${targetRole}**.`;
+
+        summary = `Validate completed video lesson by passing practical sandbox challenge in ${focalSkill}.`;
+        actions.push({
+          title: `Solve ${focalSkill} challenge in Sandbox`,
+          priority: "critical",
+          category: "skills",
+          estimatedMinutes: 30,
+          route: "/dashboard/coding",
+        });
+        actions.push({
+          title: "Inspect updated skill profile",
+          priority: "medium",
+          category: "skills",
+          estimatedMinutes: 10,
+          route: "/dashboard/skills",
+        });
+        break;
+      }
+
+      case "multi_role_comparison": {
+        const targetRoles = context.career?.targetRoles || ["Frontend Developer", "Backend Developer", "Full Stack Developer"];
+        const readiness = context.career?.readinessScore ?? 65;
+
+        answer = `### Multi-Role Progress & Benchmark Comparison
+- **Current Target Role**: **${targetRole}** (Readiness Score: **${readiness}/100**)
+- **Tracked Career Roles**: ${targetRoles.join(", ")}
+
+### Role Competency Profiles:
+1. **Frontend Developer**:
+   - Focus: Component architecture, responsive UI, DOM APIs, state management (React, TypeScript).
+   - Core Gap: ${(context.skillGaps || []).filter((g) => ["React", "CSS", "TypeScript", "HTML"].includes(g.skill)).map((g) => g.skill).join(", ") || "None recorded"}.
+2. **Backend Developer**:
+   - Focus: RESTful APIs, relational/document databases, Docker containerization, asynchronous Node.js.
+   - Core Gap: ${(context.skillGaps || []).filter((g) => ["Docker", "Node.js", "MongoDB", "REST APIs"].includes(g.skill)).map((g) => g.skill).join(", ") || "Docker, Database Scaling"}.
+3. **Full Stack Developer**:
+   - Synthesis of both frontend state and backend deployment pipelines.
+
+You can switch your active benchmark anytime in **Settings → Career Goals** without losing any recorded progress.`;
+
+        summary = `Multi-role comparison between ${targetRoles.join(" and ")}.`;
+        actions.push({
+          title: "Compare multi-role benchmarks",
+          priority: "medium",
+          category: "skills",
+          estimatedMinutes: 15,
+          route: "/dashboard/gaps",
+        });
+        break;
+      }
+
+      case "why_skill_weak": {
+        const firstGap = (context.skillGaps || [])[0];
+        const gapName = firstGap?.skill || "Target Skills";
+        const gapScore = firstGap?.currentScore ?? 0;
+        const targetScore = firstGap?.targetScore ?? 75;
+
+        answer = `### Evidence Breakdown: Why ${gapName} is Identified as a Gap
+- **Current Score**: ${gapScore}/100
+- **Target Role Expectation**: ${targetScore}/100 for ${targetRole}
+- **Evidence State**: *${firstGap?.evidenceState || (gapScore === 0 ? "Missing Evidence" : "Developing")}*
+
+### Why this happens:
+1. **Lack of Direct Evidence**: The platform requires verifiable proof (e.g. passing test suites in the Coding Sandbox or synchronized GitHub repositories showcasing production architecture).
+2. **Missing Prerequisites**: Complex tools like Docker require foundational networking and command line comfort.
+3. **Unassessed Capability**: If you have not submitted code or connected repositories using ${gapName}, the system conservatively scores it as a gap rather than assuming unverified mastery.`;
+
+        summary = `Evidence breakdown for ${gapName} gap (${gapScore}/${targetScore}).`;
+        actions.push({
+          title: `Demonstrate ${gapName} in Sandbox`,
+          priority: "high",
+          category: "skills",
+          estimatedMinutes: 30,
+          route: "/dashboard/coding",
+        });
+        break;
+      }
+
+      case "milestone_readiness": {
+        const passedCount = context.coding?.passedCount || 0;
+        const watchedCount = context.learning?.completedVideos || 0;
+        const isReady = passedCount >= 1 && readiness >= 60;
+
+        answer = `### Roadmap Milestone Readiness Assessment
+- **Role Readiness**: ${readiness}/100
+- **Verified Sandbox Challenges**: ${passedCount} passed
+- **EduTube Modules Completed**: ${watchedCount} modules
+
+${isReady
+  ? `✅ **You are ready for your next roadmap milestone!** You have demonstrated empirical foundation in your core stack. Proceed to integrate these skills into an end-to-end full-stack capstone project.`
+  : `⏳ **Preparation Needed**: Before advancing to the next milestone, we recommend completing at least one verified coding challenge in the sandbox to solidify your practical evidence.`}
+`;
+
+        summary = isReady ? "Ready for next milestone!" : "Prerequisite practice needed before advancing.";
+        actions.push({
+          title: isReady ? "View next milestone on Roadmap" : "Complete pending challenge",
+          priority: "high",
+          category: "learning",
+          estimatedMinutes: 30,
+          route: isReady ? "/dashboard/roadmap" : "/dashboard/coding",
+        });
+        break;
       }
 
       default: {

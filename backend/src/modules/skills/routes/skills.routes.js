@@ -6,6 +6,10 @@ import {
   getSkillHistory,
   getAdaptiveLoop,
   recordAdaptiveAssessment,
+  recordLearningActivityController,
+  getLearnerActivitiesController,
+  getAdaptiveLearningPlanController,
+  compareMultiRolePlansController,
 } from "../controllers/skills.controller.js";
 import { getUserGaps, getRoleGaps } from "../../gaps/controllers/gaps.controller.js";
 import { getRecommendations, getRecommendationRoadmap } from "../../recommendations/controllers/recommendations.controller.js";
@@ -29,6 +33,12 @@ router.get("/history", getSkillHistory);
 // Adaptive Skill Development Loop
 router.get("/adaptive/loop", getAdaptiveLoop);
 router.post("/adaptive/assess", recordAdaptiveAssessment);
+
+// End-to-End Learning Intelligence & Adaptive Recommendations
+router.post("/learning-loop/activity", recordLearningActivityController);
+router.get("/learning-loop/activities", getLearnerActivitiesController);
+router.get("/learning-loop/plan", getAdaptiveLearningPlanController);
+router.get("/learning-loop/compare", compareMultiRolePlansController);
 
 // Compatibility aliases for legacy/variant route patterns
 router.get("/gaps", getUserGaps);

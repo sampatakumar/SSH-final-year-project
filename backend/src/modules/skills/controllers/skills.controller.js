@@ -95,3 +95,74 @@ export const recordAdaptiveAssessment = asyncHandler(async (req, res) => {
     new ApiResponse(200, result, "Adaptive assessment outcome recorded successfully")
   );
 });
+
+/**
+ * POST /api/v1/skills/learning-loop/activity
+ * Record learning activity with idempotency, evidence, and competency validation.
+ */
+export const recordLearningActivityController = asyncHandler(async (req, res) => {
+  if (!req.user?._id) {
+    throw new SkillEvaluationError("Authentication required.", 401);
+  }
+
+  const { learningOutcomeTrackerService } = await import("../services/learningOutcomeTracker.service.js");
+  const result = await learningOutcomeTrackerService.recordActivity(req.user._id, req.body);
+
+  return res.status(200).json(
+    new ApiResponse(200, result, "Learning activity recorded successfully")
+  );
+});
+
+/**
+ * GET /api/v1/skills/learning-loop/activities
+ * Get authenticated student's chronological learning activities.
+ */
+export const getLearnerActivitiesController = asyncHandler(async (req, res) => {
+  if (!req.user?._id) {
+    throw new SkillEvaluationError("Authentication required.", 401);
+  }
+
+  const { learningOutcomeTrackerService } = await import("../services/learningOutcomeTracker.service.js");
+  const result = await learningOutcomeTrackerService.getLearnerActivities(req.user._id, req.query);
+
+  return res.status(200).json(
+    new ApiResponse(200, result, "Learner activities retrieved successfully")
+  );
+});
+
+/**
+ * GET /api/v1/skills/learning-loop/plan
+ * Calculate personalized adaptive learning plan with prerequisite ordering and targeted remediations.
+ */
+export const getAdaptiveLearningPlanController = asyncHandler(async (req, res) => {
+  if (!req.user?._id) {
+    throw new SkillEvaluationError("Authentication required.", 401);
+  }
+
+  const { adaptiveLearningPlanService } = await import("../../recommendations/services/adaptiveLearningPlan.service.js");
+  const targetRole = req.query.role || req.user.targetRole || "Full Stack Developer";
+  const plan = await adaptiveLearningPlanService.generateAdaptivePlan(req.user._id, targetRole);
+
+  return res.status(200).json(
+    new ApiResponse(200, plan, "Adaptive learning plan generated successfully")
+  );
+});
+
+/**
+ * GET /api/v1/skills/learning-loop/compare
+ * Compare student readiness and next actions across multiple career roles.
+ */
+export const compareMultiRolePlansController = asyncHandler(async (req, res) => {
+  if (!req.user?._id) {
+    throw new SkillEvaluationError("Authentication required.", 401);
+  }
+
+  const { adaptiveLearningPlanService } = await import("../../recommendations/services/adaptiveLearningPlan.service.js");
+  const roles = typeof req.query.roles === "string" ? req.query.roles.split(",").map((r) => r.trim()).filter(Boolean) : [];
+  const comparison = await adaptiveLearningPlanService.compareMultiRolePlans(req.user._id, roles);
+
+  return res.status(200).json(
+    new ApiResponse(200, comparison, "Multi-role progress comparison generated successfully")
+  );
+});
+
