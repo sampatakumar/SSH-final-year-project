@@ -3,15 +3,28 @@ import { firebaseAuth, getAuthToken } from "./firebase";
 const DEFAULT_API_BASE_URL = "http://localhost:8000/api/v1";
 
 export const getApiBaseUrl = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL.replace(/\/$/, "");
+  }
+
   if (typeof window !== "undefined") {
     const host = window.location.host;
+    const hostname = window.location.hostname;
+
     // If accessed through devtunnels (e.g. p7vc1nkb-8080.inc1.devtunnels.ms)
     if (host.includes(".devtunnels.ms")) {
       const backendTunnelHost = host.replace(/-8080\./, "-8000.");
       return `https://${backendTunnelHost}/api/v1`;
     }
+
+    // In production non-localhost environments without explicit VITE_API_URL,
+    // fallback to same-origin path to prevent mixed-content or unreachable localhost calls
+    if (hostname !== "localhost" && hostname !== "127.0.0.1") {
+      return `${window.location.origin}/api/v1`;
+    }
   }
-  return (import.meta.env.VITE_API_URL || DEFAULT_API_BASE_URL).replace(/\/$/, "");
+
+  return DEFAULT_API_BASE_URL.replace(/\/$/, "");
 };
 
 export const getBackendOrigin = () =>

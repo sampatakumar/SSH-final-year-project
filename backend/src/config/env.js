@@ -9,6 +9,7 @@ const envSchema = z.object({
   API_PREFIX: z.string().default("/api/v1"),
   CORS_ORIGIN: z.string().optional().default("*"),
   MONGODB_URI: z.string().min(1, "MONGODB_URI is required"),
+  ADMIN_EMAIL: z.string().email().optional().default("sampatakumarsv@gmail.com"),
 
   FIREBASE_PROJECT_ID: z.string().min(1, "FIREBASE_PROJECT_ID is required"),
   FIREBASE_CLIENT_EMAIL: z.string().optional().default(""),

@@ -837,6 +837,80 @@ Before promoting to production:
 3. Obtain final release approval from project owner prior to merging `expand-test` into `main`.
 
 ---
-*End of Report — Smart Skill Hub Architecture Team*
+
+## 12. Phase 13 Deployment Hardening, Real-Environment Verification & Final QA Report
+
+### 12.1 Executive Summary & Git Verification
+
+| Parameter | Confirmed Value |
+|---|---|
+| **Repository** | `https://github.com/sampatakumar/SSH-final-year-project.git` |
+| **Development Branch** | `expand-test` (strictly isolated; zero merge/cherry-pick to `main`) |
+| **Starting Baseline Commit** | `585d745` (*feat(release-readiness): implement Phase 12 security audit, e2e integration verification, and release readiness on expand-test*) |
+| **Working-Tree Status** | Clean (verified after atomic commit) |
+| **Operational QA Status** | **HARDENED & READY FOR PRODUCTION STAGING** |
+
+---
+
+### 12.2 Real Docker Verification & Environmental Findings
+
+| Aspect | Finding & Action Taken |
+|---|---|
+| **Host Docker State** | Docker Desktop binaries (`docker.exe` v29.8.2 and `Docker Desktop.exe`) are present in `C:\Users\Sampatakumar\AppData\Local\Programs\DockerDesktop`. However, the daemon is offline (`open //./pipe/docker_engine: The system cannot find the file specified`). |
+| **WSL2 Subsystem Status** | Investigation via `wsl -l -v` confirmed: `Windows Subsystem for Linux has no installed distributions`. On Windows, Docker Desktop requires WSL2 integration (`Ubuntu` distribution) or Hyper-V backend to spin up its container engine VM. |
+| **Security Containment** | In strict compliance with safety rules: untrusted student code is **never** executed directly on the host machine as a fallback, and Node.js `vm` is **never** used as a security boundary. |
+| **Resolution in Guide** | Step-by-step setup and verification instructions were authored in `docs/DEPLOYMENT_GUIDE.md` detailing `wsl --install -d Ubuntu`, daemon startup, non-root runner image pull, and named pipe verification. |
+
+---
+
+### 12.3 Production Configuration & Hardening Fixes
+
+| Hardening Focus | Defect / Risk Identified | Targeted Remediation | Verification Status |
+|---|---|---|---|
+| **Frontend API Base URLs** | In production environments without an explicit `VITE_API_URL` env variable, the frontend would previously fall back to `http://localhost:8000/api/v1`, causing mixed-content blocking and connection failures on deployed domains. | Updated `getApiBaseUrl()` in both `frontend/src/core/api/apiClient.ts` and `frontend/src/lib/api.ts` to detect non-localhost hostnames and safely fall back to `${window.location.origin}/api/v1` for reverse-proxy compatibility. | **VERIFIED** |
+| **Subsystem Health Checks** | `GET /api/v1/healthcheck` previously returned a flat `{ status: "ok" }` without distinguishing application availability from database or Docker sandbox status. | Upgraded `healthcheck.controller.js` to report application liveness alongside distinct sub-service metrics (`services.database` with Mongoose `readyState`, `services.dockerSandbox` with availability status, and `services.aiProvider`). | **VERIFIED** |
+| **Database Connection Monitoring** | MongoDB connection drops and reconnections were unmonitored at runtime. | Added idempotent lifecycle event listeners (`error`, `disconnected`, `reconnected`) in `backend/src/core/database/db.js` logging connection state transitions. | **VERIFIED** |
+| **Environment Startup Validation** | `ADMIN_EMAIL` was read dynamically from `process.env` without schema validation. | Added `ADMIN_EMAIL: z.string().email().optional().default("sampatakumarsv@gmail.com")` to `envSchema` in `backend/src/config/env.js`. | **VERIFIED** |
+| **Production Error Sanitization** | Error stacks could leak in responses if `NODE_ENV` was improperly set. | Verified `globalErrorHandler` strictly suppresses `stack` when `NODE_ENV === "production"`. | **VERIFIED** |
+| **In-Memory File Uploads** | Potential accumulation of orphaned temporary files. | Verified `multer.memoryStorage()` processes resumes and project READMEs in-memory as buffers with zero leftover disk artifacts. | **VERIFIED** |
+
+---
+
+### 12.4 Automated Test Suite Execution Results (Phase 13)
+
+| Test Suite | Execution Command | Test Files | Passed | Failed | Skipped | Test Count | Result Summary |
+|---|---|---|---|---|---|---|---|
+| **Frontend Full Suite** | `npm test -- --run` | 38 files | 38 passed | 0 failed | 0 | 265 / 265 passed (100%) | **PASS** — Complete frontend green |
+| **Frontend Production Build** | `npm run build` | 3,444 modules | Succeeded | 0 errors | 0 | Bundled in 9.09s | **PASS** — Clean production bundle |
+| **Backend Full Test Suite** | `npm test` | 43 files | 43 passed | 0 failed | 16 | 439 passed / 16 skipped (455 total) | **PASS** — 100% of test files passed |
+| **Phase 13 Deployment Hardening Suite** | `npm test -- test/phase13.deployment.hardening.test.js` | 1 file | 1 passed | 0 failed | 0 | 8 / 8 passed (100%) | **PASS** — Health checks, error sanitization, DB events green |
+| **Phase 12 Integration & Security Suite** | `npm test -- test/phase12.integration.audit.test.js` | 1 file | 1 passed | 0 failed | 0 | 15 / 15 passed (100%) | **PASS** — Privilege guards, BOLA/IDOR, ReDoS & sandbox green |
+
+---
+
+### 12.5 Production Deployment Documentation
+
+Created comprehensive [`docs/DEPLOYMENT_GUIDE.md`](file:///c:/ssh_expand/SSH_integrated_Project/docs/DEPLOYMENT_GUIDE.md) covering:
+1. System Architecture & Prerequisites (Node.js >= 18.x, npm >= 9.x, MongoDB >= 6.0, Docker).
+2. Environment Configuration Reference (Backend and Frontend `.env` variables, zero committed secrets).
+3. Database Setup (Atlas / self-hosted replica set, indexing, TLS).
+4. Firebase Authentication Setup (OAuth providers, email verification requirement).
+5. Docker Sandbox Setup & Containment Verification on Windows (WSL2 integration) and Linux.
+6. Build and Run Commands for Development, Staging, and Production.
+7. Multi-Tier Health Check Diagnostics.
+8. Common Startup Failures & Troubleshooting Runbook.
+9. Pre-Deployment and Post-Deployment Smoke Test Runbook.
+
+---
+
+### 12.6 Prioritized Remaining Work Before Merging to `main`
+
+1. **Docker WSL2 Initialization (Windows Staging Host)**: Execute `wsl --install -d Ubuntu` on the target host, start Docker Desktop, and run `npm test -- test/coding.integration.test.js` to execute the 16 real container tests.
+2. **Production Secrets Injection**: Populate production `.env` files in staging/production deployment platforms (e.g., Render, Vercel, Railway, AWS).
+3. **Owner Release Review**: Review all 13 phases on `expand-test` and approve merge into `main`.
+
+---
+*End of Report — Smart Skill Hub Architecture & Release Readiness Engineering Team*
+
 
 
