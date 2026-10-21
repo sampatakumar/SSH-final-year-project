@@ -55,6 +55,8 @@ services:
       - GROQ_API_KEY=${GROQ_API_KEY}
       - GROQ_MODEL=${GROQ_MODEL:-openai/gpt-oss-120b}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:8080}
+    volumes:
+      - uploads_data:/app/uploads
     ports:
       - "8000:8000"
     networks:
@@ -74,6 +76,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=${VITE_API_URL:-http://localhost:8000/api/v1}
     container_name: ssh-frontend
     restart: unless-stopped
     depends_on:
@@ -96,3 +100,5 @@ networks:
 volumes:
   mongodb_data:
     name: ssh_mongodb_data
+  uploads_data:
+    name: ssh_uploads_data

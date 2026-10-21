@@ -27,13 +27,14 @@ RUN apk add --no-cache curl
 COPY package*.json ./
 RUN npm ci --only=production && npm cache clean --force
 
-# Copy application source code
+# Copy application source code and tasks catalog
 COPY src/ ./src/
+COPY tasks/ ./tasks/
 COPY constants/ ./constants/ 2>/dev/null || true
 COPY render.yaml ./render.yaml 2>/dev/null || true
 
-# Enforce non-root ownership
-RUN chown -R node:node /app
+# Initialize uploads directory and enforce non-root ownership
+RUN mkdir -p /app/uploads && chown -R node:node /app
 
 # Switch to unprivileged user
 USER node
