@@ -10,7 +10,7 @@ let isShuttingDown = false;
  * Graceful application shutdown handler.
  * Closes HTTP server, drains in-flight requests, and disconnects MongoDB.
  */
-export const shutdown = async (signal = "SIGTERM", exitProcess = true) => {
+export const shutdown = async (signal = "SIGTERM", exitProcess = true, exitCode = 0) => {
   if (isShuttingDown) return;
   isShuttingDown = true;
 
@@ -49,7 +49,7 @@ export const shutdown = async (signal = "SIGTERM", exitProcess = true) => {
   console.info("[Shutdown] Graceful resource teardown complete.");
 
   if (exitProcess && process.env.NODE_ENV !== "test") {
-    process.exit(0);
+    process.exit(exitCode);
   }
 };
 
@@ -76,18 +76,19 @@ export const startServer = async () => {
 };
 
 // Signal listeners for container and orchestrator lifecycles
-process.on("SIGTERM", () => shutdown("SIGTERM"));
-process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGTERM", () => shutdown("SIGTERM", true, 0));
+process.on("SIGINT", () => shutdown("SIGINT", true, 0));
 
 process.on("unhandledRejection", (reason) => {
   console.error("[UnhandledRejection]", reason?.message || reason);
-  shutdown("unhandledRejection", true);
+  shutdown("unhandledRejection", true, 1);
 });
 
 process.on("uncaughtException", (error) => {
   console.error("[UncaughtException]", error?.message || error);
-  shutdown("uncaughtException", true);
+  shutdown("uncaughtException", true, 1);
 });
+
 
 const isDirectRun = Boolean(
   process.argv[1] &&
