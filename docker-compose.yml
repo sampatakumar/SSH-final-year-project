@@ -1,0 +1,99 @@
+version: "3.8"
+
+# ==============================================================================
+# SMART SKILL HUB — REPRODUCIBLE PRODUCTION / LOCAL COMPOSE CONFIGURATION
+# ==============================================================================
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. MongoDB Database Service
+  # ----------------------------------------------------------------------------
+  mongo:
+    image: mongo:7-jammy
+    container_name: ssh-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: smartskillhub
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - ssh-internal-network
+    # Security: do not publish port 27017 to public host interface in production
+    ports:
+      - "127.0.0.1:27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ----------------------------------------------------------------------------
+  # 2. Smart Skill Hub Backend API Service
+  # ----------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ssh-backend
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=production
+      - PORT=8000
+      - API_PREFIX=/api/v1
+      - CORS_ORIGIN=http://localhost:8080,http://localhost:8081
+      - MONGODB_URI=mongodb://mongo:27017/smartskillhub
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-sampatakumarsv@gmail.com}
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
+      - FIREBASE_CLIENT_EMAIL=${FIREBASE_CLIENT_EMAIL:-}
+      - FIREBASE_PRIVATE_KEY=${FIREBASE_PRIVATE_KEY:-}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - SUPABASE_STORAGE_BUCKET=${SUPABASE_STORAGE_BUCKET:-resumes}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GROQ_MODEL=${GROQ_MODEL:-openai/gpt-oss-120b}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:8080}
+    ports:
+      - "8000:8000"
+    networks:
+      - ssh-internal-network
+      - ssh-public-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/healthcheck/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # ----------------------------------------------------------------------------
+  # 3. Smart Skill Hub Frontend Service (Static Production Preview)
+  # ----------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ssh-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      - VITE_API_URL=http://localhost:8000/api/v1
+    ports:
+      - "8080:8080"
+    networks:
+      - ssh-public-network
+
+networks:
+  ssh-internal-network:
+    driver: bridge
+    internal: true
+  ssh-public-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+    name: ssh_mongodb_data

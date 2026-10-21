@@ -53,7 +53,7 @@ export async function apiRequest<T>(
         ? options.token
         : await getAuthToken();
 
-    const response = await fetch(`${getApiBaseUrl()}${path}`, {
+    let response = await fetch(`${getApiBaseUrl()}${path}`, {
       method: options.method ?? "GET",
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -69,6 +69,32 @@ export async function apiRequest<T>(
         : undefined,
     });
 
+    // If unauthorized and token was automatically retrieved, try refreshing expired token once
+    if (response.status === 401 && options.token === undefined) {
+      try {
+        const refreshedToken = await getAuthToken(true);
+        if (refreshedToken && refreshedToken !== token) {
+          response = await fetch(`${getApiBaseUrl()}${path}`, {
+            method: options.method ?? "GET",
+            headers: {
+              Authorization: `Bearer ${refreshedToken}`,
+              ...(isFormData ? {} : { "Content-Type": "application/json" }),
+              "X-Tunnel-Skip-Anti-Phishing-Page": "1",
+              "bypass-tunnel-reminder": "1",
+            },
+            cache: "no-store",
+            body: options.body
+              ? isFormData
+                ? (options.body as FormData)
+                : JSON.stringify(options.body)
+              : undefined,
+          });
+        }
+      } catch {
+        // Fall through to parse original response
+      }
+    }
+
     const payload = (await response.json()) as ApiEnvelope<T> | { message?: string; error?: string };
 
     if (!response.ok) {
@@ -76,6 +102,7 @@ export async function apiRequest<T>(
     }
 
     return payload as ApiEnvelope<T>;
+
   } catch (error) {
     if (error instanceof TypeError) {
       throw new Error(

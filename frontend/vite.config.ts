@@ -19,4 +19,30 @@ export default defineConfig(({ mode }) => ({
     },
     dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@tanstack/react-query", "@tanstack/query-core"],
   },
+  build: {
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            if (id.includes("recharts") || id.includes("d3-")) {
+              return "charts";
+            }
+            if (id.includes("framer-motion")) {
+              return "framer-motion";
+            }
+            if (id.includes("lucide-react")) {
+              return "icons";
+            }
+            if (id.includes("firebase")) {
+              return "firebase";
+            }
+            if (id.includes("@radix-ui")) {
+              return "radix-ui";
+            }
+          }
+        },
+      },
+    },
+  },
 }));

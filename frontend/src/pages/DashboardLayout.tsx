@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { dashboardLinks } from "@/lib/dashboard-links";
 import { useAuth } from "@/core/auth";
 import { Button } from "@/components/ui/button";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 const DashboardLayout: React.FC = () => {
   const location = useLocation();
@@ -299,7 +300,9 @@ const DashboardLayout: React.FC = () => {
               : "p-4 md:p-6 lg:p-8 max-w-7xl mx-auto min-h-full"
           )}
         >
-          <Outlet />
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </div>
       </main>
     </div>

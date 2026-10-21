@@ -191,11 +191,15 @@ export async function generateCodingIntelligenceReport({
 
   // Fallback explanation generator
   const fallbackFeedback = () => {
+    if (executionResult.status === "system_error") {
+      return `Code could not be evaluated due to an isolated sandbox infrastructure issue (${executionResult.error || "sandbox unreachable"}). No penalty or competency loss has been recorded.`;
+    }
     if (executionResult.passed === executionResult.total) {
       return `Excellent solution! All ${executionResult.total} automated tests passed with ${staticSignals.estimatedTimeComplexity} estimated time complexity. Code hygiene is rated at ${staticSignals.hygieneScore}/100.`;
     }
     return `Solution passed ${executionResult.passed}/${executionResult.total} test cases. Focus on resolving the counter-example identified above (${staticSignals.complexityRationale}).`;
   };
+
 
   // Generate qualitative review via AI Orchestrator
   let aiFeedback = fallbackFeedback();

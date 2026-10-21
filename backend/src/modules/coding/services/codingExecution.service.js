@@ -22,25 +22,29 @@ export async function evaluateTask(taskId, studentCode) {
     task.functionName || "add"
   );
 
-  // If container execution failed (syntax error, timeout, runtime crash)
+  // If container execution failed (syntax error, timeout, runtime crash, infrastructure failure)
   if (execution.status !== "completed") {
+    const isSystemError = execution.status === "system_error";
     return {
       taskId: task.id,
       title: task.title,
       functionName: task.functionName,
       status: execution.status,
+      error: execution.error || (isSystemError ? "Coding sandbox is unavailable." : undefined),
+      dockerAvailable: execution.dockerAvailable !== undefined ? execution.dockerAvailable : !isSystemError,
       score: 0,
       maxScore: task.points,
       passed: 0,
-      failed: task.tests.length,
+      failed: isSystemError ? 0 : task.tests.length,
       total: task.tests.length,
       tests: [],
-      stdout: execution.stdout,
-      stderr: execution.stderr,
-      executionTimeMs: execution.executionTime,
+      stdout: execution.stdout || "",
+      stderr: execution.stderr || "",
+      executionTimeMs: execution.executionTime || 0,
       skillsCovered: task.skills || [task.category || "Problem Solving"],
     };
   }
+
 
   const results = execution.taskResults?.results || [];
 

@@ -40,6 +40,7 @@ import AuthActionPage from "./pages/AuthActionPage";
 import OnboardingFlow from "./pages/OnboardingFlow";
 import NotFound from "./pages/NotFound";
 import RequireAuth from "./components/RequireAuth";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 // Optimized React Query Configuration
 const queryClient = new QueryClient({
@@ -61,50 +62,53 @@ const App = () => (
           <Toaster />
           <Sonner />
 
-          {/* Routing */}
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Landing />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
-              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-              <Route path="/verify-email" element={<VerifyEmailPage />} />
-              <Route path="/auth/verify-email" element={<VerifyEmailPage />} />
-              <Route path="/auth/action" element={<AuthActionPage />} />
+          {/* Routing wrapped with ErrorBoundary */}
+          <ErrorBoundary>
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<Landing />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/verify-email" element={<VerifyEmailPage />} />
+                <Route path="/auth/verify-email" element={<VerifyEmailPage />} />
+                <Route path="/auth/action" element={<AuthActionPage />} />
 
-              <Route element={<RequireAuth />}>
-                <Route path="/onboarding" element={<OnboardingFlow />} />
-                <Route path="/edutube" element={<Navigate to="/dashboard/edutube" replace />} />
-                <Route path="/edutube/watch/:videoId" element={<Navigate to="/dashboard/edutube" replace />} />
-                <Route path="/dashboard" element={<DashboardLayout />}>
-                  <Route index element={<DashboardHome />} />
-                  <Route path="mentor" element={<SmartMentorPage />} />
-                  <Route path="skills" element={<SkillProfilePage />} />
-                  <Route path="gaps" element={<SkillGapsPage />} />
-                  <Route path="roadmap" element={<LearningRoadmapPage />} />
-                  <Route path="edutube" element={<EduTubePage />} />
-                  <Route path="edutube/watch/:videoId" element={<EduTubePage />} />
-                  <Route path="edutube/history" element={<HistoryPage />} />
-                  <Route path="edutube/saved" element={<SavedVideosPage />} />
-                  <Route path="edutube/playlists" element={<PlaylistsPage />} />
-                  <Route path="edutube/playlists/:playlistId" element={<PlaylistDetailPage />} />
-                  <Route path="coding" element={<CodingAssessmentPage />} />
-                  <Route path="github" element={<GitHubIntelligencePage />} />
-                  <Route path="resumes" element={<Resumes />} />
-                  <Route path="projects" element={<Projects />} />
-                  <Route path="portfolios" element={<Portfolios />} />
-                  <Route path="profile" element={<ProfileDetailsPage />} />
-                  <Route path="profile-details" element={<Navigate to="/dashboard/profile" replace />} />
-                  <Route path="analytics" element={<UserAnalyticsPage />} />
-                  <Route path="settings" element={<SettingsPage />} />
-                  <Route path="admin" element={<Navigate to="/dashboard/admin/analytics" replace />} />
-                  <Route path="admin/analytics" element={<AdminAnalytics />} />
+                <Route element={<RequireAuth />}>
+                  <Route path="/onboarding" element={<OnboardingFlow />} />
+                  <Route path="/edutube" element={<Navigate to="/dashboard/edutube" replace />} />
+                  <Route path="/edutube/watch/:videoId" element={<Navigate to="/dashboard/edutube" replace />} />
+                  <Route path="/dashboard" element={<DashboardLayout />}>
+                    <Route index element={<DashboardHome />} />
+                    <Route path="mentor" element={<SmartMentorPage />} />
+                    <Route path="skills" element={<SkillProfilePage />} />
+                    <Route path="gaps" element={<SkillGapsPage />} />
+                    <Route path="roadmap" element={<LearningRoadmapPage />} />
+                    <Route path="edutube" element={<EduTubePage />} />
+                    <Route path="edutube/watch/:videoId" element={<EduTubePage />} />
+                    <Route path="edutube/history" element={<HistoryPage />} />
+                    <Route path="edutube/saved" element={<SavedVideosPage />} />
+                    <Route path="edutube/playlists" element={<PlaylistsPage />} />
+                    <Route path="edutube/playlists/:playlistId" element={<PlaylistDetailPage />} />
+                    <Route path="coding" element={<CodingAssessmentPage />} />
+                    <Route path="github" element={<GitHubIntelligencePage />} />
+                    <Route path="resumes" element={<Resumes />} />
+                    <Route path="projects" element={<Projects />} />
+                    <Route path="portfolios" element={<Portfolios />} />
+                    <Route path="profile" element={<ProfileDetailsPage />} />
+                    <Route path="profile-details" element={<Navigate to="/dashboard/profile" replace />} />
+                    <Route path="analytics" element={<UserAnalyticsPage />} />
+                    <Route path="settings" element={<SettingsPage />} />
+                    <Route path="admin" element={<Navigate to="/dashboard/admin/analytics" replace />} />
+                    <Route path="admin/analytics" element={<AdminAnalytics />} />
+                  </Route>
                 </Route>
-              </Route>
 
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </ErrorBoundary>
+
         </TooltipProvider>
       </AuthProvider>
     </ThemeProvider>
