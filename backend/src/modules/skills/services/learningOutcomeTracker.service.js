@@ -48,16 +48,35 @@ export class LearningOutcomeTrackerService {
     }
 
     if (!skill || typeof skill !== "string" || !skill.trim()) {
-      throw new ApiError(400, "skill is required.");
+      throw new ApiError(400, "skill is required and must be a non-empty string.");
     }
 
-    const canonicalName = normalizeSkill(skill) || skill.trim();
+    const cleanSkill = skill.trim();
+    if (cleanSkill.length > 100) {
+      throw new ApiError(400, "skill exceeds maximum allowed length of 100 characters.");
+    }
+
+    let cleanIdempotencyKey = undefined;
+    if (idempotencyKey !== undefined && idempotencyKey !== null) {
+      if (typeof idempotencyKey !== "string") {
+        throw new ApiError(400, "idempotencyKey must be a string.");
+      }
+      const trimmed = idempotencyKey.trim();
+      if (trimmed.length > 128) {
+        throw new ApiError(400, "idempotencyKey exceeds maximum length of 128 characters.");
+      }
+      if (trimmed.length > 0) {
+        cleanIdempotencyKey = trimmed;
+      }
+    }
+
+    const canonicalName = normalizeSkill(cleanSkill) || cleanSkill;
 
     // 1. Idempotency check: if an idempotency key was supplied, return existing record
-    if (idempotencyKey && typeof idempotencyKey === "string") {
+    if (cleanIdempotencyKey) {
       const existing = await LearningActivityRecord.findOne({
         owner: ownerId,
-        idempotencyKey: idempotencyKey.trim(),
+        idempotencyKey: cleanIdempotencyKey,
       }).lean();
 
       if (existing) {
@@ -72,9 +91,12 @@ export class LearningOutcomeTrackerService {
     // 2. Explicit competency boundary:
     // Only verified sandbox test passes or authenticated assessments demonstrate actual competency.
     // Video completion, reading docs, or manual completion does NOT award mastery.
+    const safeEvidence = typeof evidence === "object" && evidence !== null ? evidence : {};
+    const evidenceScore = Math.max(0, Math.min(1000, Number(safeEvidence.score) || 0));
+
     const isDemonstratedCompetency =
       activityType === "coding_passed" ||
-      (activityType === "skill_reassessed" && Number(evidence.score) >= 70 && evidence.evidenceSource === "coding");
+      (activityType === "skill_reassessed" && evidenceScore >= 70 && safeEvidence.evidenceSource === "coding");
 
     // 3. Create persistent learning record
     let record;
@@ -84,30 +106,38 @@ export class LearningOutcomeTrackerService {
         activityType,
         skill: canonicalName,
         canonicalName,
-        targetRole,
-        entityId: String(entityId || ""),
-        title: String(title || (activityType.replace(/_/g, " "))),
+        targetRole: String(targetRole || "Full Stack Developer").slice(0, 100),
+        entityId: String(entityId || "").slice(0, 200),
+        title: String(title || (activityType.replace(/_/g, " "))).slice(0, 200),
         isDemonstratedCompetency,
         evidence: {
-          score: Number(evidence.score) || 0,
-          maxScore: Number(evidence.maxScore) || 10,
-          testCasesPassed: Number(evidence.testCasesPassed) || 0,
-          testCasesTotal: Number(evidence.testCasesTotal) || 0,
-          executionTimeMs: Number(evidence.executionTimeMs) || 0,
-          details: String(evidence.details || ""),
-          evidenceSource: String(evidence.evidenceSource || (activityType.startsWith("coding") ? "coding" : "edutube")),
-          sandboxVerified: Boolean(evidence.sandboxVerified ?? activityType.startsWith("coding")),
+          score: evidenceScore,
+          maxScore: Math.max(0, Math.min(1000, Number(safeEvidence.maxScore) || 10)),
+          testCasesPassed: Math.max(0, Math.min(10000, Number(safeEvidence.testCasesPassed) || 0)),
+          testCasesTotal: Math.max(0, Math.min(10000, Number(safeEvidence.testCasesTotal) || 0)),
+          executionTimeMs: Math.max(0, Math.min(300000, Number(safeEvidence.executionTimeMs) || 0)),
+          details: String(safeEvidence.details || "").slice(0, 500),
+          evidenceSource: String(safeEvidence.evidenceSource || (activityType.startsWith("coding") ? "coding" : "edutube")),
+          sandboxVerified: Boolean(safeEvidence.sandboxVerified ?? activityType.startsWith("coding")),
         },
         status,
-        idempotencyKey: idempotencyKey ? idempotencyKey.trim() : undefined,
+        idempotencyKey: cleanIdempotencyKey,
         recordedAt: new Date(),
       });
+
+      // Invalidate mentor context cache so AI mentor immediately has the fresh activity
+      try {
+        const { smartMentorContextService } = await import("../../mentor/services/smart-mentor-context.service.js");
+        smartMentorContextService.invalidateContext(ownerId);
+      } catch {
+        // non-blocking
+      }
     } catch (err) {
       // In case of parallel race condition on unique compound index
-      if (err.code === 11000 && idempotencyKey) {
+      if (err.code === 11000 && cleanIdempotencyKey) {
         const existing = await LearningActivityRecord.findOne({
           owner: ownerId,
-          idempotencyKey: idempotencyKey.trim(),
+          idempotencyKey: cleanIdempotencyKey,
         }).lean();
         if (existing) {
           return {
@@ -216,8 +246,15 @@ export class LearningOutcomeTrackerService {
     }
 
     const query = { owner: ownerId };
-    if (activityType) query.activityType = activityType;
-    if (skill) query.canonicalName = normalizeSkill(skill) || skill;
+    if (activityType && typeof activityType === "string") {
+      query.activityType = activityType.trim();
+    }
+    if (skill && typeof skill === "string") {
+      const cleanSkill = skill.trim();
+      if (cleanSkill) {
+        query.canonicalName = normalizeSkill(cleanSkill) || cleanSkill;
+      }
+    }
 
     const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
     const safeSkip = Math.max(Number(skip) || 0, 0);

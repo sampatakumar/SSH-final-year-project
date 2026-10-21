@@ -40,7 +40,23 @@ export class AdaptiveLearningPlanService {
     ]);
 
     // 1. Resolve role benchmark skills
-    const benchmark = ROLE_REQUIREMENTS[targetRole] || ROLE_REQUIREMENTS["Full Stack Developer"] || null;
+    const benchmark = ROLE_REQUIREMENTS[targetRole] || null;
+    if (!benchmark) {
+      return {
+        targetRole,
+        benchmarkAvailable: false,
+        status: "benchmark_pending",
+        overallReadinessScore: skillProfile?.overallReadinessScore ?? 60,
+        currentObjective: `Benchmark definition pending for "${targetRole}". Targeted benchmarks are available for standard computing roles.`,
+        nextAction: null,
+        actionsCount: 0,
+        pendingActionsCount: 0,
+        verifiedCompetenciesCount: 0,
+        actions: [],
+        generatedAt: new Date().toISOString(),
+      };
+    }
+
     const roleSkills = benchmark?.coreSkills
       ? [
           ...benchmark.coreSkills.map((s) => ({

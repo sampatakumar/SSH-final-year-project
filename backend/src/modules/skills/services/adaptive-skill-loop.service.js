@@ -263,10 +263,16 @@ export class AdaptiveSkillLoopService {
     const canonicalName = normalizeSkill(skill) || skill;
     const normalizedScore = maxScore > 0 ? Math.round((score / maxScore) * 100) : score;
 
-    // 1. Fetch current profile
-    const profile = await SkillProfile.findOne({ owner: ownerId });
+    // 1. Fetch current profile or initialize for new student
+    let profile = await SkillProfile.findOne({ owner: ownerId });
     if (!profile) {
-      throw new Error("Learner skill profile not found.");
+      profile = await SkillProfile.create({
+        owner: ownerId,
+        targetRole: "Full Stack Developer",
+        skills: [],
+        skillGaps: [],
+        overallReadinessScore: 60,
+      });
     }
 
     // 2. Find existing skill entry
@@ -307,8 +313,14 @@ export class AdaptiveSkillLoopService {
       existingSkill.score = updatedScore;
       existingSkill.level = updatedLevel;
       existingSkill.confidence = 0.85; // Empirical sandbox evidence provides high confidence!
+      if (!Array.isArray(existingSkill.sources)) {
+        existingSkill.sources = [];
+      }
       if (!existingSkill.sources.includes("coding")) {
         existingSkill.sources.push("coding");
+      }
+      if (!Array.isArray(existingSkill.evidence)) {
+        existingSkill.evidence = [];
       }
       existingSkill.evidence.push({
         source: "coding",

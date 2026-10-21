@@ -152,7 +152,7 @@ export class EduTubePersistenceService {
       }
     );
 
-    if (isCompleted) {
+    if (isCompleted && mongoose.connection?.readyState === 1) {
       try {
         const { learningOutcomeTrackerService } = await import("../../skills/services/learningOutcomeTracker.service.js");
         const watchItem = await EduTubeWatchHistory.findOne({ owner: ownerId, videoId: cleanVideoId }).lean();
