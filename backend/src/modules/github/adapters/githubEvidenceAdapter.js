@@ -127,6 +127,11 @@ export function extractGitHubEvidence({ userId, githubData = {} }) {
       observations.push(`Projects in this technology have accumulated ${entry.starsCount} stargazer⭐`);
     }
 
+    const evidenceCategory = entry.originalRepoCount > 0 ? "observed_evidence" : "inferred_signal";
+    const limitations = entry.originalRepoCount === 0
+      ? "Detected only in repository forks; does not confirm original implementation or architecture."
+      : "Observed in public repository codebase. Primary language presence demonstrates usage volume, but single-source GitHub metrics do not prove algorithmic proficiency or automated test coverage without verified execution.";
+
     return {
       skill: entry.canonicalName,
       canonicalName: entry.canonicalName,
@@ -140,6 +145,17 @@ export function extractGitHubEvidence({ userId, githubData = {} }) {
         totalBytes: entry.totalBytes,
         codePercentage: entry.percentage,
         starsCount: entry.starsCount,
+        evidenceCategory,
+        provenance: {
+          source: "github",
+          repositories: entry.repoNames,
+          originalReposCount: entry.originalRepoCount,
+          forkedReposCount: entry.forkedRepoCount,
+          starsCount: entry.starsCount,
+          totalBytes: entry.totalBytes,
+          extractedAt: new Date().toISOString(),
+        },
+        limitations,
       },
       observations: observations.length > 0 ? observations : ["Detected in GitHub repository stack."],
     };

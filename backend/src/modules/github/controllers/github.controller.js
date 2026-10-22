@@ -275,8 +275,19 @@ export const getCareerMentorDashboard = asyncHandler(async (req, res) => {
     profileData = await fetchGitHubProfileData(username);
   }
 
+  let resumeData = null;
+  if (req.user?._id) {
+    try {
+      const { Resume } = await import("../../resume/models/resume.models.js");
+      resumeData = await Resume.findOne({ owner: req.user._id }).sort({ updatedAt: -1 }).lean();
+    } catch {
+      // non-blocking
+    }
+  }
+
   const mentorPlan = buildCareerMentorPlan({
     githubData: profileData,
+    resumeData,
     targetRole,
   });
 

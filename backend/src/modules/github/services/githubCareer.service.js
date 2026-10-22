@@ -61,6 +61,42 @@ export function buildCareerMentorPlan({
   };
   const aggregateStats = githubData?.aggregateStats || {};
 
+  // Extract claimed skills from resumeData if available
+  const resumeClaimedSkills = [];
+  if (resumeData) {
+    if (resumeData.skills) {
+      if (Array.isArray(resumeData.skills.languages)) {
+        resumeData.skills.languages.forEach((s) => {
+          const c = normalizeSkill(s);
+          if (c) resumeClaimedSkills.push(c);
+        });
+      }
+      if (Array.isArray(resumeData.skills.frameworks)) {
+        resumeData.skills.frameworks.forEach((s) => {
+          const c = normalizeSkill(s);
+          if (c) resumeClaimedSkills.push(c);
+        });
+      }
+      if (Array.isArray(resumeData.skills.tools)) {
+        resumeData.skills.tools.forEach((s) => {
+          const c = normalizeSkill(s);
+          if (c) resumeClaimedSkills.push(c);
+        });
+      }
+    }
+    if (Array.isArray(resumeData.skillSections)) {
+      resumeData.skillSections.forEach((sec) => {
+        if (Array.isArray(sec.skills)) {
+          sec.skills.forEach((s) => {
+            const c = normalizeSkill(s);
+            if (c) resumeClaimedSkills.push(c);
+          });
+        }
+      });
+    }
+  }
+  const uniqueClaimedSkills = Array.from(new Set(resumeClaimedSkills));
+
   // 1. Compute Observed GitHub Skills with Genuine Evidence Corroboration
   const observedSkills = [];
   if (!hasZeroRepos) {
@@ -124,27 +160,81 @@ export function buildCareerMentorPlan({
         confidence = "medium";
       }
 
+      const isCorroborated = uniqueClaimedSkills.some((c) => c.toLowerCase() === canonical.toLowerCase());
+      const evidenceCategory = originalCount > 0 ? "observed_evidence" : "inferred_signal";
+      const limitations = originalCount === 0
+        ? "Detected only in repository forks; does not confirm original implementation or architecture."
+        : "Language presence reflects repository code volume, but single-source evidence is capped at 75 (Proficient requires multi-source verification).";
+
       observedSkills.push({
         skill: canonical,
         canonicalName: canonical,
         category: getSkillCategory(canonical) || "Language",
-        score,
-        level,
-        sources: ["github"],
-        confidence,
+        score: isCorroborated ? Math.min(85, score + 10) : score,
+        level: isCorroborated && score >= 60 ? "Proficient" : level,
+        sources: isCorroborated ? ["github", "resume"] : ["github"],
+        confidence: isCorroborated ? "high" : confidence,
+        evidenceCategory,
+        provenance: {
+          source: "github",
+          repositories: originalRepos.map((r) => r.name),
+          originalReposCount: originalCount,
+          forkCount,
+          starsCount: stat.stars || 0,
+          totalBytes: stat.size || 0,
+          extractedAt: new Date().toISOString(),
+        },
+        limitations,
         evidenceBreakdown: {
           isObservedDirectly: originalCount > 0,
-          confidence,
+          confidence: isCorroborated ? "high" : confidence,
           originalReposCount: originalCount,
           forkCount,
           testsDetected: hasTests,
           cicdDetected: hasCicd,
           documentationQuality: hasDocs ? "documented" : "minimal",
           meaningfulArtifacts: artifacts,
+          isCorroboratedWithResume: isCorroborated,
         },
       });
     });
   }
+
+  // Cross-reference observed vs claimed skills
+  const observedSkillNames = new Set(observedSkills.map((s) => s.canonicalName.toLowerCase()));
+  const corroboratedSkills = [];
+  const unsupportedClaims = [];
+  const conflictingEvidence = [];
+
+  for (const claimed of uniqueClaimedSkills) {
+    if (observedSkillNames.has(claimed.toLowerCase())) {
+      corroboratedSkills.push(claimed);
+    } else {
+      unsupportedClaims.push(claimed);
+    }
+  }
+
+  if (uniqueClaimedSkills.length > 0 && repositories.length > 0) {
+    const dominant = String(dominantLanguage || "").toLowerCase();
+    const hasDominantInResume = uniqueClaimedSkills.some((s) => s.toLowerCase() === dominant);
+    if (!hasDominantInResume && dominant !== "none") {
+      conflictingEvidence.push({
+        type: "stack_divergence",
+        description: `GitHub repositories predominantly feature ${dominantLanguage} (${languages[dominantLanguage]?.percentage || 0}% of code), while resume highlights ${uniqueClaimedSkills.slice(0, 3).join(", ")}.`,
+      });
+    }
+  }
+
+  const crossSourceEvidence = {
+    hasResumeData: Boolean(resumeData),
+    resumeSkillsIdentified: uniqueClaimedSkills.length,
+    corroboratedSkillsCount: corroboratedSkills.length,
+    corroboratedSkills,
+    unsupportedClaimsCount: unsupportedClaims.length,
+    unsupportedClaims,
+    hasConflictingEvidence: conflictingEvidence.length > 0,
+    conflicts: conflictingEvidence,
+  };
 
   // Merge with userSkillProfile if available
   const allEvaluatedSkills = [...observedSkills];
@@ -207,12 +297,16 @@ export function buildCareerMentorPlan({
   let biggestGap = "Backend production & containerized deployment";
   let nextPriority = `Build a production-grade backend application with testing, Docker, and CI/CD for ${role}.`;
 
-  if (role === TARGET_ROLES.FRONTEND_ENGINEER) {
+  const roleLower = String(role || "").toLowerCase();
+  const isFrontendRole = roleLower.includes("frontend") || role === TARGET_ROLES.FRONTEND_ENGINEER || role === TARGET_ROLES.FRONTEND_DEVELOPER;
+  const isBackendRole = roleLower.includes("backend") || role === TARGET_ROLES.BACKEND_NODE_ENGINEER || role === TARGET_ROLES.BACKEND_DEVELOPER;
+
+  if (isFrontendRole) {
     strongestArea = isFrontendHeavy ? `${dominantLanguage} UI Development` : "Web Interface Development";
     biggestGap = hasTestingEvidence ? "State management & Web Performance" : "Component testing & Accessibility auditing";
     nextPriority = "Add automated unit/E2E tests (Vitest/Playwright) and optimize Core Web Vitals.";
     currentStage = isFrontendHeavy ? "Frontend-strong developer building toward Senior UI Engineer" : "Developer transitioning into Frontend specialization";
-  } else if (role === TARGET_ROLES.BACKEND_NODE_ENGINEER) {
+  } else if (isBackendRole) {
     strongestArea = hasBackend ? "Backend Services & APIs" : `${dominantLanguage} Scripting`;
     biggestGap = "Microservices architecture, caching, and database indexing";
     nextPriority = "Design a high-throughput REST/gRPC API with Redis caching, PostgreSQL/MongoDB, and Docker.";
@@ -565,6 +659,8 @@ export function buildCareerMentorPlan({
     milestones,
     projectCoach,
     recommendations: recommendations.slice(0, 5),
+    crossSourceEvidence,
+    observedSkills,
     generatedAt: new Date().toISOString(),
   };
 }

@@ -240,18 +240,38 @@ export class SmartMentorContextService {
     }));
 
     // 8. Resume Signals
+    const latestResume = resumes[0] || null;
     const resume = {
       resumeCount: resumes.length,
-      hasSummary: Boolean(user?.about || user?.headline),
-      hasExperience: Boolean(user?.experience && user.experience.length > 0),
-      hasEducation: Boolean(user?.educationEntries && user.educationEntries.length > 0),
+      hasSummary: Boolean(latestResume?.professionalSummary || user?.about || user?.headline),
+      hasExperience: Boolean(
+        (latestResume?.experience && latestResume.experience.length > 0) ||
+        (user?.experience && user.experience.length > 0)
+      ),
+      hasEducation: Boolean(
+        (latestResume?.education && latestResume.education.length > 0) ||
+        (user?.educationEntries && user.educationEntries.length > 0)
+      ),
+      latestResumeTitle: latestResume?.title || null,
+      latestAtsScore: latestResume?.atsScore?.score ?? null,
+      latestQualityScore: latestResume?.qualityScore?.score ?? null,
+      hasProjects: Boolean(latestResume?.projects && latestResume.projects.length > 0),
     };
 
     // 9. Coding Problem Submissions
     const passedProblems = codingSubs.filter((s) => s.status === "passed" || s.passed);
+    const failedProblems = codingSubs.filter(
+      (s) => s.status === "failed" || s.status === "timeout" || s.status === "system_error"
+    );
+    const timeoutCount = codingSubs.filter((s) => s.status === "timeout").length;
+    const systemErrorCount = codingSubs.filter((s) => s.status === "system_error").length;
+
     const coding = {
       totalSubmissions: codingSubs.length,
       passedCount: passedProblems.length,
+      failedCount: failedProblems.length,
+      timeoutCount,
+      systemErrorCount,
       passRate: codingSubs.length > 0 ? Math.round((passedProblems.length / codingSubs.length) * 100) : 0,
       verifiedChallenges: passedProblems.map((p) => p.taskId || p.taskTitle).filter(Boolean).slice(0, 5),
     };

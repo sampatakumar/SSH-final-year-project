@@ -235,6 +235,7 @@ export function calculateAtsReadinessDeterministic(data) {
     totalCount: checks.length,
     checks,
     rubricVersion: "ats-v2.0-deterministic",
+    disclaimer: "Heuristic simulation for readability and structure; not an endorsement or score from proprietary commercial ATS platforms (e.g., Workday, Taleo, Greenhouse).",
     timestamp: new Date().toISOString(),
   };
 }
@@ -333,6 +334,7 @@ export function calculateResumeQualityDeterministic(data) {
       writingScore < 14 ? "Ensure all bullets begin with an active past-tense verb and end with consistent punctuation" : null,
     ].filter(Boolean),
     rubricVersion: "quality-v2.0-deterministic",
+    disclaimer: "Qualitative heuristic evaluation based on technical dictionary, action verb density, and impact metrics.",
     timestamp: new Date().toISOString(),
   };
 }
