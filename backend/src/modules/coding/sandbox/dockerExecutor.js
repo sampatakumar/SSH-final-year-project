@@ -6,15 +6,49 @@ import pLimit from "p-limit";
 import { SANDBOX_IMAGE_NAME, EXECUTION_LIMITS } from "./sandboxConfig.js";
 import { CodingExecutionError } from "../../../core/errors/ApiError.js";
 
-const docker = new Docker();
+/**
+ * Factory for creating configured Dockerode client instances.
+ * Respects DOCKER_HOST (e.g. tcp://isolated-runner:2375 or unix:///var/run/docker.sock)
+ * and DOCKER_SOCKET_PATH environment variables, or explicit options.
+ */
+export function getDockerClient(customOpts = {}) {
+  if (customOpts && Object.keys(customOpts).length > 0) {
+    return new Docker(customOpts);
+  }
+
+  if (process.env.DOCKER_HOST) {
+    const url = process.env.DOCKER_HOST;
+    if (url.startsWith("tcp://")) {
+      const parsed = new URL(url.replace(/^tcp:\/\//, "http://"));
+      return new Docker({
+        host: parsed.hostname,
+        port: parseInt(parsed.port || "2375", 10),
+      });
+    } else if (url.startsWith("unix://")) {
+      return new Docker({
+        socketPath: url.replace(/^unix:\/\//, ""),
+      });
+    }
+    return new Docker({ host: url });
+  }
+
+  if (process.env.DOCKER_SOCKET_PATH) {
+    return new Docker({ socketPath: process.env.DOCKER_SOCKET_PATH });
+  }
+
+  return new Docker();
+}
+
+const docker = getDockerClient();
 const containerExecutionLimit = pLimit(EXECUTION_LIMITS.maxConcurrentContainers || 4);
 
 /**
  * Proactively check Docker daemon connectivity with a strict timeout.
  */
-export async function checkDockerAvailability(dockerInstance = docker) {
+export async function checkDockerAvailability(dockerInstance = null) {
+  const instance = dockerInstance || getDockerClient();
   try {
-    const pingPromise = dockerInstance.ping();
+    const pingPromise = instance.ping();
     let timeoutHandle;
     const timeoutPromise = new Promise((_, reject) => {
       timeoutHandle = setTimeout(() => reject(new Error("Docker ping timed out (1500ms)")), 1500);
