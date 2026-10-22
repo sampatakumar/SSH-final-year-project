@@ -97,6 +97,15 @@ const containerExecutionLimit = pLimit(EXECUTION_LIMITS.maxConcurrentContainers 
  * Proactively check Docker daemon connectivity with a strict timeout.
  */
 export async function checkDockerAvailability(dockerInstance = null) {
+  if (process.env.CODING_EXECUTION_ENABLED === "false") {
+    return {
+      available: false,
+      disabled: true,
+      reason: "Coding sandbox execution is disabled in this staging deployment until a dedicated remote runner is provisioned.",
+      code: "CODING_EXECUTION_DISABLED",
+    };
+  }
+
   const instance = dockerInstance || getDockerClient();
   try {
     const pingPromise = instance.ping();
@@ -207,6 +216,17 @@ async function executeInDockerCore({
   const client = dockerClient || docker;
 
   try {
+    if (process.env.CODING_EXECUTION_ENABLED === "false") {
+      return {
+        status: "system_error",
+        dockerAvailable: false,
+        error: "Coding sandbox execution is disabled in this staging deployment until a dedicated remote runner is provisioned.",
+        stdout: "",
+        stderr: "Coding sandbox execution is disabled in this staging deployment until a dedicated remote runner is provisioned.",
+        executionTime: 0,
+      };
+    }
+
     if (typeof studentCode !== "string" || studentCode.length > EXECUTION_LIMITS.maxCodeLengthBytes) {
       return {
         status: "system_error",

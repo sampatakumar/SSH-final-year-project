@@ -44,7 +44,8 @@ const envSchema = z.object({
   FRONTEND_URL: z.string().optional().default("http://localhost:8081"),
   YOUTUBE_API_KEY: z.string().optional().default(""),
   MAX_RESUME_SIZE_MB: z.coerce.number().default(10),
-  EDUTUBE_MIN_DURATION_SECONDS: z.coerce.number().default(120)
+  EDUTUBE_MIN_DURATION_SECONDS: z.coerce.number().default(120),
+  CODING_EXECUTION_ENABLED: z.string().optional().default("true")
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -55,6 +55,7 @@ services:
       - GROQ_API_KEY=${GROQ_API_KEY:-gsk_staging_test_dummy_key}
       - GROQ_MODEL=${GROQ_MODEL:-openai/gpt-oss-120b}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:8080}
+      - CODING_EXECUTION_ENABLED=${CODING_EXECUTION_ENABLED:-false}
     volumes:
       - uploads_data:/app/uploads
     ports:

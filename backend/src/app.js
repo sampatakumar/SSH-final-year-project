@@ -34,6 +34,7 @@ import { apiHitTracker } from "./core/middleware/analytics.middleware.js";
 import { incrementDailyCounter } from "./core/database/models/analytics.models.js";
 
 const app = express();
+app.set("trust proxy", 1);
 const normalizeOrigin = (value) => String(value || "").trim().replace(/\/+$/, "");
 
 const allowedOrigins = Array.from(
