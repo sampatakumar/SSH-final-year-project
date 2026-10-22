@@ -55,6 +55,14 @@ export const analyzeProfile = asyncHandler(async (req, res) => {
       },
       { upsert: true, new: true }
     );
+
+    // Invalidate mentor context cache so AI mentor immediately has the fresh GitHub analysis
+    try {
+      const { smartMentorContextService } = await import("../../mentor/services/smart-mentor-context.service.js");
+      smartMentorContextService.invalidateContext(req.user._id);
+    } catch {
+      // non-blocking
+    }
   }
 
   return res.status(200).json(
@@ -246,7 +254,7 @@ export const getSkillEvidence = asyncHandler(async (req, res) => {
  */
 export const getCareerMentorDashboard = asyncHandler(async (req, res) => {
   let username = req.params.username || req.query.username || req.body?.username;
-  const targetRole = req.query.role || req.body?.role || "Full Stack Developer";
+  const targetRole = req.query.role || req.body?.role || req.user?.targetRole || "Full Stack Developer";
 
   if (!username && req.user?._id) {
     const settings = await UserSettings.findOne({ owner: req.user._id }).lean().catch(() => null);
@@ -292,7 +300,7 @@ export const getCareerMentorDashboard = asyncHandler(async (req, res) => {
 export const askCareerMentor = asyncHandler(async (req, res) => {
   const username = req.params.username || req.body?.username;
   const question = req.body?.question;
-  const targetRole = req.body?.role || req.query.role || "Full Stack Developer";
+  const targetRole = req.body?.role || req.query.role || req.user?.targetRole || "Full Stack Developer";
 
   if (!username || !question) {
     throw new ApiError(400, "Both GitHub username and question are required.");
@@ -319,7 +327,7 @@ export const askCareerMentor = asyncHandler(async (req, res) => {
  */
 export const getMentorActionPlan = asyncHandler(async (req, res) => {
   const username = req.params.username || req.query.username;
-  const targetRole = req.query.role || "Full Stack Developer";
+  const targetRole = req.query.role || req.user?.targetRole || "Full Stack Developer";
 
   if (!username) {
     throw new ApiError(400, "GitHub username is required.");
@@ -338,7 +346,7 @@ export const getMentorActionPlan = asyncHandler(async (req, res) => {
  */
 export const getMentorGitHubPlan = asyncHandler(async (req, res) => {
   const username = req.params.username || req.query.username;
-  const targetRole = req.query.role || "Full Stack Developer";
+  const targetRole = req.query.role || req.user?.targetRole || "Full Stack Developer";
 
   if (!username) {
     throw new ApiError(400, "GitHub username is required.");
@@ -357,7 +365,7 @@ export const getMentorGitHubPlan = asyncHandler(async (req, res) => {
  */
 export const getMentorCareerPath = asyncHandler(async (req, res) => {
   const username = req.params.username || req.query.username;
-  const targetRole = req.query.role || "Full Stack Developer";
+  const targetRole = req.query.role || req.user?.targetRole || "Full Stack Developer";
 
   if (!username) {
     throw new ApiError(400, "GitHub username is required.");
@@ -377,7 +385,7 @@ export const getMentorCareerPath = asyncHandler(async (req, res) => {
 export const getRepositoryQualityDetails = asyncHandler(async (req, res) => {
   const username = req.params.username || req.query.username;
   const repoName = req.params.repoName;
-  const targetRole = req.query.role || "Full Stack Developer";
+  const targetRole = req.query.role || req.user?.targetRole || "Full Stack Developer";
 
   if (!username || !repoName) {
     throw new ApiError(400, "Both GitHub username and repository name are required.");
@@ -405,7 +413,7 @@ export const getRepositoryQualityDetails = asyncHandler(async (req, res) => {
 export const generateProjectReadme = asyncHandler(async (req, res) => {
   const username = req.params.username || req.query.username || req.body?.username;
   const repoName = req.params.repoName || req.body?.repoName;
-  const targetRole = req.body?.role || req.query.role || "Full Stack Developer";
+  const targetRole = req.body?.role || req.query.role || req.user?.targetRole || "Full Stack Developer";
 
   if (!username || !repoName) {
     throw new ApiError(400, "Both GitHub username and repository name are required.");

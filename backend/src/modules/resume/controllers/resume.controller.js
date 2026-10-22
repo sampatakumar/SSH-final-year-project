@@ -999,6 +999,14 @@ export const applyExtractedProfileToUser = asyncHandler(async (req, res) => {
     }
   }
 
+  // Invalidate mentor context cache so AI mentor immediately has the fresh skills/projects
+  try {
+    const { smartMentorContextService } = await import("../../mentor/services/smart-mentor-context.service.js");
+    smartMentorContextService.invalidateContext(user._id);
+  } catch {
+    // non-blocking
+  }
+
   return res.status(200).json(
     new ApiResponse(200, { user: user.toObject() }, "Profile updated from resume successfully")
   );

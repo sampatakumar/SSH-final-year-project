@@ -14,6 +14,21 @@ import {
   normalizeTextArray,
   SkillSection,
 } from "../../classes/profile.classes.js";
+import { ROLE_ALIAS_MAP } from "../../modules/gaps/services/skillGap.service.js";
+
+/**
+ * Resolve target role identifier to canonical title if known alias is used.
+ */
+export function canonicalizeRoleName(role) {
+  if (!role || typeof role !== "string") return role;
+  const clean = role.trim();
+  if (!clean) return clean;
+  const lower = clean.toLowerCase();
+  const slugified = lower.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  if (ROLE_ALIAS_MAP[slugified]) return ROLE_ALIAS_MAP[slugified];
+  if (ROLE_ALIAS_MAP[lower]) return ROLE_ALIAS_MAP[lower];
+  return clean;
+}
 
 const updateProfileSchema = z.object({
   displayName: z.string().min(2).max(200).optional(),
@@ -184,9 +199,9 @@ export const updateCurrentUser = asyncHandler(async (req, res) => {
   const hasTargetRolesInput = parsed.data.targetRoles !== undefined;
 
   if (hasTargetRoleInput || hasTargetRolesInput) {
-    const rawTargetRole = hasTargetRoleInput ? String(parsed.data.targetRole || "").trim() : "";
+    const rawTargetRole = hasTargetRoleInput ? canonicalizeRoleName(String(parsed.data.targetRole || "").trim()) : "";
     const rawTargetRoles = hasTargetRolesInput && Array.isArray(parsed.data.targetRoles)
-      ? Array.from(new Set(parsed.data.targetRoles.map((r) => String(r || "").trim()).filter(Boolean)))
+      ? Array.from(new Set(parsed.data.targetRoles.map((r) => canonicalizeRoleName(String(r || "").trim())).filter(Boolean)))
       : [];
 
     let resolvedRoles = [];
@@ -203,8 +218,8 @@ export const updateCurrentUser = asyncHandler(async (req, res) => {
       resolvedRoles = [rawTargetRole];
     } else {
       resolvedRoles = Array.isArray(user.targetRoles) && user.targetRoles.length > 0
-        ? user.targetRoles
-        : [user.targetRole || "Full Stack Developer"];
+        ? user.targetRoles.map(canonicalizeRoleName)
+        : [canonicalizeRoleName(user.targetRole || "Full Stack Developer")];
     }
 
     user.targetRoles = resolvedRoles;
@@ -227,6 +242,9 @@ export const updateCurrentUser = asyncHandler(async (req, res) => {
       }
     }
     user.academic = updatedAcademic;
+    if (typeof user.markModified === "function") {
+      user.markModified("academic");
+    }
   }
 
   const hasEducationEntriesUpdate = parsed.data.educationEntries !== undefined;
@@ -280,6 +298,14 @@ export const updateCurrentUser = asyncHandler(async (req, res) => {
   }
 
   await user.save();
+
+  // Invalidate mentor context cache so AI mentor immediately reflects target role/academic/profile updates
+  try {
+    const { smartMentorContextService } = await import("../../modules/mentor/services/smart-mentor-context.service.js");
+    smartMentorContextService.invalidateContext(user._id);
+  } catch {
+    // non-blocking
+  }
 
   return res.status(200).json(new ApiResponse(200, { user }, "Profile updated successfully"));
 });

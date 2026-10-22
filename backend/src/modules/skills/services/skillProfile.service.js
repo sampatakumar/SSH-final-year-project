@@ -97,6 +97,14 @@ export async function evaluateUserProfile(user) {
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
 
+  // Invalidate mentor context cache so AI mentor immediately has the fresh evaluated skill profile
+  try {
+    const { smartMentorContextService } = await import("../../mentor/services/smart-mentor-context.service.js");
+    smartMentorContextService.invalidateContext(user._id);
+  } catch {
+    // non-blocking
+  }
+
   return {
     profile: savedProfile,
     evaluation,
