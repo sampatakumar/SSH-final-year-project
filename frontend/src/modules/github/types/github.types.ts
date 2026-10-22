@@ -296,6 +296,13 @@ export interface GitHubAnalysisData {
   careerMentor?: PersonalCareerMentorData;
   recentEvents?: any[];
   analyzedAt: string;
+  skillSync?: {
+    synced: boolean;
+    skillsCount?: number;
+    overallReadinessScore?: number;
+    syncedAt?: string;
+    error?: string;
+  };
 }
 
 export interface SkillEvidenceItem {

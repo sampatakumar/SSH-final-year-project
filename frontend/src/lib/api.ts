@@ -326,6 +326,7 @@ export interface RecommendationItem {
   documentationUrl?: string;
   estimatedHours?: number;
   status?: string;
+  isCompleted?: boolean;
 }
 
 export interface SkillProfileData {
@@ -506,23 +507,55 @@ export const SmartSkillApi = {
       `/recommendations/roadmap${role ? `?role=${encodeURIComponent(role)}` : ""}`
     )).data.roadmap,
 
+  updateRoadmapMilestoneStatus: async (
+    recommendationId: string,
+    status: "completed" | "pending" | "in_progress",
+    metadata?: { skill?: string; canonicalName?: string; title?: string }
+  ) =>
+    (
+      await apiRequest<{
+        recommendationId: string;
+        status: string;
+        isCompleted: boolean;
+        updatedAt: string;
+      }>(`/recommendations/item/${encodeURIComponent(recommendationId)}`, {
+        method: "PATCH",
+        body: { status, ...metadata },
+      })
+    ).data,
+
+  toggleDailyMission: async (
+    id: string,
+    metadata?: { title?: string; targetSkill?: string; completed?: boolean }
+  ) =>
+    (
+      await apiRequest<{
+        missionId: string;
+        completed: boolean;
+        updatedAt: string;
+      }>(`/dashboard/missions/${encodeURIComponent(id)}/toggle`, {
+        method: "POST",
+        body: metadata,
+      })
+    ).data,
+
   // Coding
-  getCodingTasks: async () =>
-    (await apiRequest<{ tasks: CodingTaskSummary[] }>("/coding/tasks")).data.tasks,
+  getCodingTasks: async (language: string = "javascript") =>
+    (await apiRequest<{ tasks: CodingTaskSummary[] }>(`/coding/tasks?language=${encodeURIComponent(language)}`)).data.tasks,
 
-  getTaskDetail: async (taskId: string) =>
-    (await apiRequest<{ task: CodingTaskDetail }>(`/coding/tasks/${encodeURIComponent(taskId)}`)).data.task,
+  getTaskDetail: async (taskId: string, language: string = "javascript") =>
+    (await apiRequest<{ task: CodingTaskDetail }>(`/coding/tasks/${encodeURIComponent(taskId)}?language=${encodeURIComponent(language)}`)).data.task,
 
-  runCode: async (code: string, taskId?: string) =>
+  runCode: async (code: string, taskId?: string, language: string = "javascript") =>
     (await apiRequest<CodingExecutionResult>("/coding/run", {
       method: "POST",
-      body: { code, taskId },
+      body: { code, taskId, language },
     })).data,
 
-  submitSolution: async (taskId: string, code: string) =>
+  submitSolution: async (taskId: string, code: string, language: string = "javascript") =>
     (await apiRequest<CodingExecutionResult>("/coding/submit", {
       method: "POST",
-      body: { taskId, code },
+      body: { taskId, code, language },
     })).data,
 
   getCodingSubmissions: async () =>

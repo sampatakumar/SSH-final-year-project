@@ -1,0 +1,60 @@
+{
+  "id": "reverse-string",
+  "language": "python",
+  "title": "Reverse String",
+  "functionName": "reverse_string",
+  "difficulty": "Easy",
+  "category": "Strings",
+  "description": "Write a function `reverse_string(s)` that accepts a string and returns a new string with the characters in reverse order.",
+  "examples": [
+    {
+      "input": "reverse_string(\"hello\")",
+      "output": "\"olleh\"",
+      "explanation": "Reverse of hello is olleh."
+    },
+    {
+      "input": "reverse_string(\"Python\")",
+      "output": "\"nohtyP\"",
+      "explanation": "Reverse of Python is nohtyP."
+    }
+  ],
+  "starterCode": "def reverse_string(s: str) -> str:\n    \"\"\"Return s in reversed character order.\"\"\"\n    # Write your solution here\n    pass\n",
+  "tests": [
+    {
+      "id": 1,
+      "name": "Sample Test: hello",
+      "input": ["hello"],
+      "expected": "olleh",
+      "isSample": true
+    },
+    {
+      "id": 2,
+      "name": "Sample Test: Python",
+      "input": ["Python"],
+      "expected": "nohtyP",
+      "isSample": true
+    },
+    {
+      "id": 3,
+      "name": "Empty string",
+      "input": [""],
+      "expected": "",
+      "isSample": false
+    },
+    {
+      "id": 4,
+      "name": "Single character",
+      "input": ["x"],
+      "expected": "x",
+      "isSample": false
+    },
+    {
+      "id": 5,
+      "name": "String with spaces and punctuation",
+      "input": ["Hello, World!"],
+      "expected": "!dlroW ,olleH",
+      "isSample": false
+    }
+  ],
+  "points": 10
+}

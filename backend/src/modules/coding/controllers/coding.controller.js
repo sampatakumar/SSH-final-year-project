@@ -10,13 +10,26 @@ import { ApiError, CodingExecutionError, CodingEvaluationError } from "../../../
 import { ApiResponse } from "../../../core/errors/ApiResponse.js";
 import { asyncHandler } from "../../../core/errors/asyncHandler.js";
 
+const SUPPORTED_LANGUAGES = ["javascript", "python", "typescript"];
+
+export function validateLanguage(lang = "javascript") {
+  const normalized = String(lang || "javascript").toLowerCase().trim();
+  if (!SUPPORTED_LANGUAGES.includes(normalized)) {
+    throw new ApiError(
+      400,
+      `Language '${lang}' is not supported. Supported languages: ${SUPPORTED_LANGUAGES.join(", ")}.`
+    );
+  }
+  return normalized;
+}
+
 /**
  * List all available coding tasks.
  */
 export const listTasks = asyncHandler(async (req, res) => {
-  const language = req.query.language || "javascript";
+  const language = validateLanguage(req.query.language || "javascript");
   const tasks = getAllTasks(language);
-  return res.status(200).json(new ApiResponse(200, { tasks }, "Available coding tasks"));
+  return res.status(200).json(new ApiResponse(200, { tasks, language }, "Available coding tasks"));
 });
 
 /**
@@ -24,11 +37,11 @@ export const listTasks = asyncHandler(async (req, res) => {
  */
 export const getTaskById = asyncHandler(async (req, res) => {
   const { taskId } = req.params;
-  const language = req.query.language || "javascript";
+  const language = validateLanguage(req.query.language || "javascript");
   const task = getPublicTask(taskId, language);
 
   if (!task) {
-    throw new ApiError(404, `Coding task "${taskId}" not found.`);
+    throw new ApiError(404, `Coding task "${taskId}" not found for language "${language}".`);
   }
 
   return res.status(200).json(new ApiResponse(200, { task }, "Coding task details"));
@@ -38,16 +51,43 @@ export const getTaskById = asyncHandler(async (req, res) => {
  * Fast Run against public sample test cases (or raw script).
  */
 export const runCodeSample = asyncHandler(async (req, res) => {
-  const { code, taskId } = req.body;
+  const { code, taskId, language: rawLang = "javascript" } = req.body;
+  const language = validateLanguage(rawLang);
 
   if (typeof code !== "string" || !code.trim()) {
     throw new ApiError(400, "Code must be a non-empty string.");
   }
 
   if (taskId) {
-    const task = getRawTask(taskId, "javascript");
+    const task = getRawTask(taskId, language);
     if (!task) {
-      throw new ApiError(404, `Task "${taskId}" not found.`);
+      throw new ApiError(404, `Task "${taskId}" not found for language "${language}".`);
+    }
+
+    // Enforce execution safeguard: Staging disables execution or non-JS runner unprovisioned
+    if (language !== "javascript" || process.env.CODING_EXECUTION_ENABLED === "false") {
+      const reasonMsg =
+        language !== "javascript"
+          ? `Execution sandbox for ${language} is not enabled in this staging deployment.`
+          : "Coding sandbox execution is disabled in this staging deployment until a dedicated remote runner is provisioned.";
+
+      return res.status(200).json(
+        new ApiResponse(
+          200,
+          {
+            type: "sample_test_run",
+            taskId,
+            language,
+            status: "system_error",
+            error: reasonMsg,
+            taskResults: { results: [] },
+            stdout: "",
+            stderr: reasonMsg,
+            executionTimeMs: 0,
+          },
+          "Sample test execution completed"
+        )
+      );
     }
 
     const sampleTests = (task.tests || []).filter((t) => t.isSample === true);
@@ -63,6 +103,7 @@ export const runCodeSample = asyncHandler(async (req, res) => {
         {
           type: "sample_test_run",
           taskId,
+          language,
           status: execution.status,
           taskResults: execution.taskResults,
           stdout: execution.stdout,
@@ -75,12 +116,36 @@ export const runCodeSample = asyncHandler(async (req, res) => {
   }
 
   // Raw script execution
+  if (language !== "javascript" || process.env.CODING_EXECUTION_ENABLED === "false") {
+    const reasonMsg =
+      language !== "javascript"
+        ? `Execution sandbox for ${language} is not enabled in this staging deployment.`
+        : "Coding sandbox execution is disabled in this staging deployment until a dedicated remote runner is provisioned.";
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          type: "raw_execution",
+          language,
+          status: "system_error",
+          error: reasonMsg,
+          stdout: "",
+          stderr: reasonMsg,
+          executionTimeMs: 0,
+        },
+        "Raw code execution completed"
+      )
+    );
+  }
+
   const execution = await executeJavaScript(code);
   return res.status(200).json(
     new ApiResponse(
       200,
       {
         type: "raw_execution",
+        language,
         status: execution.status,
         stdout: execution.stdout,
         stderr: execution.stderr,
@@ -96,7 +161,8 @@ export const runCodeSample = asyncHandler(async (req, res) => {
  * Authenticated: records submission to MongoDB under req.user._id.
  */
 export const submitSolution = asyncHandler(async (req, res) => {
-  const { taskId, code, language = "javascript" } = req.body;
+  const { taskId, code, language: rawLang = "javascript" } = req.body;
+  const language = validateLanguage(rawLang);
 
   if (!taskId) {
     throw new ApiError(400, "taskId is required.");
@@ -106,8 +172,39 @@ export const submitSolution = asyncHandler(async (req, res) => {
     throw new ApiError(400, "code must be a non-empty string.");
   }
 
-  const result = await evaluateTask(taskId, code);
   const task = getRawTask(taskId, language);
+  if (!task) {
+    throw new ApiError(404, `Task "${taskId}" not found for language "${language}".`);
+  }
+
+  let result;
+  if (language !== "javascript" || process.env.CODING_EXECUTION_ENABLED === "false") {
+    const reasonMsg =
+      language !== "javascript"
+        ? `Coding sandbox execution for ${language} is disabled in this staging deployment until a dedicated remote runner is provisioned.`
+        : "Coding sandbox execution is disabled in this staging deployment until a dedicated remote runner is provisioned.";
+
+    result = {
+      taskId: task.id,
+      title: task.title,
+      functionName: task.functionName,
+      status: "system_error",
+      error: reasonMsg,
+      dockerAvailable: false,
+      score: 0,
+      maxScore: task.points || 10,
+      passed: 0,
+      failed: 0,
+      total: task.tests ? task.tests.length : 0,
+      tests: [],
+      stdout: "",
+      stderr: reasonMsg,
+      executionTimeMs: 0,
+      skillsCovered: task.skills || [task.category || "Problem Solving"],
+    };
+  } else {
+    result = await evaluateTask(taskId, code);
+  }
 
   // Generate deep coding intelligence report
   const intelligence = await generateCodingIntelligenceReport({

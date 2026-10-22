@@ -2,6 +2,7 @@ import { upsertUserFromFirebase } from "../services/auth.service.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { evaluateUserProfile } from "../modules/skills/services/skillProfile.service.js";
 import { z } from "zod";
 import {
   AchievementEntry,
@@ -269,5 +270,28 @@ export const updateCurrentUser = asyncHandler(async (req, res) => {
 
   await user.save();
 
-  return res.status(200).json(new ApiResponse(200, { user }, "Profile updated successfully"));
+  // If student completed onboarding, seed initial skill evaluation non-blockingly
+  let initialEvaluation = null;
+  if (parsed.data.onboardingCompleted === true) {
+    try {
+      initialEvaluation = await evaluateUserProfile(user);
+    } catch (evalErr) {
+      console.warn("[auth:onboarding] Initial evaluation warning (non-blocking):", evalErr?.message);
+    }
+  }
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        user,
+        initialEvaluation: initialEvaluation ? {
+          evaluated: true,
+          skillsCount: initialEvaluation.profile?.skills?.length || 0,
+          overallReadinessScore: initialEvaluation.profile?.overallReadinessScore || 0,
+        } : null,
+      },
+      "Profile updated successfully"
+    )
+  );
 });

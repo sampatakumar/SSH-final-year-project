@@ -15,6 +15,7 @@ import {
   RefreshCw,
   CheckCircle2,
   Clock,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { GitHubAnalysisData } from "../types/github.types";
@@ -25,6 +26,8 @@ export interface UserOverviewProps {
   isSyncing?: boolean;
   lastSyncedAt?: string | null;
   onSync?: () => void;
+  onSyncSkills?: () => void;
+  isSyncingSkills?: boolean;
   onOpenMentor?: () => void;
   onOpenCompare: () => void;
   onOpenExport: () => void;
@@ -36,6 +39,8 @@ export const UserOverview: React.FC<UserOverviewProps> = ({
   isSyncing = false,
   lastSyncedAt,
   onSync,
+  onSyncSkills,
+  isSyncingSkills = false,
   onOpenMentor,
   onOpenCompare,
   onOpenExport,
@@ -90,10 +95,18 @@ export const UserOverview: React.FC<UserOverviewProps> = ({
               </a>
 
               {isConnected ? (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-extrabold uppercase">
-                  <CheckCircle2 className="h-3 w-3" />
-                  GitHub Connected
-                </span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-extrabold uppercase">
+                    <CheckCircle2 className="h-3 w-3" />
+                    GitHub Connected
+                  </span>
+                  {data.skillSync?.synced && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-primary/15 border border-primary/30 text-primary text-[10px] font-bold">
+                      <Sparkles className="h-3 w-3 text-primary" />
+                      Skill Profile Synced ({data.skillSync.skillsCount || 0} skills)
+                    </span>
+                  )}
+                </div>
               ) : (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[10px] font-medium">
                   Public Profile
@@ -160,6 +173,20 @@ export const UserOverview: React.FC<UserOverviewProps> = ({
             >
               <RefreshCw className={`h-3.5 w-3.5 mr-1.5 text-primary ${isSyncing ? "animate-spin" : ""}`} />
               {isSyncing ? "Syncing..." : "Sync Now"}
+            </Button>
+          )}
+
+          {isConnected && onSyncSkills && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onSyncSkills}
+              disabled={isSyncingSkills}
+              title="Sync repository evidence directly with your Skill Profile and Career Gap calculations"
+              className="text-xs h-9 font-semibold text-primary border-primary/40 hover:bg-primary/10 shadow-xs"
+            >
+              <Sparkles className={`h-3.5 w-3.5 mr-1.5 text-primary ${isSyncingSkills ? "animate-spin" : ""}`} />
+              {isSyncingSkills ? "Syncing Skills..." : "Sync Skill Profile"}
             </Button>
           )}
 

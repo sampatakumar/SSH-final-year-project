@@ -6,8 +6,10 @@ import {
   normalizeCloudflarePagesDeploymentUrl
 } from "../services/deployToCloudflare.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { ApiError } from "../utils/ApiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { dashboardIntelligenceService } from "../services/dashboard-intelligence.service.js";
+import { LearningActivityRecord } from "../modules/skills/models/learningActivityRecord.models.js";
 
 export const getDashboardIntelligenceController = asyncHandler(async (req, res) => {
   const result = await dashboardIntelligenceService.getDashboardIntelligence(req.user._id);
@@ -255,4 +257,85 @@ export const getFullProfileSnapshot = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, { profile }, "Full profile snapshot fetched successfully"));
+});
+
+/**
+ * POST /api/v1/dashboard/missions/:id/toggle
+ * Toggle daily mission completion for the authenticated student.
+ */
+export const toggleDailyMissionController = asyncHandler(async (req, res) => {
+  if (!req.user?._id) {
+    throw new ApiError(401, "Authentication required.");
+  }
+
+  const { id } = req.params;
+  if (!id || typeof id !== "string" || !id.trim()) {
+    throw new ApiError(400, "Valid mission id is required.");
+  }
+
+  const cleanId = id.trim();
+  const { title, targetSkill, completed } = req.body || {};
+
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+
+  // Check if already completed today
+  const existingRecord = await LearningActivityRecord.findOne({
+    owner: req.user._id,
+    activityType: "daily_mission",
+    entityId: cleanId,
+    recordedAt: { $gte: startOfDay },
+  });
+
+  const shouldComplete = typeof completed === "boolean" ? completed : !existingRecord;
+
+  let resultRecord = null;
+  if (shouldComplete) {
+    const todayStr = new Date().toISOString().split("T")[0];
+    resultRecord = await LearningActivityRecord.findOneAndUpdate(
+      {
+        owner: req.user._id,
+        activityType: "daily_mission",
+        entityId: cleanId,
+        recordedAt: { $gte: startOfDay },
+      },
+      {
+        $set: {
+          owner: req.user._id,
+          activityType: "daily_mission",
+          entityId: cleanId,
+          skill: targetSkill || "General Engineering",
+          canonicalName: targetSkill || "General Engineering",
+          title: title || `Daily Mission: ${cleanId}`,
+          status: "completed",
+          recordedAt: new Date(),
+        },
+        $setOnInsert: {
+          idempotencyKey: `mission_${req.user._id}_${todayStr}_${cleanId}`,
+          isDemonstratedCompetency: false,
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+  } else {
+    // Unmark mission for today
+    await LearningActivityRecord.deleteOne({
+      owner: req.user._id,
+      activityType: "daily_mission",
+      entityId: cleanId,
+      recordedAt: { $gte: startOfDay },
+    });
+  }
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        missionId: cleanId,
+        completed: shouldComplete,
+        updatedAt: resultRecord?.updatedAt || new Date(),
+      },
+      `Daily mission ${shouldComplete ? "completed" : "unmarked"}`
+    )
+  );
 });

@@ -91,11 +91,44 @@ const DashboardHome = () => {
     }
   };
 
-  const toggleMission = (id: string) => {
+  useEffect(() => {
+    if (intelligence?.dailyLearningPlan) {
+      const map: Record<string, boolean> = {};
+      intelligence.dailyLearningPlan.forEach((m: any) => {
+        if (m.completed) {
+          map[m.id] = true;
+        }
+      });
+      setCompletedMissions(map);
+    }
+  }, [intelligence?.dailyLearningPlan]);
+
+  const toggleMission = async (mission: any) => {
+    const id = mission.id;
+    const currentState = Boolean(completedMissions[id]);
+    const newState = !currentState;
+
+    // Optimistic UI update
     setCompletedMissions((prev) => ({
       ...prev,
-      [id]: !prev[id],
+      [id]: newState,
     }));
+
+    try {
+      await SmartSkillApi.toggleDailyMission(id, {
+        title: mission.title,
+        targetSkill: mission.targetSkill,
+        completed: newState,
+      });
+      toast.success(newState ? "Mission marked as complete!" : "Mission marked as incomplete.");
+    } catch (err: any) {
+      // Revert optimistic update
+      setCompletedMissions((prev) => ({
+        ...prev,
+        [id]: currentState,
+      }));
+      toast.error(err.message || "Failed to update mission state.");
+    }
   };
 
   const targetRole =
@@ -376,30 +409,33 @@ const DashboardHome = () => {
               ? dailyMissions
               : [
                   {
-                    id: "mission_1",
+                    id: "mission_1_concept",
                     type: "video_lesson",
                     title: "Study Docker Container Architecture & Layers",
                     targetSkill: "Docker",
                     estimatedMinutes: 20,
                     actionUrl: "/dashboard/edutube",
+                    isPersonalized: false,
                     explanation: "Addresses primary Critical skill gap identified in profile.",
                   },
                   {
-                    id: "mission_2",
+                    id: "mission_2_hands_on",
                     type: "coding_task",
                     title: "Solve Isolated Docker Sandbox Practice Challenge",
                     targetSkill: "Node.js Containerization",
                     estimatedMinutes: 25,
                     actionUrl: "/dashboard/coding",
+                    isPersonalized: false,
                     explanation: "Empirical code execution builds verifiable skill mastery.",
                   },
                   {
-                    id: "mission_3",
+                    id: "mission_3_retrieval",
                     type: "spaced_revision",
                     title: "Retrieval Practice: React State & Effect Hooks",
                     targetSkill: "React",
                     estimatedMinutes: 10,
                     actionUrl: "/dashboard/skills",
+                    isPersonalized: false,
                     explanation: "Scheduled revision reinforcing memory retention.",
                   },
                 ]
@@ -416,7 +452,7 @@ const DashboardHome = () => {
                 >
                   <div className="flex items-start gap-3">
                     <button
-                      onClick={() => toggleMission(mission.id)}
+                      onClick={() => toggleMission(mission)}
                       className={`mt-0.5 rounded-lg p-1 border transition-colors ${
                         isDone
                           ? "bg-success text-success-foreground border-success"
@@ -424,10 +460,10 @@ const DashboardHome = () => {
                       }`}
                       title={isDone ? "Mark incomplete" : "Mark completed"}
                     >
-                      <CheckCircle2 className="h-4 w-4" />
+                      <CheckCircle2 className={`h-4 w-4 ${isDone ? "fill-success/20" : ""}`} />
                     </button>
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span
                           className={`text-xs font-bold ${
                             isDone ? "line-through text-muted-foreground" : "text-foreground"
@@ -438,6 +474,15 @@ const DashboardHome = () => {
                         <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
                           {mission.targetSkill}
                         </span>
+                        {mission.isPersonalized ? (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                            Personalized
+                          </span>
+                        ) : (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground border border-border/40 font-mono">
+                            Foundational
+                          </span>
+                        )}
                       </div>
                       <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
                         {mission.explanation}

@@ -21,6 +21,7 @@ import {
   EduTubeWatchHistory,
   EduTubeProgress,
 } from "../modules/edutube/models/index.js";
+import { LearningActivityRecord } from "../modules/skills/models/learningActivityRecord.models.js";
 import { adaptiveSkillLoopService } from "../modules/skills/services/adaptive-skill-loop.service.js";
 import { recommendationPipelineService } from "../modules/edutube/services/recommendation-engine/recommendation-pipeline.service.js";
 import { SKILL_PREREQUISITE_GRAPH } from "../modules/skills/services/adaptive-skill-loop.service.js";
@@ -232,6 +233,37 @@ export class DashboardIntelligenceService {
       loopState = null;
     }
 
+    // Determine focal skill & personalization context from actual student gaps
+    const primaryGap =
+      (skillGaps || []).find((g) => g.status !== "Met Requirement") ||
+      (skillGaps || [])[0] ||
+      null;
+    const focalSkill =
+      loopState?.focalSkill ||
+      primaryGap?.skill ||
+      primaryGap?.canonicalName ||
+      recommendations[0]?.skill ||
+      null;
+
+    const isPersonalized = Boolean(focalSkill);
+    const effectiveSkill = focalSkill || "Full Stack Core Architecture";
+
+    // Query today's completed mission records from LearningActivityRecord
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const todayMissionRecords = await LearningActivityRecord.find({
+      owner: ownerId,
+      activityType: "daily_mission",
+      status: "completed",
+      recordedAt: { $gte: startOfDay },
+    })
+      .select("entityId status recordedAt")
+      .lean()
+      .catch(() => []);
+
+    const completedMissionSet = new Set(todayMissionRecords.map((r) => r.entityId));
+
     // Personalized Daily Learning Plan (3 Concrete Missions for Today)
     const dailyPlan = [
       {
@@ -239,24 +271,30 @@ export class DashboardIntelligenceService {
         type: "video_lesson",
         title: loopState?.recommendedLesson?.title
           ? `Watch: ${loopState.recommendedLesson.title}`
-          : `Study: Master ${loopState?.focalSkill || "Core Fundamentals"} Architecture`,
-        targetSkill: loopState?.focalSkill || "Core Engineering",
+          : `Study: Master ${effectiveSkill} Architecture`,
+        targetSkill: effectiveSkill,
         estimatedMinutes: 20,
-        completed: false,
+        completed: completedMissionSet.has("mission_1_concept"),
+        isPersonalized,
+        source: loopState?.recommendedLesson ? "adaptive_loop" : isPersonalized ? "skill_gap" : "fallback",
         actionUrl: loopState?.recommendedLesson?.videoId
           ? `/dashboard/edutube/watch/${loopState.recommendedLesson.videoId}`
-          : "/dashboard/edutube",
-        explanation: `Focal skill identified as primary ${loopState?.gapPriority || "Medium"} gap for ${targetRole}.`,
+          : `/dashboard/edutube?search=${encodeURIComponent(effectiveSkill)}`,
+        explanation: isPersonalized
+          ? `Targeted focus on ${effectiveSkill} based on your ${targetRole} skill gap analysis.`
+          : `Foundational full-stack concept study to establish benchmark competency.`,
       },
       {
         id: "mission_2_hands_on",
         type: "coding_task",
         title: loopState?.practicalExercise?.taskTitle
           ? `Solve: ${loopState.practicalExercise.taskTitle}`
-          : `Practice: Complete ${loopState?.focalSkill || "Algorithm"} Sandbox Challenge`,
-        targetSkill: loopState?.focalSkill || "Practical Coding",
+          : `Practice: Complete ${effectiveSkill} Sandbox Challenge`,
+        targetSkill: effectiveSkill,
         estimatedMinutes: 25,
-        completed: false,
+        completed: completedMissionSet.has("mission_2_hands_on"),
+        isPersonalized,
+        source: loopState?.practicalExercise ? "adaptive_loop" : isPersonalized ? "skill_gap" : "fallback",
         actionUrl: "/dashboard/coding",
         explanation: "Empirical code execution in isolated Docker sandbox provides verifiable skill mastery.",
       },
@@ -265,10 +303,12 @@ export class DashboardIntelligenceService {
         type: "spaced_revision",
         title: spacedRevisions.length > 0
           ? `Revision: ${spacedRevisions[0].promptQuestion || spacedRevisions[0].skill}`
-          : `Review: Spaced retrieval check for ${strongSkills[0]?.skill || "Previous Concepts"}`,
+          : `Review: Spaced retrieval check for ${strongSkills[0]?.skill || "Core Concepts"}`,
         targetSkill: spacedRevisions[0]?.skill || strongSkills[0]?.skill || "Revision",
         estimatedMinutes: 10,
-        completed: false,
+        completed: completedMissionSet.has("mission_3_retrieval"),
+        isPersonalized: Boolean(spacedRevisions.length > 0 || strongSkills.length > 0),
+        source: spacedRevisions.length > 0 ? "spaced_schedule" : strongSkills.length > 0 ? "strong_skill_retrieval" : "fallback",
         actionUrl: "/dashboard/skills",
         explanation: "Retrieval practice reinforces memory retention according to Ebbinghaus forgetting curve.",
       },

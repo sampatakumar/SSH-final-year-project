@@ -64,3 +64,49 @@ export const verifyFirebaseToken = asyncHandler(async (req, _res, next) => {
 
   next();
 });
+
+export const optionalFirebaseToken = asyncHandler(async (req, _res, next) => {
+  const authHeader = req.header("Authorization") || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : null;
+
+  if (!token) {
+    return next();
+  }
+
+  try {
+    const decoded = await new Promise((resolve, reject) => {
+      jwt.verify(
+        token,
+        getGooglePublicKey,
+        {
+          algorithms: ["RS256"],
+          audience: env.FIREBASE_PROJECT_ID,
+          issuer: `https://securetoken.google.com/${env.FIREBASE_PROJECT_ID}`,
+        },
+        (err, decodedToken) => {
+          if (err) return reject(err);
+          resolve(decodedToken);
+        }
+      );
+    });
+
+    const uid = decoded.sub || decoded.uid;
+    const user = await User.findOne({ firebaseUid: uid });
+
+    if (user) {
+      decoded.uid = uid;
+      req.auth = {
+        uid,
+        email: decoded.email || null,
+        name: decoded.name || null,
+        picture: decoded.picture || null,
+        decodedToken: decoded,
+      };
+      req.user = user;
+    }
+  } catch (_err) {
+    // Optional auth: continue without req.user if token is invalid or expired
+  }
+
+  next();
+});

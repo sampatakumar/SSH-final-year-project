@@ -951,8 +951,15 @@ export default function OnboardingFlow() {
         }
       });
 
+      // Trigger initial skill evaluation using persisted student profile
+      try {
+        await SmartSkillApi.evaluateSkills();
+      } catch (evalErr) {
+        console.warn("Initial skill evaluation seeded non-blockingly:", evalErr);
+      }
+
       await refreshProfile();
-      toast.success("Onboarding completed. Welcome to ResumeAI.");
+      toast.success("Onboarding completed. Welcome to Smart Skill Hub!");
       navigate("/dashboard", { replace: true });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to complete onboarding.");

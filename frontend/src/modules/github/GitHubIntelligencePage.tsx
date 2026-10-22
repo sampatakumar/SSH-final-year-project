@@ -47,6 +47,7 @@ export const GitHubIntelligencePage: React.FC = () => {
   const [isCheckingIntegration, setIsCheckingIntegration] = useState(true);
   const [isConnectingGh, setIsConnectingGh] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isSyncingSkills, setIsSyncingSkills] = useState(false);
 
   const [activeUsername, setActiveUsername] = useState<string>("");
   const [isViewingPublic, setIsViewingPublic] = useState(false);
@@ -209,6 +210,52 @@ export const GitHubIntelligencePage: React.FC = () => {
     }
   };
 
+  const handleSyncSkills = async () => {
+    if (!idToken) {
+      toast.error("Please sign in to synchronize your Skill Profile.");
+      return;
+    }
+
+    setIsSyncingSkills(true);
+    try {
+      const res = await apiRequest<{
+        synced: boolean;
+        githubUsername: string;
+        skillsCount: number;
+        overallReadinessScore: number;
+        lastEvaluatedAt: string;
+      }>("/github/sync-skills", {
+        method: "POST",
+        token: idToken,
+      });
+
+      if (res.data?.synced) {
+        setAnalysis((prev) =>
+          prev
+            ? {
+                ...prev,
+                skillSync: {
+                  synced: true,
+                  skillsCount: res.data.skillsCount,
+                  overallReadinessScore: res.data.overallReadinessScore,
+                  syncedAt: res.data.lastEvaluatedAt,
+                },
+              }
+            : prev
+        );
+        toast.success(
+          `Skill Profile synchronized! ${res.data.skillsCount} skills evaluated (Career Readiness: ${Math.round(
+            res.data.overallReadinessScore
+          )}%).`
+        );
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to synchronize Skill Profile.");
+    } finally {
+      setIsSyncingSkills(false);
+    }
+  };
+
   const handleRoleChange = async (newRole: string) => {
     setTargetRole(newRole);
     if (!analysis) return;
@@ -356,6 +403,8 @@ export const GitHubIntelligencePage: React.FC = () => {
             isSyncing={isSyncing}
             lastSyncedAt={integration?.lastSyncedAt}
             onSync={handleSyncNow}
+            onSyncSkills={handleSyncSkills}
+            isSyncingSkills={isSyncingSkills}
             onOpenMentor={() => setActiveTab("mentor")}
             onOpenCompare={() => setIsCompareOpen(true)}
             onOpenExport={() => setIsExportOpen(true)}

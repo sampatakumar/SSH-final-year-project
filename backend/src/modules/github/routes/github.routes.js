@@ -13,8 +13,9 @@ import {
   getMentorCareerPath,
   getRepositoryQualityDetails,
   generateProjectReadme,
+  syncGitHubSkills,
 } from "../controllers/github.controller.js";
-import { verifyFirebaseToken } from "../../../core/auth/auth.middleware.js";
+import { verifyFirebaseToken, optionalFirebaseToken } from "../../../core/auth/auth.middleware.js";
 
 const router = Router();
 
@@ -25,13 +26,14 @@ const githubLimiter = rateLimit({
 });
 
 // Profile Analysis (public or with optional/required auth)
-router.get("/profile/:username", githubLimiter, analyzeProfile);
-router.post("/analyze", githubLimiter, analyzeProfile);
-router.post("/sync", githubLimiter, analyzeProfile);
+router.get("/profile/:username", optionalFirebaseToken, githubLimiter, analyzeProfile);
+router.post("/analyze", optionalFirebaseToken, githubLimiter, analyzeProfile);
+router.post("/sync", optionalFirebaseToken, githubLimiter, analyzeProfile);
+router.post("/sync-skills", verifyFirebaseToken, githubLimiter, syncGitHubSkills);
 router.post("/ai/insights", githubLimiter, getAIInsights);
 router.get("/compare", githubLimiter, compareProfiles);
 router.get("/evidence/:username", githubLimiter, getSkillEvidence);
-router.get("/evidence", githubLimiter, getSkillEvidence);
+router.get("/evidence", optionalFirebaseToken, githubLimiter, getSkillEvidence);
 
 // Personal Career Mentor Routes
 router.get("/mentor/:username", githubLimiter, getCareerMentorDashboard);

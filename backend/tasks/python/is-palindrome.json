@@ -1,0 +1,60 @@
+{
+  "id": "is-palindrome",
+  "language": "python",
+  "title": "Valid Palindrome",
+  "functionName": "is_palindrome",
+  "difficulty": "Easy",
+  "category": "Strings",
+  "description": "A phrase is a palindrome if, after converting all uppercase letters into lowercase letters and removing all non-alphanumeric characters, it reads the same forward and backward.\n\nWrite a function `is_palindrome(s)` that returns `True` if `s` is a palindrome, or `False` otherwise.",
+  "examples": [
+    {
+      "input": "is_palindrome(\"A man, a plan, a canal: Panama\")",
+      "output": "True",
+      "explanation": "\"amanaplanacanalpanama\" is a palindrome."
+    },
+    {
+      "input": "is_palindrome(\"race a car\")",
+      "output": "False",
+      "explanation": "\"raceacar\" is not a palindrome."
+    }
+  ],
+  "starterCode": "def is_palindrome(s: str) -> bool:\n    \"\"\"Return True if string s is a palindrome considering alphanumeric characters.\"\"\"\n    # Write your solution here\n    pass\n",
+  "tests": [
+    {
+      "id": 1,
+      "name": "Sample Test 1: Standard palindrome with punctuation",
+      "input": ["A man, a plan, a canal: Panama"],
+      "expected": true,
+      "isSample": true
+    },
+    {
+      "id": 2,
+      "name": "Sample Test 2: Non-palindrome",
+      "input": ["race a car"],
+      "expected": false,
+      "isSample": true
+    },
+    {
+      "id": 3,
+      "name": "Empty string with whitespace only",
+      "input": ["   "],
+      "expected": true,
+      "isSample": false
+    },
+    {
+      "id": 4,
+      "name": "Single character",
+      "input": ["a"],
+      "expected": true,
+      "isSample": false
+    },
+    {
+      "id": 5,
+      "name": "Alphanumeric string with digits",
+      "input": ["0P0"],
+      "expected": true,
+      "isSample": false
+    }
+  ],
+  "points": 15
+}

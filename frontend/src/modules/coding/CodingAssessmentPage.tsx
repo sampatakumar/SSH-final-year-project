@@ -22,6 +22,7 @@ const CodingAssessmentPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [tasks, setTasks] = useState<CodingTaskSummary[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<string>("two-sum");
+  const [selectedLanguage, setSelectedLanguage] = useState<"javascript" | "python" | "typescript">("javascript");
   const [taskDetail, setTaskDetail] = useState<CodingTaskDetail | null>(null);
   const [code, setCode] = useState<string>("");
   const [isLoadingTask, setIsLoadingTask] = useState(false);
@@ -37,7 +38,7 @@ const CodingAssessmentPage = () => {
     const fetchTasks = async () => {
       try {
         const [list, status] = await Promise.all([
-          SmartSkillApi.getCodingTasks(),
+          SmartSkillApi.getCodingTasks(selectedLanguage),
           SmartSkillApi.getSandboxStatus().catch(() => null),
         ]);
         setTasks(list);
@@ -45,6 +46,10 @@ const CodingAssessmentPage = () => {
           setSandboxStatus(status);
         }
         const paramId = searchParams.get("taskId");
+        const paramLang = searchParams.get("lang");
+        if (paramLang && ["javascript", "python", "typescript"].includes(paramLang)) {
+          setSelectedLanguage(paramLang as any);
+        }
         if (paramId && list.some((t) => t.id === paramId)) {
           setSelectedTaskId(paramId);
         } else if (list.length > 0) {
@@ -57,18 +62,18 @@ const CodingAssessmentPage = () => {
     fetchTasks();
   }, []);
 
-  // Load task detail when selectedTaskId changes
+  // Load task detail when selectedTaskId or selectedLanguage changes
   useEffect(() => {
     if (!selectedTaskId) return;
 
     const fetchDetail = async () => {
       try {
         setIsLoadingTask(true);
-        const detail = await SmartSkillApi.getTaskDetail(selectedTaskId);
+        const detail = await SmartSkillApi.getTaskDetail(selectedTaskId, selectedLanguage);
         setTaskDetail(detail);
         setCode(detail.starterCode || "");
         setExecutionResult(null);
-        setSearchParams({ taskId: selectedTaskId });
+        setSearchParams({ taskId: selectedTaskId, lang: selectedLanguage });
       } catch (err: any) {
         toast.error("Failed to load task: " + err.message);
       } finally {
@@ -76,7 +81,18 @@ const CodingAssessmentPage = () => {
       }
     };
     fetchDetail();
-  }, [selectedTaskId]);
+  }, [selectedTaskId, selectedLanguage]);
+
+  const handleLanguageChange = async (newLang: "javascript" | "python" | "typescript") => {
+    if (newLang === selectedLanguage) return;
+    setSelectedLanguage(newLang);
+    try {
+      const list = await SmartSkillApi.getCodingTasks(newLang);
+      setTasks(list);
+    } catch {
+      // ignore
+    }
+  };
 
   const handleRunSample = async () => {
     if (!code.trim()) {
@@ -87,8 +103,8 @@ const CodingAssessmentPage = () => {
     try {
       setIsRunning(true);
       setActiveTab("console");
-      toast.info("Executing sample test cases in isolated Docker sandbox...");
-      const result = await SmartSkillApi.runCode(code, selectedTaskId);
+      toast.info(`Executing sample test cases in isolated Docker sandbox (${selectedLanguage})...`);
+      const result = await SmartSkillApi.runCode(code, selectedTaskId, selectedLanguage);
       setExecutionResult(result);
       if (result.status === "completed") {
         toast.success("Sample execution completed!");
@@ -111,8 +127,8 @@ const CodingAssessmentPage = () => {
     try {
       setIsSubmitting(true);
       setActiveTab("console");
-      toast.info("Submitting solution against all test suites in Docker sandbox...");
-      const result = await SmartSkillApi.submitSolution(selectedTaskId, code);
+      toast.info(`Submitting solution against all test suites in Docker sandbox (${selectedLanguage})...`);
+      const result = await SmartSkillApi.submitSolution(selectedTaskId, code, selectedLanguage);
       setExecutionResult(result);
 
       if (result.status === "passed") {
@@ -407,10 +423,51 @@ const CodingAssessmentPage = () => {
         {/* Right Col: Monaco Editor (7 cols) */}
         <div className="lg:col-span-7 bg-surface border border-border/40 rounded-2xl shadow-neo-raised flex flex-col overflow-hidden">
           {/* Editor Header Bar */}
-          <div className="flex items-center justify-between px-4 py-2 border-b border-border/30 bg-background/50 text-xs">
-            <span className="font-bold text-muted-foreground flex items-center gap-1.5">
-              <Code2 className="h-3.5 w-3.5 text-primary" /> solution.js
-            </span>
+          <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 border-b border-border/30 bg-background/50 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-muted-foreground flex items-center gap-1.5">
+                <Code2 className="h-3.5 w-3.5 text-primary" />
+                {selectedLanguage === "python" ? "solution.py" : selectedLanguage === "typescript" ? "solution.ts" : "solution.js"}
+              </span>
+
+              {/* Language Selector */}
+              <div className="flex items-center bg-muted/60 p-0.5 rounded-lg border border-border/40 text-[11px]">
+                <button
+                  type="button"
+                  onClick={() => handleLanguageChange("javascript")}
+                  className={`px-2 py-0.5 rounded-md font-semibold transition-all ${
+                    selectedLanguage === "javascript"
+                      ? "bg-primary text-primary-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  JavaScript
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleLanguageChange("python")}
+                  className={`px-2 py-0.5 rounded-md font-semibold transition-all ${
+                    selectedLanguage === "python"
+                      ? "bg-primary text-primary-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Python
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleLanguageChange("typescript")}
+                  className={`px-2 py-0.5 rounded-md font-semibold transition-all ${
+                    selectedLanguage === "typescript"
+                      ? "bg-primary text-primary-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  TypeScript
+                </button>
+              </div>
+            </div>
+
             <Button
               variant="ghost"
               size="sm"
@@ -425,8 +482,8 @@ const CodingAssessmentPage = () => {
           <div className="flex-1 min-h-[350px]">
             <Editor
               height="100%"
-              defaultLanguage="javascript"
-              language="javascript"
+              defaultLanguage={selectedLanguage}
+              language={selectedLanguage}
               theme="vs-dark"
               value={code}
               onChange={(val) => setCode(val || "")}
@@ -437,7 +494,7 @@ const CodingAssessmentPage = () => {
                 lineNumbers: "on",
                 scrollBeyondLastLine: false,
                 automaticLayout: true,
-                tabSize: 2,
+                tabSize: selectedLanguage === "python" ? 4 : 2,
                 wordWrap: "on",
               }}
             />

@@ -20,6 +20,7 @@ const learningActivityRecordSchema = new mongoose.Schema(
         "project_milestone",
         "skill_reassessed",
         "roadmap_milestone",
+        "daily_mission",
       ],
       required: true,
       index: true,

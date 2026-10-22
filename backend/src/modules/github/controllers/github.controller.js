@@ -9,6 +9,7 @@ import {
 import { extractGitHubEvidence } from "../adapters/githubEvidenceAdapter.js";
 import { GitHubAnalysis } from "../models/githubAnalysis.models.js";
 import { UserSettings } from "../../settings/models/userSettings.models.js";
+import { evaluateUserProfile } from "../../skills/services/skillProfile.service.js";
 import { ApiError, GitHubError } from "../../../core/errors/ApiError.js";
 import { ApiResponse } from "../../../core/errors/ApiResponse.js";
 import { asyncHandler } from "../../../core/errors/asyncHandler.js";
@@ -39,6 +40,7 @@ export const analyzeProfile = asyncHandler(async (req, res) => {
 
   // If authenticated user, save or update GitHubAnalysis in database
   let savedRecord = null;
+  let skillSync = { synced: false };
   if (req.user?._id) {
     savedRecord = await GitHubAnalysis.findOneAndUpdate(
       { owner: req.user._id, githubUsername: username.toLowerCase() },
@@ -56,6 +58,23 @@ export const analyzeProfile = asyncHandler(async (req, res) => {
       { upsert: true, new: true }
     );
 
+    // Auto-sync extracted GitHub evidence directly into student's SkillProfile and career gaps
+    try {
+      const evalResult = await evaluateUserProfile(req.user);
+      skillSync = {
+        synced: true,
+        skillsCount: evalResult.profile?.skills?.length || 0,
+        overallReadinessScore: evalResult.profile?.overallReadinessScore || 0,
+        syncedAt: evalResult.profile?.lastEvaluatedAt || new Date(),
+      };
+    } catch (evalErr) {
+      console.warn("[github:autoSkillSync] Non-blocking skill sync warning:", evalErr?.message);
+      skillSync = {
+        synced: false,
+        error: evalErr?.message || "Failed to automatically evaluate skill profile",
+      };
+    }
+
     // Invalidate mentor context cache so AI mentor immediately has the fresh GitHub analysis
     try {
       const { smartMentorContextService } = await import("../../mentor/services/smart-mentor-context.service.js");
@@ -70,9 +89,41 @@ export const analyzeProfile = asyncHandler(async (req, res) => {
       200,
       {
         ...profileData,
-        analysisId: savedRecord?._id || null
+        analysisId: savedRecord?._id || null,
+        skillSync,
       },
       "GitHub profile analyzed successfully"
+    )
+  );
+});
+
+/**
+ * POST /api/v1/github/sync-skills
+ * Manually trigger synchronization between latest analyzed GitHub repository evidence and student's SkillProfile.
+ */
+export const syncGitHubSkills = asyncHandler(async (req, res) => {
+  if (!req.user?._id) {
+    throw new ApiError(401, "Authentication required.");
+  }
+
+  const latestAnalysis = await GitHubAnalysis.findOne({ owner: req.user._id }).sort({ updatedAt: -1 });
+  if (!latestAnalysis) {
+    throw new ApiError(404, "No analyzed GitHub profile found for your account. Please analyze your GitHub profile first.");
+  }
+
+  const evalResult = await evaluateUserProfile(req.user);
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        synced: true,
+        githubUsername: latestAnalysis.githubUsername,
+        skillsCount: evalResult.profile?.skills?.length || 0,
+        overallReadinessScore: evalResult.profile?.overallReadinessScore || 0,
+        lastEvaluatedAt: evalResult.profile?.lastEvaluatedAt || new Date(),
+      },
+      "Skill Profile successfully synchronized with GitHub evidence"
     )
   );
 });
