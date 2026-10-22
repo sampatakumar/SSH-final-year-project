@@ -20,12 +20,13 @@ import { useAuth } from "@/core/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { sanitizeReturnTo } from "@/core/utils/navigationSecurity";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const rawReturnTo = searchParams.get("returnTo") || "/dashboard";
-  const returnTo = rawReturnTo.startsWith("/") && !rawReturnTo.startsWith("//") ? rawReturnTo : "/dashboard";
+  const rawReturnTo = searchParams.get("returnTo");
+  const returnTo = sanitizeReturnTo(rawReturnTo, "/dashboard");
 
   const {
     registerWithEmail,

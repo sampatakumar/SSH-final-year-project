@@ -6,10 +6,12 @@ import pLimit from "p-limit";
 import { SANDBOX_IMAGE_NAME, EXECUTION_LIMITS } from "./sandboxConfig.js";
 import { CodingExecutionError } from "../../../core/errors/ApiError.js";
 
+import fsSync from "fs";
+
 /**
  * Factory for creating configured Dockerode client instances.
- * Respects DOCKER_HOST (e.g. tcp://isolated-runner:2375 or unix:///var/run/docker.sock)
- * and DOCKER_SOCKET_PATH environment variables, or explicit options.
+ * Respects DOCKER_HOST (e.g. tcp://isolated-runner:2376 or unix:///var/run/docker.sock),
+ * DOCKER_TLS_VERIFY, DOCKER_CERT_PATH, and DOCKER_SOCKET_PATH environment variables.
  */
 export function getDockerClient(customOpts = {}) {
   if (customOpts && Object.keys(customOpts).length > 0) {
@@ -20,10 +22,28 @@ export function getDockerClient(customOpts = {}) {
     const url = process.env.DOCKER_HOST;
     if (url.startsWith("tcp://")) {
       const parsed = new URL(url.replace(/^tcp:\/\//, "http://"));
-      return new Docker({
+      const isTls = process.env.DOCKER_TLS_VERIFY === "1" || parsed.port === "2376";
+      const config = {
         host: parsed.hostname,
-        port: parseInt(parsed.port || "2375", 10),
-      });
+        port: parseInt(parsed.port || (isTls ? "2376" : "2375"), 10),
+        protocol: isTls ? "https" : "http",
+      };
+
+      if (process.env.DOCKER_CERT_PATH) {
+        try {
+          const certDir = process.env.DOCKER_CERT_PATH;
+          const caPath = path.join(certDir, "ca.pem");
+          const certPath = path.join(certDir, "cert.pem");
+          const keyPath = path.join(certDir, "key.pem");
+          if (fsSync.existsSync(caPath)) config.ca = fsSync.readFileSync(caPath);
+          if (fsSync.existsSync(certPath)) config.cert = fsSync.readFileSync(certPath);
+          if (fsSync.existsSync(keyPath)) config.key = fsSync.readFileSync(keyPath);
+        } catch (e) {
+          console.warn("[getDockerClient] Failed to load certificates from DOCKER_CERT_PATH:", e.message);
+        }
+      }
+
+      return new Docker(config);
     } else if (url.startsWith("unix://")) {
       return new Docker({
         socketPath: url.replace(/^unix:\/\//, ""),

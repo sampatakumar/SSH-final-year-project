@@ -21,13 +21,14 @@ import { useAuth } from "@/core/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { sanitizeReturnTo } from "@/core/utils/navigationSecurity";
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const rawReturnTo = searchParams.get("returnTo") || "/dashboard";
-  // Validate returnTo to prevent open redirects
-  const returnTo = rawReturnTo.startsWith("/") && !rawReturnTo.startsWith("//") ? rawReturnTo : "/dashboard";
+  const rawReturnTo = searchParams.get("returnTo");
+  // Validate returnTo to prevent open redirects (GHSA-wrjc-x8rr-h8h6 / CVE-2025-68470)
+  const returnTo = sanitizeReturnTo(rawReturnTo, "/dashboard");
 
   const {
     signInWithEmail,
