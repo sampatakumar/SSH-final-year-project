@@ -37,6 +37,16 @@ const createResumeSchema = z.object({
 
 const makeTraceId = () => `resume-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
+const invalidateMentorContextSafely = async (userId) => {
+  if (!userId) return;
+  try {
+    const { smartMentorContextService } = await import("../../mentor/services/smart-mentor-context.service.js");
+    smartMentorContextService.invalidateContext(userId);
+  } catch {
+    // non-blocking
+  }
+};
+
 const inferMimeTypeFromResume = (resume) => {
   const extension = path
     .extname(
@@ -465,6 +475,9 @@ export const createResume = asyncHandler(async (req, res) => {
     responseResume.filePath = `/api/v1/resumes/${responseResume._id}/file`;
   }
 
+  // Invalidate mentor context cache so AI mentor reflects newly created resume
+  invalidateMentorContextSafely(user._id);
+
   return res
     .status(201)
     .json(new ApiResponse(201, { resume: responseResume }, "Resume created successfully"));
@@ -540,6 +553,9 @@ export const updateResume = asyncHandler(async (req, res) => {
     responseResume.filePath = `/api/v1/resumes/${responseResume._id}/file`;
   }
 
+  // Invalidate mentor context cache so AI mentor immediately reflects resume updates
+  invalidateMentorContextSafely(user._id);
+
   return res.status(200).json(new ApiResponse(200, { resume: responseResume }, "Resume updated successfully"));
 });
 
@@ -602,6 +618,9 @@ export const deleteResume = asyncHandler(async (req, res) => {
       // ignore local deletion failure to avoid blocking DB cleanup
     }
   }
+
+  // Invalidate mentor context cache so AI mentor reflects resume deletion
+  invalidateMentorContextSafely(user._id);
 
   return res.status(200).json(new ApiResponse(200, { resumeId }, "Resume deleted successfully"));
 });
@@ -792,6 +811,9 @@ export const uploadAndExtractResume = asyncHandler(async (req, res) => {
   } else if (responseResume.localFilePath || responseResume.storageProvider === "local" || responseResume.storedFileName) {
     responseResume.filePath = `/api/v1/resumes/${responseResume._id}/file`;
   }
+
+  // Invalidate mentor context cache so AI mentor reflects newly uploaded and extracted resume
+  invalidateMentorContextSafely(user._id);
 
   return res.status(200).json(
     new ApiResponse(

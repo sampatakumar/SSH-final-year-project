@@ -54,8 +54,8 @@ const updateProfileSchema = z.object({
       specializationSlug: z.string().max(100).optional(),
       specializationName: z.string().max(300).optional(),
       stream: z.string().max(100).optional(),
-      currentYear: z.number().int().min(1).max(6).nullable().optional(),
-      currentSemester: z.number().int().min(1).max(12).nullable().optional(),
+      currentYear: z.preprocess((val) => (val === "" || val === null || val === undefined ? null : Number(val)), z.number().int().min(1).max(6).nullable()).optional(),
+      currentSemester: z.preprocess((val) => (val === "" || val === null || val === undefined ? null : Number(val)), z.number().int().min(1).max(12).nullable()).optional(),
       institution: z.string().max(500).optional(),
       academicScheme: z.string().max(200).optional(),
     })

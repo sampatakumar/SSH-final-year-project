@@ -152,13 +152,20 @@ export const submitSolution = asyncHandler(async (req, res) => {
       try {
         const primarySkill = task?.skills?.[0] || task?.category || "Problem Solving";
         const isPass = result.status === "passed";
+        const isTimeout = result.status === "timeout";
+        const activityType = isPass
+          ? "coding_passed"
+          : isTimeout
+          ? "coding_attempted"
+          : "coding_failed";
+        const status = isPass ? "passed" : isTimeout ? "timeout" : "failed";
 
         await learningOutcomeTrackerService.recordActivity(req.user._id, {
-          activityType: isPass ? "coding_passed" : "coding_failed",
+          activityType,
           skill: primarySkill,
           entityId: taskId,
           title: task?.title || taskId,
-          status: isPass ? "passed" : "failed",
+          status,
           evidence: {
             score: result.score,
             maxScore: result.maxScore,
@@ -167,8 +174,11 @@ export const submitSolution = asyncHandler(async (req, res) => {
             executionTimeMs: result.executionTimeMs || 0,
             evidenceSource: "coding",
             sandboxVerified: true,
+            isTimeout,
             details: isPass
               ? `Passed all ${result.passed}/${result.total} test cases in Docker sandbox`
+              : isTimeout
+              ? `Execution timed out (${result.executionTimeMs || 5000}ms). Recorded as attempt without penalizing competency.`
               : `Failed ${result.failed}/${result.total} test cases in Docker sandbox`,
           },
           idempotencyKey: `coding_sub_${savedSubmission._id.toString()}`,

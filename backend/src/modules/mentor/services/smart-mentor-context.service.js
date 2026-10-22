@@ -260,9 +260,7 @@ export class SmartMentorContextService {
 
     // 9. Coding Problem Submissions
     const passedProblems = codingSubs.filter((s) => s.status === "passed" || s.passed);
-    const failedProblems = codingSubs.filter(
-      (s) => s.status === "failed" || s.status === "timeout" || s.status === "system_error"
-    );
+    const failedProblems = codingSubs.filter((s) => s.status === "failed");
     const timeoutCount = codingSubs.filter((s) => s.status === "timeout").length;
     const systemErrorCount = codingSubs.filter((s) => s.status === "system_error").length;
 

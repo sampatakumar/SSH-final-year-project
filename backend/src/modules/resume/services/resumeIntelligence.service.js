@@ -212,7 +212,12 @@ export function calculateAtsReadinessDeterministic(data) {
     {
       id: "education_degree",
       title: "Education Credentials",
-      passed: Boolean(data?.education && data.education.length > 0 && data.education[0]?.degree?.trim()),
+      passed: Boolean(
+        data?.education &&
+          data.education.length > 0 &&
+          (data.education[0]?.degree?.trim() ||
+            (typeof data.education[0] === "string" && data.education[0].trim()))
+      ),
       weight: 10,
       explanation: "Accredited degrees satisfy mandatory recruiter education filters.",
       fixSection: "education",

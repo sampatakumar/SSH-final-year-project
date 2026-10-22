@@ -1,6 +1,6 @@
 import { ROLE_REQUIREMENTS, TARGET_ROLES } from "../../gaps/benchmarks/roleRequirements.js";
 import { normalizeSkill, getSkillCategory } from "../../../shared/taxonomy/skillTaxonomy.service.js";
-import { analyzeSkillGaps } from "../../gaps/services/skillGap.service.js";
+import { analyzeSkillGaps, resolveRoleBenchmark } from "../../gaps/services/skillGap.service.js";
 import { generateRecommendations } from "../../recommendations/services/recommendation.service.js";
 import { analyzeAllRepositoriesQuality } from "./githubProjectCoach.service.js";
 
@@ -17,7 +17,10 @@ export function buildCareerMentorPlan({
   targetRole = TARGET_ROLES.FULL_STACK_DEVELOPER,
 }) {
   let role = TARGET_ROLES.FULL_STACK_DEVELOPER;
-  if (ROLE_REQUIREMENTS[targetRole]) {
+  const benchmarkMatch = resolveRoleBenchmark(targetRole);
+  if (benchmarkMatch?.roleName) {
+    role = benchmarkMatch.roleName;
+  } else if (ROLE_REQUIREMENTS[targetRole]) {
     role = targetRole;
   } else {
     const inputRole = String(targetRole || "").toLowerCase();

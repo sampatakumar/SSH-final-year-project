@@ -119,6 +119,7 @@ export class LearningOutcomeTrackerService {
           details: String(safeEvidence.details || "").slice(0, 500),
           evidenceSource: String(safeEvidence.evidenceSource || (activityType.startsWith("coding") ? "coding" : "edutube")),
           sandboxVerified: Boolean(safeEvidence.sandboxVerified ?? activityType.startsWith("coding")),
+          isTimeout: Boolean(safeEvidence.isTimeout),
         },
         status,
         idempotencyKey: cleanIdempotencyKey,
