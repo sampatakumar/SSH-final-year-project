@@ -25,6 +25,12 @@ export default defineConfig(({ mode }) => ({
       output: {
         manualChunks(id) {
           if (id.includes("node_modules")) {
+            if (id.includes("jspdf") || id.includes("html2canvas")) {
+              return "pdf-export";
+            }
+            if (id.includes("@monaco-editor") || id.includes("monaco-editor")) {
+              return "monaco-editor";
+            }
             if (id.includes("recharts") || id.includes("d3-")) {
               return "charts";
             }
@@ -39,6 +45,18 @@ export default defineConfig(({ mode }) => ({
             }
             if (id.includes("@radix-ui")) {
               return "radix-ui";
+            }
+            if (id.includes("@tanstack")) {
+              return "tanstack";
+            }
+            if (id.includes("date-fns") || id.includes("react-day-picker")) {
+              return "date-vendor";
+            }
+            if (id.includes("react-hook-form") || id.includes("@hookform") || id.includes("zod")) {
+              return "form-vendor";
+            }
+            if (id.includes("cmdk") || id.includes("vaul") || id.includes("embla-carousel")) {
+              return "ui-vendor";
             }
           }
         },

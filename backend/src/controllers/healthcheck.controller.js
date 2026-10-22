@@ -34,6 +34,11 @@ export const healthcheck = async (_req, res) => {
       aiProvider: {
         configured: Boolean(env.GROQ_API_KEY),
         model: env.GROQ_MODEL || "openai/gpt-oss-120b",
+        primaryProvider: "groq",
+      },
+      videoProvider: {
+        configured: Boolean(env.YOUTUBE_API_KEY && env.YOUTUBE_API_KEY.trim() !== ""),
+        provider: "youtube_data_api_v3",
       },
     },
   };
