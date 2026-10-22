@@ -1,7 +1,7 @@
 # Smart Skill Hub — Backend API Production Container
 # Multi-stage secure build with least-privilege non-root execution
 
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -12,7 +12,7 @@ COPY package*.json ./
 RUN npm ci
 
 # Production runtime stage
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 
 WORKDIR /app
 
@@ -25,13 +25,12 @@ RUN apk add --no-cache curl
 
 # Copy dependency manifests and install production-only dependencies
 COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
+RUN npm ci --omit=dev && npm cache clean --force
 
 # Copy application source code and tasks catalog
 COPY src/ ./src/
 COPY tasks/ ./tasks/
-COPY constants/ ./constants/ 2>/dev/null || true
-COPY render.yaml ./render.yaml 2>/dev/null || true
+COPY render.yaml ./render.yaml
 
 # Initialize uploads directory and enforce non-root ownership
 RUN mkdir -p /app/uploads && chown -R node:node /app

@@ -28,6 +28,7 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 RUN echo 'server { \
     listen 8080; \
     server_name localhost; \
+    server_tokens off; \
     root /usr/share/nginx/html; \
     index index.html; \
     location / { \
@@ -38,9 +39,6 @@ RUN echo 'server { \
         add_header Cache-Control "public, immutable"; \
     } \
 }' > /etc/nginx/conf.d/default.conf
-
-# Security headers
-RUN sed -i '1s/^/server_tokens off;\n/' /etc/nginx/nginx.conf
 
 EXPOSE 8080
 
