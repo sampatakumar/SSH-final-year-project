@@ -12,6 +12,7 @@ test-results/
 .env
 .env.*
 !.env.example
+!.env.staging.example
 
 # Logs
 logs/
