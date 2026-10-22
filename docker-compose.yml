@@ -46,13 +46,13 @@ services:
       - CORS_ORIGIN=http://localhost:8080,http://localhost:8081
       - MONGODB_URI=mongodb://mongo:27017/smartskillhub
       - ADMIN_EMAIL=${ADMIN_EMAIL:-sampatakumarsv@gmail.com}
-      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID:-smart-skill-hub-staging}
       - FIREBASE_CLIENT_EMAIL=${FIREBASE_CLIENT_EMAIL:-}
       - FIREBASE_PRIVATE_KEY=${FIREBASE_PRIVATE_KEY:-}
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - SUPABASE_URL=${SUPABASE_URL:-https://staging-project.supabase.co}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:-staging_service_role_key_valid}
       - SUPABASE_STORAGE_BUCKET=${SUPABASE_STORAGE_BUCKET:-resumes}
-      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY:-gsk_staging_test_dummy_key}
       - GROQ_MODEL=${GROQ_MODEL:-openai/gpt-oss-120b}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:8080}
     volumes:

@@ -24,21 +24,31 @@ RUN rm -rf /usr/share/nginx/html/*
 # Copy built frontend assets from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Custom nginx config for SPA routing (fallback to index.html)
-RUN echo 'server { \
-    listen 8080; \
-    server_name localhost; \
-    server_tokens off; \
-    root /usr/share/nginx/html; \
-    index index.html; \
-    location / { \
-        try_files $uri $uri/ /index.html; \
-    } \
-    location /assets/ { \
-        expires 1y; \
-        add_header Cache-Control "public, immutable"; \
-    } \
-}' > /etc/nginx/conf.d/default.conf
+# Custom nginx config for SPA routing (fallback to index.html) and API reverse proxy
+RUN cat <<'EOF' > /etc/nginx/conf.d/default.conf
+server {
+    listen 8080;
+    server_name localhost;
+    server_tokens off;
+    root /usr/share/nginx/html;
+    index index.html;
+    location /api/ {
+        proxy_pass http://backend:8000/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+}
+EOF
 
 EXPOSE 8080
 
