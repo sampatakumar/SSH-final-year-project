@@ -51,6 +51,9 @@ import {
   getModelEvaluation,
   runModelExperiment,
   rollbackModel,
+  // Phase 39: Video Checkpoints & Quizzes
+  getVideoCheckpoints,
+  submitVideoCheckpoint,
 } from "../controllers/edutube.controller.js";
 
 const router = Router();
@@ -130,5 +133,11 @@ router.post("/recommendations/impression", verifyFirebaseToken, logRecommendatio
 router.get("/models/evaluation", verifyFirebaseToken, getModelEvaluation);
 router.post("/models/experiment", verifyFirebaseToken, runModelExperiment);
 router.post("/models/rollback", verifyFirebaseToken, rollbackModel);
+
+// ==========================================
+// 5. PHASE 39: VIDEO CHECKPOINTS & QUIZZES
+// ==========================================
+router.get("/video/:videoId/checkpoints", getVideoCheckpoints);
+router.post("/video/:videoId/checkpoints/:checkpointId/submit", verifyFirebaseToken, submitVideoCheckpoint);
 
 export default router;

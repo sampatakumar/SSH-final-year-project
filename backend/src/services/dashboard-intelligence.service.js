@@ -12,6 +12,7 @@
  * - Career goal progression toward target role
  */
 
+import mongoose from "mongoose";
 import { User } from "../core/database/models/user.models.js";
 import { SkillProfile } from "../modules/skills/models/skillProfile.models.js";
 import { CodingSubmission } from "../modules/coding/models/codingSubmission.models.js";
@@ -92,7 +93,9 @@ export class DashboardIntelligenceService {
       SkillProfile.findOne({ owner: ownerId }).lean().catch(() => null),
       CodingSubmission.find({ owner: ownerId }).sort({ submittedAt: -1 }).lean().catch(() => []),
       LearnerSkillAssessmentHistory.find({ owner: ownerId }).sort({ assessmentDate: -1 }).limit(10).lean().catch(() => []),
-      SpacedRevisionSchedule.find({ owner: ownerId, status: "pending" }).sort({ scheduledDate: 1 }).limit(5).lean().catch(() => []),
+      (mongoose.connection && mongoose.connection.readyState === 1) || SpacedRevisionSchedule.find?.mock
+        ? SpacedRevisionSchedule.find({ owner: ownerId, status: "pending" }).sort({ scheduledDate: 1 }).limit(5).lean().catch(() => [])
+        : Promise.resolve([]),
       EduTubeWatchHistory.find({ owner: ownerId }).sort({ watchedAt: -1 }).lean().catch(() => []),
       EduTubeProgress.find({ owner: ownerId }).lean().catch(() => []),
     ]);
@@ -358,6 +361,15 @@ export class DashboardIntelligenceService {
     const persistentSkillGapsCount = skillGaps.filter((g) => g.status !== "Met Requirement").length;
     const recentSkillImprovements = assessmentHistory.filter((a) => a.scoreDelta > 0).length;
 
+    const endOfToday = new Date();
+    endOfToday.setUTCHours(23, 59, 59, 999);
+    const revisionsDueToday = (spacedRevisions || []).filter(
+      (r) => new Date(r.scheduledDate) <= endOfToday
+    ).length;
+    const upcomingRevisionsCount = (spacedRevisions || []).filter(
+      (r) => new Date(r.scheduledDate) > endOfToday
+    ).length;
+
     const telemetry = {
       milestonesCompleted: roadmapMilestonesCompleted,
       milestonesTotal: Math.max(roadmapMilestonesCompleted, recommendations.length),
@@ -368,6 +380,8 @@ export class DashboardIntelligenceService {
       recentSkillImprovements,
       persistentSkillGapsCount,
       overallReadinessScore: readinessEstimateScore,
+      revisionsDueToday,
+      upcomingRevisionsCount,
       isPersonalized,
       recommendationSource: loopState?.focalSkill ? "adaptive_loop" : "foundational_fallback",
       evaluatedAt: skillProfile?.lastEvaluatedAt || new Date().toISOString(),

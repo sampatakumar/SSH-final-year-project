@@ -1,7 +1,10 @@
+import mongoose from "mongoose";
 import { SkillProfile } from "../models/skillProfile.models.js";
 import { LearningActivityRecord } from "../models/learningActivityRecord.models.js";
 import { CodingSubmission } from "../../coding/models/codingSubmission.models.js";
 import { LearnerSkillAssessmentHistory } from "../models/learnerSkillAssessmentHistory.models.js";
+import { SpacedRevisionSchedule } from "../models/spacedRevisionSchedule.models.js";
+import { EduTubeCheckpointAttempt } from "../../edutube/models/edutubeCheckpointAttempt.models.js";
 import { adaptiveSkillLoopService } from "../services/adaptive-skill-loop.service.js";
 import { evaluateUserProfile } from "../services/skillProfile.service.js";
 import { generateUserRecommendations } from "../../recommendations/services/recommendation.service.js";
@@ -22,40 +25,84 @@ export async function computeStudentTelemetry(ownerId, { targetRole = "Full Stac
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
 
+  const endOfToday = new Date();
+  endOfToday.setUTCHours(23, 59, 59, 999);
+
+  const isDbConnected = Boolean(mongoose.connection && mongoose.connection.readyState === 1);
+
+  const queryCount = (model, filter) => {
+    if (model.countDocuments?.mock || isDbConnected) {
+      return model.countDocuments(filter).catch(() => 0);
+    }
+    return Promise.resolve(0);
+  };
+
+  const queryCheckpoints = (filter) => {
+    if (EduTubeCheckpointAttempt.find?.mock || isDbConnected) {
+      return EduTubeCheckpointAttempt.find(filter).select("isCorrect").lean().catch(() => []);
+    }
+    return Promise.resolve([]);
+  };
+
   const [
     milestonesCompletedCount,
     todayMissionsCompletedCount,
     codingSubs,
     assessmentImprovements,
     persistedProfile,
+    dueRevisionsCount,
+    upcomingRevisionsCount,
+    reinforcementCount,
+    checkpointAttempts,
   ] = await Promise.all([
-    LearningActivityRecord.countDocuments({
+    queryCount(LearningActivityRecord, {
       owner: ownerId,
       activityType: "roadmap_milestone",
       status: "completed",
     }),
-    LearningActivityRecord.countDocuments({
+    queryCount(LearningActivityRecord, {
       owner: ownerId,
       activityType: "daily_mission",
       status: "completed",
       recordedAt: { $gte: startOfDay },
     }),
-    CodingSubmission.find({ owner: ownerId }).select("status score").lean(),
-    LearnerSkillAssessmentHistory.countDocuments({
+    CodingSubmission.find?.mock || isDbConnected
+      ? CodingSubmission.find({ owner: ownerId }).select("status score").lean().catch(() => [])
+      : Promise.resolve([]),
+    queryCount(LearnerSkillAssessmentHistory, {
       owner: ownerId,
       scoreDelta: { $gt: 0 },
     }),
-    profile ? Promise.resolve(profile) : SkillProfile.findOne({ owner: ownerId }).lean(),
+    profile ? Promise.resolve(profile) : (SkillProfile.findOne?.mock || isDbConnected ? SkillProfile.findOne({ owner: ownerId }).lean().catch(() => null) : Promise.resolve(null)),
+    queryCount(SpacedRevisionSchedule, {
+      owner: ownerId,
+      status: { $in: ["pending", "needs_reinforcement", "overdue", "in_progress"] },
+      scheduledDate: { $lte: endOfToday },
+    }),
+    queryCount(SpacedRevisionSchedule, {
+      owner: ownerId,
+      status: "pending",
+      scheduledDate: { $gt: endOfToday },
+    }),
+    queryCount(SpacedRevisionSchedule, {
+      owner: ownerId,
+      status: "needs_reinforcement",
+    }),
+    queryCheckpoints({ owner: ownerId }),
   ]);
 
-  const codingAttempts = codingSubs.length;
-  const codingSolved = codingSubs.filter((c) => c.status === "passed" || c.score >= 8).length;
+  const codingAttempts = (codingSubs || []).length;
+  const codingSolved = (codingSubs || []).filter((c) => c.status === "passed" || c.score >= 8).length;
   const currentProfile = persistedProfile || profile;
 
   const totalMilestones = currentProfile?.recommendations?.length || 0;
   const activeGapsCount = (currentProfile?.skillGaps || []).filter(
     (g) => g.status !== "Met Requirement"
   ).length;
+
+  const quizAttempts = (checkpointAttempts || []).length;
+  const quizPassed = (checkpointAttempts || []).filter((a) => a.isCorrect).length;
+  const quizPassRate = quizAttempts > 0 ? Math.round((quizPassed / quizAttempts) * 100) : 0;
 
   return {
     milestonesCompleted: milestonesCompletedCount,
@@ -67,6 +114,12 @@ export async function computeStudentTelemetry(ownerId, { targetRole = "Full Stac
     recentSkillImprovements: assessmentImprovements,
     persistentSkillGapsCount: activeGapsCount,
     overallReadinessScore: currentProfile?.overallReadinessScore ?? 60,
+    revisionsDueToday: dueRevisionsCount,
+    upcomingRevisionsCount,
+    revisionsNeedingReinforcement: reinforcementCount,
+    quizCheckpointsAttempted: quizAttempts,
+    quizCheckpointsPassed: quizPassed,
+    quizPassRate,
     isPersonalized: activeGapsCount > 0 || (currentProfile?.skills || []).length > 0,
     recommendationSource: activeGapsCount > 0 ? "adaptive_loop" : "foundational_fallback",
     evaluatedAt: currentProfile?.lastEvaluatedAt || new Date().toISOString(),

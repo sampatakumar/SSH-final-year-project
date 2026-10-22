@@ -686,6 +686,68 @@ export const SmartSkillApi = {
         `/adaptive-loop/telemetry${role ? `?role=${encodeURIComponent(role)}` : ""}`
       )
     ).data,
+
+  // Spaced Revision (Phase 39)
+  getDueRevisions: async (limit: number = 20) =>
+    (await apiRequest<{ items: SpacedRevisionItem[]; count: number }>(`/skills/spaced-revision/due?limit=${limit}`)).data.items,
+
+  getUpcomingRevisions: async (limit: number = 20) =>
+    (await apiRequest<{ items: SpacedRevisionItem[]; count: number }>(`/skills/spaced-revision/upcoming?limit=${limit}`)).data.items,
+
+  getRevisionQueue: async (limit: number = 10) =>
+    (await apiRequest<{
+      due: SpacedRevisionItem[];
+      upcoming: SpacedRevisionItem[];
+      stats: {
+        dueTodayCount: number;
+        upcomingCount: number;
+        needsReinforcementCount: number;
+        totalScheduled: number;
+      };
+    }>(`/skills/spaced-revision/queue?limit=${limit}`)).data,
+
+  reviewRevisionAttempt: async (scheduleId: string, payload: { score: number; idempotencyKey?: string; answerGiven?: string }) =>
+    (await apiRequest<{
+      isDuplicate: boolean;
+      schedule: SpacedRevisionItem;
+      passed: boolean;
+      score: number;
+      previousIntervalDays: number;
+      newIntervalDays: number;
+      nextDueDate: string;
+      status: string;
+      rationale: string;
+    }>(`/skills/spaced-revision/${encodeURIComponent(scheduleId)}/review`, {
+      method: "POST",
+      body: payload,
+    })).data,
+
+  createRevisionTarget: async (payload: {
+    skill: string;
+    targetId?: string;
+    targetConcept?: string;
+    resourceId?: string;
+    resourceType?: string;
+    quizId?: string;
+    promptQuestion?: string;
+    recommendedExerciseId?: string;
+    isPassed?: boolean;
+    lastScore?: number;
+  }) =>
+    (await apiRequest<{ schedule: SpacedRevisionItem }>("/skills/spaced-revision/target", {
+      method: "POST",
+      body: payload,
+    })).data,
+
+  // Video Checkpoints & Quizzes (Phase 39)
+  getVideoCheckpoints: async (videoId: string) =>
+    (await apiRequest<{ checkpoints: VideoCheckpoint[]; count: number }>(`/edutube/video/${encodeURIComponent(videoId)}/checkpoints`)).data.checkpoints,
+
+  submitVideoCheckpoint: async (videoId: string, checkpointId: string, payload: { selectedOptionIndex: number; idempotencyKey?: string }) =>
+    (await apiRequest<CheckpointSubmissionResult>(`/edutube/video/${encodeURIComponent(videoId)}/checkpoints/${encodeURIComponent(checkpointId)}/submit`, {
+      method: "POST",
+      body: payload,
+    })).data,
 };
 
 export interface AdaptivePlanAction {
@@ -846,9 +908,65 @@ export interface AdaptiveTelemetryData {
   recentSkillImprovements: number;
   persistentSkillGapsCount: number;
   overallReadinessScore: number;
+  revisionsDueToday?: number;
+  upcomingRevisionsCount?: number;
+  revisionsNeedingReinforcement?: number;
+  quizCheckpointsAttempted?: number;
+  quizCheckpointsPassed?: number;
+  quizPassRate?: number;
   isPersonalized: boolean;
   recommendationSource: string;
   evaluatedAt: string;
+}
+
+export interface SpacedRevisionItem {
+  _id: string;
+  skill: string;
+  canonicalName: string;
+  targetId?: string;
+  targetConcept?: string;
+  resourceId?: string;
+  resourceType?: "edutube" | "coding_task" | "roadmap_milestone" | "quiz_checkpoint" | "concept_review";
+  stage: number;
+  intervalDays: number;
+  scheduledDate: string;
+  status: "pending" | "completed" | "skipped" | "overdue" | "in_progress" | "needs_reinforcement";
+  lastScore: number;
+  attemptsCount: number;
+  consecutiveSuccesses: number;
+  promptQuestion?: string;
+  recommendedExerciseId?: string;
+  isDue?: boolean;
+  isOverdue?: boolean;
+  computedStatus?: string;
+}
+
+export interface VideoCheckpoint {
+  checkpointId: string;
+  videoId: string;
+  timestampSeconds: number;
+  question: string;
+  options: string[];
+  conceptKey?: string;
+  skill: string;
+  canonicalName: string;
+  difficulty?: "Easy" | "Medium" | "Hard";
+  explanation?: string;
+  hasAttempted?: boolean;
+  isPassed?: boolean;
+  lastScore?: number | null;
+}
+
+export interface CheckpointSubmissionResult {
+  isDuplicate: boolean;
+  isCorrect: boolean;
+  score: number;
+  correctOptionIndex: number;
+  explanation: string;
+  conceptKey?: string;
+  skill: string;
+  nextScheduledReview?: string | null;
+  reviewStatus?: string;
 }
 
 export interface InAppNotification {

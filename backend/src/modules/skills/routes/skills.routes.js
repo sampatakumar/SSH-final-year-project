@@ -16,6 +16,13 @@ import {
   getAdaptiveLoopStateController,
   getAdaptiveTelemetryController,
 } from "../controllers/adaptiveLoop.controller.js";
+import {
+  getDueRevisionsController,
+  getUpcomingRevisionsController,
+  getRevisionQueueController,
+  reviewRevisionAttemptController,
+  createRevisionTargetController,
+} from "../controllers/spacedRevision.controller.js";
 import { getUserGaps, getRoleGaps } from "../../gaps/controllers/gaps.controller.js";
 import { getRecommendations, getRecommendationRoadmap } from "../../recommendations/controllers/recommendations.controller.js";
 import { verifyFirebaseToken } from "../../../core/auth/auth.middleware.js";
@@ -49,6 +56,13 @@ router.get("/learning-loop/compare", compareMultiRolePlansController);
 router.post("/adaptive-loop/evaluate", evaluateAdaptiveLoopController);
 router.get("/adaptive-loop/state", getAdaptiveLoopStateController);
 router.get("/adaptive-loop/telemetry", getAdaptiveTelemetryController);
+
+// Spaced Revision Engine (Phase 39)
+router.get("/spaced-revision/due", getDueRevisionsController);
+router.get("/spaced-revision/upcoming", getUpcomingRevisionsController);
+router.get("/spaced-revision/queue", getRevisionQueueController);
+router.post("/spaced-revision/target", createRevisionTargetController);
+router.post("/spaced-revision/:id/review", reviewRevisionAttemptController);
 
 // Compatibility aliases for legacy/variant route patterns
 router.get("/gaps", getUserGaps);

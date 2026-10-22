@@ -21,6 +21,8 @@ const learningActivityRecordSchema = new mongoose.Schema(
         "skill_reassessed",
         "roadmap_milestone",
         "daily_mission",
+        "quiz_checkpoint",
+        "spaced_revision",
       ],
       required: true,
       index: true,

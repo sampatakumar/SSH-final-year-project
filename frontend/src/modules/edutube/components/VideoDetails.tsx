@@ -24,6 +24,7 @@ import { EduTubeApi } from "../services/edutube.api";
 import { formatViews, formatPublishedDate } from "../utils/edutube.utils";
 import { AddToPlaylistDialog } from "./AddToPlaylistDialog";
 import { VideoNotes } from "./VideoNotes";
+import { VideoCheckpointsList } from "./VideoCheckpointsList";
 import type { EduTubeVideoDetail, EduTubeVideoItem } from "../types/edutube.types";
 
 export interface VideoDetailsProps {
@@ -318,6 +319,13 @@ export const VideoDetails: React.FC<VideoDetailsProps> = ({
           )}
         </div>
       )}
+
+      {/* Interactive Video Checkpoints Module (Phase 39) */}
+      <VideoCheckpointsList
+        videoId={videoId}
+        currentPlaybackSeconds={currentPlaybackSeconds}
+        onSeekTo={onSeekTo}
+      />
 
       {/* Video Notes Module (Phase 3B) */}
       <VideoNotes

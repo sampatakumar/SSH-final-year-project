@@ -32,6 +32,7 @@ import {
   type SkillGapViewModel,
 } from "@/lib/api";
 import { toast } from "sonner";
+import { SpacedRevisionWidget } from "../skills/components/SpacedRevisionWidget";
 
 const DashboardHome = () => {
   const { backendUser, firebaseUser } = useAuth();
@@ -262,6 +263,12 @@ const DashboardHome = () => {
                 {intelligence.telemetry.persistentSkillGapsCount}
               </span>
             </div>
+            <div className="text-center sm:text-right">
+              <span className="text-muted-foreground block text-[10px] uppercase font-bold">Revisions Due</span>
+              <span className="font-extrabold text-foreground text-sm font-mono">
+                {intelligence.telemetry.revisionsDueToday ?? 0}
+              </span>
+            </div>
           </div>
         </div>
       )}
@@ -461,6 +468,9 @@ const DashboardHome = () => {
           </div>
         </div>
       </div>
+
+      {/* Phase 39: Adaptive Spaced Revision Queue & Retrieval Practice */}
+      <SpacedRevisionWidget />
 
       {/* Section 2: Personalized Daily Learning Plan & Next Recommended Action */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

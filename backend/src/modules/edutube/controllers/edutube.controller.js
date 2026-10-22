@@ -12,6 +12,7 @@ import { edutubePersistenceService } from "../services/edutube-persistence.servi
 import { edutubeRecommendationService } from "../services/edutube-recommendation.service.js";
 import { createNotification } from "../../notifications/services/notification.service.js";
 import { NOTIFICATION_TYPES } from "../../notifications/models/notification.models.js";
+import { edutubeCheckpointService } from "../services/edutube-checkpoint.service.js";
 
 // ==========================================
 // PHASE 2: SEARCH & VIDEO DETAILS (PUBLIC / AUTH)
@@ -487,4 +488,37 @@ export const rollbackModel = asyncHandler(async (req, res) => {
   );
 });
 
+// ==========================================
+// PHASE 39: VIDEO CHECKPOINTS & QUIZZES
+// ==========================================
 
+export const getVideoCheckpoints = asyncHandler(async (req, res) => {
+  const { videoId } = req.params;
+  const ownerId = req.user?._id || null;
+
+  const checkpoints = await edutubeCheckpointService.getCheckpointsForVideo(ownerId, videoId);
+  return res.status(200).json(
+    new ApiResponse(200, { checkpoints, count: checkpoints.length }, "Video checkpoints retrieved successfully")
+  );
+});
+
+export const submitVideoCheckpoint = asyncHandler(async (req, res) => {
+  const { videoId, checkpointId } = req.params;
+  const ownerId = req.user?._id;
+
+  if (!ownerId) {
+    throw new ApiError(401, "Authentication required to submit checkpoint answer.");
+  }
+
+  const { selectedOptionIndex, idempotencyKey } = req.body;
+  const result = await edutubeCheckpointService.submitCheckpointAnswer(
+    ownerId,
+    videoId,
+    checkpointId,
+    { selectedOptionIndex, idempotencyKey }
+  );
+
+  return res.status(200).json(
+    new ApiResponse(200, result, "Checkpoint answer evaluated successfully")
+  );
+});

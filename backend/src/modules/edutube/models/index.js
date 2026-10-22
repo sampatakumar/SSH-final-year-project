@@ -6,3 +6,5 @@ export * from "./edutubeVideoNote.models.js";
 export * from "./edutubeRecommendationFeedback.models.js";
 export * from "./recommendationImpression.models.js";
 export * from "./recommendationModelRegistry.models.js";
+export * from "./edutubeVideoCheckpoint.models.js";
+export * from "./edutubeCheckpointAttempt.models.js";

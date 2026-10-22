@@ -42,6 +42,8 @@ export class LearningOutcomeTrackerService {
       "skill_reassessed",
       "roadmap_milestone",
       "daily_mission",
+      "quiz_checkpoint",
+      "spaced_revision",
     ];
 
     if (!activityType || !validTypes.includes(activityType)) {
