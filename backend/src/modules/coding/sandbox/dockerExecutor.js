@@ -21,25 +21,56 @@ export function getDockerClient(customOpts = {}) {
   if (process.env.DOCKER_HOST) {
     const url = process.env.DOCKER_HOST;
     if (url.startsWith("tcp://")) {
+      const isStagingOrProd = process.env.NODE_ENV === "production" || process.env.NODE_ENV === "staging";
+
+      // Security: Certificate verification cannot be silently disabled in staging or production
+      if (isStagingOrProd && process.env.DOCKER_TLS_VERIFY === "0") {
+        throw new Error(`[getDockerClient] DOCKER_TLS_VERIFY cannot be disabled for remote TCP runner in ${process.env.NODE_ENV} mode.`);
+      }
+
       const parsed = new URL(url.replace(/^tcp:\/\//, "http://"));
-      const isTls = process.env.DOCKER_TLS_VERIFY === "1" || parsed.port === "2376";
+      const isTls = process.env.DOCKER_TLS_VERIFY === "1" || parsed.port === "2376" || isStagingOrProd;
       const config = {
         host: parsed.hostname,
         port: parseInt(parsed.port || (isTls ? "2376" : "2375"), 10),
         protocol: isTls ? "https" : "http",
       };
 
-      if (process.env.DOCKER_CERT_PATH) {
-        try {
-          const certDir = process.env.DOCKER_CERT_PATH;
-          const caPath = path.join(certDir, "ca.pem");
-          const certPath = path.join(certDir, "cert.pem");
-          const keyPath = path.join(certDir, "key.pem");
-          if (fsSync.existsSync(caPath)) config.ca = fsSync.readFileSync(caPath);
-          if (fsSync.existsSync(certPath)) config.cert = fsSync.readFileSync(certPath);
-          if (fsSync.existsSync(keyPath)) config.key = fsSync.readFileSync(keyPath);
-        } catch (e) {
-          console.warn("[getDockerClient] Failed to load certificates from DOCKER_CERT_PATH:", e.message);
+      if (isTls) {
+        const certDir = process.env.DOCKER_CERT_PATH;
+        if (!certDir && isStagingOrProd) {
+          throw new Error(`[getDockerClient] DOCKER_CERT_PATH is mandatory for remote TLS runner in ${process.env.NODE_ENV} mode.`);
+        }
+
+        if (certDir) {
+          try {
+            const caPath = path.join(certDir, "ca.pem");
+            const certPath = path.join(certDir, "cert.pem");
+            const keyPath = path.join(certDir, "key.pem");
+
+            if (fsSync.existsSync(caPath)) {
+              config.ca = fsSync.readFileSync(caPath);
+            } else if (isStagingOrProd) {
+              throw new Error(`[getDockerClient] Missing required CA certificate at ${caPath}`);
+            }
+
+            if (fsSync.existsSync(certPath)) {
+              config.cert = fsSync.readFileSync(certPath);
+            } else if (isStagingOrProd) {
+              throw new Error(`[getDockerClient] Missing required client certificate at ${certPath}`);
+            }
+
+            if (fsSync.existsSync(keyPath)) {
+              config.key = fsSync.readFileSync(keyPath);
+            } else if (isStagingOrProd) {
+              throw new Error(`[getDockerClient] Missing required client private key at ${keyPath}`);
+            }
+          } catch (e) {
+            if (isStagingOrProd) {
+              throw e;
+            }
+            console.warn("[getDockerClient] Failed to load certificates from DOCKER_CERT_PATH:", e.message);
+          }
         }
       }
 
