@@ -91,6 +91,21 @@ const DashboardHome = () => {
     }
   };
 
+  const handleAdaptiveSync = async () => {
+    try {
+      setIsEvaluating(true);
+      toast.info("Updating adaptive learning loop and recalculating recommendations...");
+      const result = await SmartSkillApi.evaluateAdaptiveLoop();
+      const intelData = await SmartSkillApi.getDashboardIntelligence().catch(() => null);
+      if (intelData) setIntelligence(intelData);
+      toast.success(`Adaptive loop updated: Focal skill is ${result.focalSkill}!`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update adaptive learning loop");
+    } finally {
+      setIsEvaluating(false);
+    }
+  };
+
   useEffect(() => {
     if (intelligence?.dailyLearningPlan) {
       const map: Record<string, boolean> = {};
@@ -180,6 +195,16 @@ const DashboardHome = () => {
           <Button
             variant="outline"
             size="sm"
+            onClick={handleAdaptiveSync}
+            disabled={isEvaluating}
+            className="shadow-neo-raised-sm bg-background border-border/40 hover:border-primary/40 gap-2 h-9 text-xs font-semibold text-primary"
+          >
+            <Sparkles className={`h-3.5 w-3.5 ${isEvaluating ? "animate-spin" : "text-primary"}`} />
+            Sync Adaptive Loop
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleReevaluate}
             disabled={isEvaluating}
             className="shadow-neo-raised-sm bg-background border-border/40 hover:border-primary/40 gap-2 h-9 text-xs font-semibold"
@@ -189,6 +214,57 @@ const DashboardHome = () => {
           </Button>
         </div>
       </div>
+
+      {/* Phase 38: Cross-Module Learning Telemetry Ribbon */}
+      {intelligence?.telemetry && (
+        <div className="bg-surface border border-primary/25 rounded-2xl p-4 shadow-neo-raised flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-primary/10 text-primary border border-primary/20 shrink-0">
+              <Sparkles className="h-4 w-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                  Adaptive Learning Telemetry
+                </span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+                  {intelligence.telemetry.isPersonalized ? "Personalized Active" : "Foundational Mode"}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Outcome-driven metrics synchronized across Roadmap, Missions, Sandbox Challenges, and Skill Profile.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 sm:gap-6 text-xs">
+            <div className="text-center sm:text-right">
+              <span className="text-muted-foreground block text-[10px] uppercase font-bold">Milestones</span>
+              <span className="font-extrabold text-foreground text-sm font-mono">
+                {intelligence.telemetry.milestonesCompleted} / {intelligence.telemetry.milestonesTotal}
+              </span>
+            </div>
+            <div className="text-center sm:text-right">
+              <span className="text-muted-foreground block text-[10px] uppercase font-bold">Daily Missions</span>
+              <span className="font-extrabold text-foreground text-sm font-mono">
+                {intelligence.telemetry.dailyMissionsCompleted} / {intelligence.telemetry.dailyMissionsTotal}
+              </span>
+            </div>
+            <div className="text-center sm:text-right">
+              <span className="text-muted-foreground block text-[10px] uppercase font-bold">Sandbox Solved</span>
+              <span className="font-extrabold text-primary text-sm font-mono">
+                {intelligence.telemetry.codingChallengesSolved} / {intelligence.telemetry.codingChallengesAttempted}
+              </span>
+            </div>
+            <div className="text-center sm:text-right">
+              <span className="text-muted-foreground block text-[10px] uppercase font-bold">Active Gaps</span>
+              <span className="font-extrabold text-amber-400 text-sm font-mono">
+                {intelligence.telemetry.persistentSkillGapsCount}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hero Overview Grid: 4 Defined Intelligence Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

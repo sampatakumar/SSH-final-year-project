@@ -41,6 +41,7 @@ export class LearningOutcomeTrackerService {
       "project_milestone",
       "skill_reassessed",
       "roadmap_milestone",
+      "daily_mission",
     ];
 
     if (!activityType || !validTypes.includes(activityType)) {
@@ -71,6 +72,36 @@ export class LearningOutcomeTrackerService {
     }
 
     const canonicalName = normalizeSkill(cleanSkill) || cleanSkill;
+
+    // Handle reopening / unmarking activity
+    if (status === "pending") {
+      if (cleanIdempotencyKey) {
+        await LearningActivityRecord.deleteOne({
+          owner: ownerId,
+          idempotencyKey: cleanIdempotencyKey,
+        });
+      } else {
+        await LearningActivityRecord.deleteOne({
+          owner: ownerId,
+          activityType,
+          entityId,
+        });
+      }
+      try {
+        const { recommendationPipelineService } = await import("../../edutube/services/recommendation-engine/recommendation-pipeline.service.js");
+        recommendationPipelineService.invalidateCache(ownerId);
+      } catch {}
+      try {
+        const { smartMentorContextService } = await import("../../mentor/services/smart-mentor-context.service.js");
+        smartMentorContextService.invalidateContext(ownerId);
+      } catch {}
+      return {
+        isDuplicate: false,
+        reopened: true,
+        activity: null,
+        message: "Activity reopened/unmarked.",
+      };
+    }
 
     // 1. Idempotency check: if an idempotency key was supplied, return existing record
     if (cleanIdempotencyKey) {
@@ -126,10 +157,16 @@ export class LearningOutcomeTrackerService {
         recordedAt: new Date(),
       });
 
-      // Invalidate mentor context cache so AI mentor immediately has the fresh activity
+      // Invalidate mentor context cache and recommendation pipeline cache so AI mentor and feeds immediately have fresh state
       try {
         const { smartMentorContextService } = await import("../../mentor/services/smart-mentor-context.service.js");
         smartMentorContextService.invalidateContext(ownerId);
+      } catch {
+        // non-blocking
+      }
+      try {
+        const { recommendationPipelineService } = await import("../../edutube/services/recommendation-engine/recommendation-pipeline.service.js");
+        recommendationPipelineService.invalidateCache(ownerId);
       } catch {
         // non-blocking
       }

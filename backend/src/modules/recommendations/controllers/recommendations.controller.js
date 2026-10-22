@@ -213,6 +213,16 @@ export const updateRecommendationStatus = asyncHandler(async (req, res) => {
     );
   }
 
+  // Invalidate recommendation feed and mentor caches non-blockingly
+  try {
+    const { recommendationPipelineService } = await import("../../edutube/services/recommendation-engine/recommendation-pipeline.service.js");
+    recommendationPipelineService.invalidateCache(req.user._id);
+  } catch {}
+  try {
+    const { smartMentorContextService } = await import("../../mentor/services/smart-mentor-context.service.js");
+    smartMentorContextService.invalidateContext(req.user._id);
+  } catch {}
+
   return res.status(200).json(
     new ApiResponse(
       200,

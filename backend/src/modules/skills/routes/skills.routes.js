@@ -11,6 +11,11 @@ import {
   getAdaptiveLearningPlanController,
   compareMultiRolePlansController,
 } from "../controllers/skills.controller.js";
+import {
+  evaluateAdaptiveLoopController,
+  getAdaptiveLoopStateController,
+  getAdaptiveTelemetryController,
+} from "../controllers/adaptiveLoop.controller.js";
 import { getUserGaps, getRoleGaps } from "../../gaps/controllers/gaps.controller.js";
 import { getRecommendations, getRecommendationRoadmap } from "../../recommendations/controllers/recommendations.controller.js";
 import { verifyFirebaseToken } from "../../../core/auth/auth.middleware.js";
@@ -39,6 +44,11 @@ router.post("/learning-loop/activity", recordLearningActivityController);
 router.get("/learning-loop/activities", getLearnerActivitiesController);
 router.get("/learning-loop/plan", getAdaptiveLearningPlanController);
 router.get("/learning-loop/compare", compareMultiRolePlansController);
+
+// Adaptive Loop Evaluation & Telemetry (Phase 38)
+router.post("/adaptive-loop/evaluate", evaluateAdaptiveLoopController);
+router.get("/adaptive-loop/state", getAdaptiveLoopStateController);
+router.get("/adaptive-loop/telemetry", getAdaptiveTelemetryController);
 
 // Compatibility aliases for legacy/variant route patterns
 router.get("/gaps", getUserGaps);

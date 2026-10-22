@@ -280,6 +280,11 @@ export const submitSolution = asyncHandler(async (req, res) => {
           },
           idempotencyKey: `coding_sub_${savedSubmission._id.toString()}`,
         });
+
+        try {
+          const { recommendationPipelineService } = await import("../../edutube/services/recommendation-engine/recommendation-pipeline.service.js");
+          recommendationPipelineService.invalidateCache(req.user._id);
+        } catch {}
       } catch (err) {
         console.warn("[coding-controller] Error updating adaptive learning loop:", err.message);
       }

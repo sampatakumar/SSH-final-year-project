@@ -494,6 +494,7 @@ describe("Phase 37: Student Workflow Integration & Cross-Module Synchronization"
           }),
         }),
       });
+      vi.spyOn(LearningActivityRecord, "countDocuments").mockResolvedValue(0);
 
       const result = await dashboardIntelligenceService.getDashboardIntelligence(studentAId);
       expect(result.dailyLearningPlan).toBeDefined();

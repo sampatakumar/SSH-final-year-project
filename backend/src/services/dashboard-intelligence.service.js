@@ -347,6 +347,32 @@ export class DashboardIntelligenceService {
     const metSkillsCount = strongSkills.length + improvingSkills.length;
     const careerGoalProgressPercent = Math.round((metSkillsCount / totalRequiredSkillsCount) * 100);
 
+    const roadmapMilestonesCompleted = await LearningActivityRecord.countDocuments({
+      owner: ownerId,
+      activityType: "roadmap_milestone",
+      status: "completed",
+    }).catch(() => 0);
+
+    const codingChallengesAttempted = codingSubs.length;
+    const codingChallengesSolved = codingSubs.filter((c) => c.status === "passed" || c.score >= 8).length;
+    const persistentSkillGapsCount = skillGaps.filter((g) => g.status !== "Met Requirement").length;
+    const recentSkillImprovements = assessmentHistory.filter((a) => a.scoreDelta > 0).length;
+
+    const telemetry = {
+      milestonesCompleted: roadmapMilestonesCompleted,
+      milestonesTotal: Math.max(roadmapMilestonesCompleted, recommendations.length),
+      dailyMissionsCompleted: completedMissionSet.size,
+      dailyMissionsTotal: dailyPlan.length,
+      codingChallengesAttempted,
+      codingChallengesSolved,
+      recentSkillImprovements,
+      persistentSkillGapsCount,
+      overallReadinessScore: readinessEstimateScore,
+      isPersonalized,
+      recommendationSource: loopState?.focalSkill ? "adaptive_loop" : "foundational_fallback",
+      evaluatedAt: skillProfile?.lastEvaluatedAt || new Date().toISOString(),
+    };
+
     return {
       overview: {
         targetRole,
@@ -407,9 +433,10 @@ export class DashboardIntelligenceService {
       nextRecommendedAction,
       topEduTubeRecommendations,
       roadmapSummary: {
-        totalItems: recommendations.length,
-        completedItems: recommendations.filter((r) => r.isCompleted).length,
+        totalItems: Math.max(roadmapMilestonesCompleted, recommendations.length),
+        completedItems: roadmapMilestonesCompleted,
       },
+      telemetry,
       generatedAt: new Date().toISOString(),
     };
   }

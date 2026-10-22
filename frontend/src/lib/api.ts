@@ -662,6 +662,30 @@ export const SmartSkillApi = {
       method: "POST",
       body: { impressions },
     })).data,
+
+  evaluateAdaptiveLoop: async (targetRole?: string) =>
+    (
+      await apiRequest<{
+        evaluatedAt: string;
+        targetRole: string;
+        overallReadinessScore: number;
+        focalSkill: string;
+        loopState: any;
+        recommendations: any[];
+        telemetry: AdaptiveTelemetryData;
+        evaluationWarning?: string | null;
+      }>("/adaptive-loop/evaluate", {
+        method: "POST",
+        body: { targetRole },
+      })
+    ).data,
+
+  getAdaptiveTelemetry: async (role?: string) =>
+    (
+      await apiRequest<AdaptiveTelemetryData>(
+        `/adaptive-loop/telemetry${role ? `?role=${encodeURIComponent(role)}` : ""}`
+      )
+    ).data,
 };
 
 export interface AdaptivePlanAction {
@@ -808,7 +832,23 @@ export interface DashboardIntelligenceData {
     totalItems: number;
     completedItems: number;
   };
+  telemetry?: AdaptiveTelemetryData;
   generatedAt: string;
+}
+
+export interface AdaptiveTelemetryData {
+  milestonesCompleted: number;
+  milestonesTotal: number;
+  dailyMissionsCompleted: number;
+  dailyMissionsTotal: number;
+  codingChallengesAttempted: number;
+  codingChallengesSolved: number;
+  recentSkillImprovements: number;
+  persistentSkillGapsCount: number;
+  overallReadinessScore: number;
+  isPersonalized: boolean;
+  recommendationSource: string;
+  evaluatedAt: string;
 }
 
 export interface InAppNotification {
