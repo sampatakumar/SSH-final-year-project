@@ -14,8 +14,12 @@ import {
   upsertBranchRoleMappingController,
 } from "../controllers/academic.controller.js";
 import { ensureAdmin } from "../../../core/middleware/admin.middleware.js";
+import projectStudioRouter from "./projectStudio.routes.js";
 
 const router = Router();
+
+// Project Studio sub-router
+router.use("/projects", projectStudioRouter);
 
 // Student / Public read endpoints
 router.get("/options", getAcademicOptionsController);

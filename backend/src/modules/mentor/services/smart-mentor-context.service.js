@@ -18,6 +18,7 @@ import { evaluateStudentCompetencyMatrix } from "../../skills/services/competenc
 import { getUserBadges } from "../../skills/services/badgeIssuance.service.js";
 import { normalizeAcademicProfile } from "../../academic/services/academicNormalization.service.js";
 import { getBranchCapabilities } from "../../academic/services/branchCapabilityRegistry.service.js";
+import { StudentProject } from "../../academic/models/studentProject.models.js";
 
 // 10-minute in-memory context cache
 const CONTEXT_CACHE = new Map();
@@ -92,6 +93,7 @@ export class SmartMentorContextService {
       spacedSchedules,
       competencyMatrixResult,
       userBadges,
+      studentProjects,
     ] = await Promise.all([
       (isDbConnected || User.findById?.mock) ? User.findById(ownerId).lean().catch(() => null) : Promise.resolve(null),
       (isDbConnected || UserSettings.findOne?.mock) ? UserSettings.findOne({ owner: ownerId }).lean().catch(() => null) : Promise.resolve(null),
@@ -115,6 +117,9 @@ export class SmartMentorContextService {
         : Promise.resolve({ matrix: [], summary: {} }),
       isDbConnected
         ? getUserBadges(ownerId).catch(() => [])
+        : Promise.resolve([]),
+      (isDbConnected || StudentProject.find?.mock)
+        ? StudentProject.find({ owner: ownerId }).sort({ updatedAt: -1 }).limit(10).lean().catch(() => [])
         : Promise.resolve([]),
     ]);
 
@@ -260,6 +265,43 @@ export class SmartMentorContextService {
       hasGithubUrl: Boolean(p.githubUrl),
       hasDemoUrl: Boolean(p.demoUrl),
     }));
+
+    // 7b. Phase 43: Branch-Aware Project Studio
+    const activeStudentProjects = studentProjects.filter((p) =>
+      ["in_progress", "submitted", "changes_requested"].includes(p.status)
+    );
+    const completedStudentProjects = studentProjects.filter((p) => p.status === "completed");
+
+    const projectStudio = {
+      totalProjects: studentProjects.length,
+      inProgressCount: studentProjects.filter((p) => p.status === "in_progress").length,
+      submittedCount: studentProjects.filter((p) => p.status === "submitted").length,
+      changesRequestedCount: studentProjects.filter((p) => p.status === "changes_requested").length,
+      completedCount: completedStudentProjects.length,
+      activeProjects: activeStudentProjects.map((p) => ({
+        projectId: p._id,
+        templateId: p.templateId,
+        title: p.title,
+        status: p.status,
+        disciplineCategory: p.disciplineCategory,
+        progressPercentage: p.progressPercentage || 0,
+        completedMilestones: (p.milestoneProgress || []).filter((m) => m.completed).length,
+        totalMilestones: (p.milestoneProgress || []).length,
+        submittedDeliverables: (p.deliverables || []).length,
+        overallScore: p.evaluation?.overallScore ?? null,
+      })),
+      completedProjects: completedStudentProjects.map((p) => ({
+        projectId: p._id,
+        templateId: p.templateId,
+        title: p.title,
+        disciplineCategory: p.disciplineCategory,
+        overallScore: p.evaluation?.overallScore ?? null,
+        completedAt: p.completedAt,
+        relevantSkills: p.relevantSkills || [],
+        portfolioVisibility: p.portfolioVisibility,
+        syncedToResume: p.syncedToResume,
+      })),
+    };
 
     // 8. Resume Signals
     const latestResume = resumes[0] || null;
@@ -471,8 +513,41 @@ export class SmartMentorContextService {
       });
     }
 
+    // Priority 4: Project Studio Milestone / Revision
+    if (activeStudentProjects.length > 0) {
+      const topActive = activeStudentProjects[0];
+      const isChangesRequested = topActive.status === "changes_requested";
+      unifiedNextActions.push({
+        id: "action_project_studio",
+        title: isChangesRequested
+          ? `Revise Deliverables: ${topActive.title}`
+          : `Continue Project: ${topActive.title}`,
+        type: "project_milestone",
+        targetSkill: topActive.title,
+        actionUrl: "/dashboard/projects",
+        estimatedMinutes: 30,
+        priority: isChangesRequested ? "high" : "medium",
+        reason: isChangesRequested
+          ? `Address rubric evaluation feedback to complete ${topActive.title}.`
+          : `Submit upcoming milestone deliverables for ${topActive.title}.`,
+        evidenceTier: "PROJECT_STUDIO",
+        module: "projects",
+      });
+    }
+
     // 15. Proactive Insights (Grounding across all modules)
     const insights = [];
+
+    if (projectStudio.completedCount > 0) {
+      insights.push(
+        `📁 Project Studio: You have completed ${projectStudio.completedCount} guided project(s) with rubric-assessed evidence.`
+      );
+    } else if (projectStudio.inProgressCount > 0) {
+      const activeProj = projectStudio.activeProjects[0];
+      insights.push(
+        `🛠️ Project Studio: "${activeProj.title}" is currently active (${activeProj.progressPercentage}% complete).`
+      );
+    }
 
     if (activeBadges.length > 0) {
       insights.push(
@@ -539,6 +614,7 @@ export class SmartMentorContextService {
       github,
       learning,
       projects: userProjects,
+      projectStudio,
       resume,
       coding,
       competencyMatrix,

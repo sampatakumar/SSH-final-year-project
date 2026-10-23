@@ -64,6 +64,11 @@ export class SmartMentorLocalService {
       return "academic_branch_guidance";
     }
 
+    // Project Studio & Evidence Portfolio queries (Phase 43)
+    if (/project studio|project deliverable|project milestone|rubric evaluation|evidence portfolio|portfolio project|sync to resume/i.test(text)) {
+      return "project_studio_guidance";
+    }
+
     // 3. GitHub and project queries
     if (/github|repo|repositories|commit|push|pull request/i.test(text)) {
       if (/readme/i.test(text)) return "github_readme";
@@ -120,14 +125,25 @@ export class SmartMentorLocalService {
   }
 
   /**
+   * Guidance generation with explicit intent support for tests and direct callers.
+   */
+  generateLocalGuidance(intentOrMessage, context, message = "") {
+    const rawMsg = message || intentOrMessage;
+    const isIntent = typeof intentOrMessage === "string" && (intentOrMessage.includes("_") || intentOrMessage === "general");
+    const explicitIntent = isIntent ? intentOrMessage : null;
+    return this.generateLocalResponse(rawMsg, context, explicitIntent);
+  }
+
+  /**
    * Generate grounded, actionable response when Groq is unavailable or times out.
    *
    * @param {string} userMessage - Raw user question
    * @param {object} context - Grounded normalized user context
+   * @param {string|null} explicitIntent - Optional explicit intent override
    * @returns {object} Standardized response object
    */
-  generateLocalResponse(userMessage, context) {
-    const intent = this.classifyIntent(userMessage);
+  generateLocalResponse(userMessage, context, explicitIntent = null) {
+    const intent = explicitIntent || this.classifyIntent(userMessage);
     const targetRole = context.career?.targetRole || "Full Stack Developer";
     const readiness = context.career?.readinessScore ?? 65;
     const topGaps = context.skillGaps || [];
@@ -932,6 +948,7 @@ Smart Skill Hub provides a clear distinction between currently usable tools and 
 - **Skill Competency Matrix & Cryptographic Badges**: Platform-verified competency records.
 - **Algorithmic Coding Sandbox**: Multi-language programming execution (available across software/scripting tracks; staging code execution disabled).
 - **GitHub Repository Analysis**: Empirical repository hygiene and documentation audits.
+- **Project Studio & Evidence Portfolio**: Guided multi-branch milestone-based project development with deliverable submissions, rubric-based evaluation, and portfolio curation.
 
 ### 2. Planned for Future Specialized Phases (PLANNED):
 - **CAD & 3D Engineering Portfolio**: SolidWorks, AutoCAD, and BIM design portfolio integration (Mechanical & Civil).
@@ -950,6 +967,81 @@ Smart Skill Hub provides a clear distinction between currently usable tools and 
           estimatedMinutes: 10,
           route: "/dashboard/edutube",
         });
+        break;
+      }
+
+      case "project_studio_guidance": {
+        const studio = context.projectStudio || {};
+        const activeProjects = studio.activeProjects || [];
+        const completedProjects = studio.completedProjects || [];
+
+        if (activeProjects.length > 0) {
+          const topActive = activeProjects[0];
+          const isChangesRequested = topActive.status === "changes_requested";
+          answer = `### Project Studio: Active Project Status
+You are currently working on **${topActive.title}** (${topActive.disciplineCategory || "General"}).
+
+- **Status**: \`${topActive.status.toUpperCase()}\`
+- **Milestones**: ${topActive.completedMilestones} of ${topActive.totalMilestones} completed (${topActive.progressPercentage}% overall progress)
+- **Submitted Deliverables**: ${topActive.submittedDeliverables}
+${isChangesRequested ? `\n> **Rubric Feedback Action Required**: Changes have been requested on your latest submission. Review the detailed rubric feedback in Project Studio to revise your deliverables before resubmitting.` : `\nContinue advancing through your structured milestones by saving progress and submitting required evidence deliverables.`}
+
+### Recommendations for Portfolio-Ready Evidence:
+1. **Provide Clear Explanations**: Ground your written summaries with the engineering or business decisions made.
+2. **Include Concrete Deliverables**: Ensure design diagrams, calculation sheets, or repositories are properly linked or uploaded.
+3. **Review the Evaluation Rubric**: Check criteria across Technical Correctness, Reasoning Quality, Deliverable Completeness, and Documentation.`;
+
+          summary = `Active project "${topActive.title}" is ${topActive.progressPercentage}% complete.`;
+          actions.push({
+            title: isChangesRequested ? `Revise ${topActive.title} Deliverables` : `Continue ${topActive.title}`,
+            priority: isChangesRequested ? "high" : "medium",
+            category: "project",
+            estimatedMinutes: 30,
+            route: "/dashboard/projects",
+          });
+        } else if (completedProjects.length > 0) {
+          const topCompleted = completedProjects[0];
+          answer = `### Project Studio: Completed Projects & Evidence Portfolio
+You have completed **${completedProjects.length}** guided project(s) with rubric-assessed feedback!
+
+- **Latest Completed Project**: **${topCompleted.title}**
+- **Discipline**: ${topCompleted.disciplineCategory || "Engineering"}
+- **Rubric Score**: ${topCompleted.overallScore ?? "Pass"}/100
+- **Relevant Skills Practiced**: ${(topCompleted.relevantSkills || []).join(", ") || "Technical problem solving"}
+- **Resume Showcase**: ${topCompleted.syncedToResume ? "Synced to Resume Showcase" : "Ready to sync to Resume Showcase"}
+
+### Portfolio & Career Impact:
+- Completed projects can be showcased in your portfolio and synced directly into your resume project section.
+- Rubric evaluations demonstrate structured application of skills aligned to your target role (${targetRole}).`;
+
+          summary = `${completedProjects.length} completed project(s) ready in your Evidence Portfolio.`;
+          actions.push({
+            title: "View Evidence Portfolio",
+            priority: "medium",
+            category: "project",
+            estimatedMinutes: 10,
+            route: "/dashboard/projects",
+          });
+        } else {
+          answer = `### Explore Project Studio
+Project Studio provides guided, milestone-driven projects tailored to your academic discipline and career interests.
+
+Each project template includes:
+1. **Clear Learning Objectives & Prerequisites**: Understand foundational concepts before starting.
+2. **Structured Milestones**: Step-by-step guidance to develop your project systematically.
+3. **Deliverables & Evidence**: Submit technical write-ups, calculation sheets, CAD drawings, code repositories, or reports.
+4. **Rubric-Based Evaluation**: Automated, deterministic rubric evaluation scoring technical correctness, reasoning, deliverable completeness, and documentation.
+5. **Portfolio & Resume Integration**: When completed, eligible projects can be toggled in your public portfolio and synced to your resume project showcase.`;
+
+          summary = "Browse branch-relevant project templates in Project Studio.";
+          actions.push({
+            title: "Browse Project Studio Templates",
+            priority: "high",
+            category: "project",
+            estimatedMinutes: 15,
+            route: "/dashboard/projects",
+          });
+        }
         break;
       }
 

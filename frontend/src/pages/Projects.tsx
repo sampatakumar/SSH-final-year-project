@@ -1,396 +1,527 @@
+import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, ExternalLink, Github, Trash2, Upload, Pencil, FolderGit2, Code2, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { apiRequest } from "@/lib/api";
-import { toast } from "sonner";
-import { useAuth } from "@/core/auth";
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import AIDescriptionGeneratorDialog from "@/components/AIDescriptionGeneratorDialog";
-import { AI_PROMPT_PRESETS } from "@/config/aiPromptPresets";
+  Layers,
+  BookOpen,
+  Award,
+  FolderGit2,
+  Sparkles,
+  Plus,
+  ArrowRight,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  FileText,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/core/auth";
+import { toast } from "sonner";
+import { apiRequest } from "@/lib/api";
+import { projectStudioApi } from "@/modules/projects/services/projectStudio.api";
+import { StudentProject, ProjectTemplate } from "@/modules/projects/types/projectStudio.types";
+import { ProjectCatalogView } from "@/modules/projects/components/ProjectCatalogView";
+import { ActiveProjectWorkspace } from "@/modules/projects/components/ActiveProjectWorkspace";
+import { EvidencePortfolioView } from "@/modules/projects/components/EvidencePortfolioView";
+import { ManualResumeProjectsTab, ProjectItem } from "@/modules/projects/components/ManualResumeProjectsTab";
 
-// ==========================================
-// TYPES
-// ==========================================
-type ProjectItem = {
-  _id: string;
-  title: string;
-  description: string;
-  stack: string[];
-  date?: string;
-  githubUrl?: string;
-  demoUrl?: string;
-  source: "manual" | "readme";
-  updatedAt: string;
-};
+type TabKey = "workspace" | "catalog" | "portfolio" | "resume";
 
-const initialForm = {
-  title: "",
-  description: "",
-  stack: "",
-  date: "",
-  githubUrl: "",
-  demoUrl: ""
-};
+export const Projects = () => {
+  const { idToken, user } = useAuth();
+  const [activeTab, setActiveTab] = useState<TabKey>("workspace");
 
-// ==========================================
-// MAIN COMPONENT
-// ==========================================
-const Projects = () => {
-  const { idToken } = useAuth();
-  const [projects, setProjects] = useState<ProjectItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [readmeUploading, setReadmeUploading] = useState(false);
-  const [deletingAll, setDeletingAll] = useState(false);
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  const [showDescriptionGenerator, setShowDescriptionGenerator] = useState(false);
-  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
-  const [form, setForm] = useState(initialForm);
+  // State: Guided Projects & Blueprints
+  const [templates, setTemplates] = useState<ProjectTemplate[]>([]);
+  const [myProjects, setMyProjects] = useState<StudentProject[]>([]);
+  const [activeWorkspaceProject, setActiveWorkspaceProject] = useState<StudentProject | null>(null);
+  const [loadingTemplates, setLoadingTemplates] = useState<boolean>(true);
+  const [loadingMyProjects, setLoadingMyProjects] = useState<boolean>(true);
+  const [startingTemplateId, setStartingTemplateId] = useState<string | null>(null);
+  const [savingDeliverables, setSavingDeliverables] = useState<boolean>(false);
+  const [submittingEvaluation, setSubmittingEvaluation] = useState<boolean>(false);
+  const [syncingProjectId, setSyncingProjectId] = useState<string | null>(null);
 
-  // Sort projects by newest first
-  const sortedProjects = useMemo(
-    () => [...projects].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
-    [projects]
-  );
+  // State: Manual Resume Projects (100% backward compatible)
+  const [manualProjects, setManualProjects] = useState<ProjectItem[]>([]);
+  const [loadingManualProjects, setLoadingManualProjects] = useState<boolean>(true);
 
-  const fetchProjects = useCallback(async () => {
-    if (!idToken) { setProjects([]); setLoading(false); return; }
+  // 1. Fetch Guided Templates
+  const loadTemplates = useCallback(async () => {
     try {
-      const response = await apiRequest<{ projects: ProjectItem[] }>("/projects", { token: idToken });
-      setProjects(response.data.projects);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to load projects");
+      setLoadingTemplates(true);
+      const res = await projectStudioApi.fetchTemplates(idToken || undefined);
+      setTemplates(res.templates || []);
+    } catch {
+      // Non-blocking fallback
     } finally {
-      setLoading(false);
+      setLoadingTemplates(false);
     }
   }, [idToken]);
 
-  useEffect(() => { void fetchProjects(); }, [fetchProjects]);
-
-  // Handlers
-  const openCreateDialog = () => {
-    setEditingProjectId(null); setForm(initialForm); setShowAddDialog(true);
-  };
-
-  const openEditDialog = (project: ProjectItem) => {
-    setEditingProjectId(project._id);
-    setForm({
-      title: project.title,
-      description: project.description,
-      stack: project.stack.join(", "),
-      date: project.date ?? "",
-      githubUrl: project.githubUrl ?? "",
-      demoUrl: project.demoUrl ?? ""
-    });
-    setShowAddDialog(true);
-  };
-
-  const handleCreateOrUpdateProject = async () => {
-    if (!idToken) return;
-    if (!form.title.trim() || !form.description.trim()) {
-      toast.error("Title and description are required");
+  // 2. Fetch Student Projects
+  const loadMyProjects = useCallback(async () => {
+    if (!idToken) {
+      setMyProjects([]);
+      setLoadingMyProjects(false);
       return;
     }
-
     try {
-      setSubmitting(true);
-      const endpoint = editingProjectId ? `/projects/${editingProjectId}` : "/projects";
-      const method = editingProjectId ? "PATCH" : "POST";
+      setLoadingMyProjects(true);
+      const res = await projectStudioApi.fetchMyProjects(idToken);
+      setMyProjects(res.projects || []);
 
-      const response = await apiRequest<{ project: ProjectItem }>(endpoint, {
-        method,
-        token: idToken,
-        body: { title: form.title, description: form.description, stack: form.stack, date: form.date, githubUrl: form.githubUrl, demoUrl: form.demoUrl }
-      });
-
-      if (editingProjectId) {
-        setProjects((current) => current.map((item) => (item._id === response.data.project._id ? response.data.project : item)));
-      } else {
-        setProjects((current) => [response.data.project, ...current]);
+      // If user had an active workspace open, refresh its data
+      if (activeWorkspaceProject) {
+        const refreshed = (res.projects || []).find((p) => p._id === activeWorkspaceProject._id);
+        if (refreshed) setActiveWorkspaceProject(refreshed);
       }
-
-      setForm(initialForm); setEditingProjectId(null); setShowAddDialog(false);
-      toast.success(editingProjectId ? "Project updated successfully" : "Project created successfully");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to save project");
+    } catch {
+      // Non-blocking fallback
     } finally {
-      setSubmitting(false);
+      setLoadingMyProjects(false);
     }
-  };
+  }, [idToken, activeWorkspaceProject]);
 
-  const handleReadmeUpload = async (file: File | null) => {
-    if (!idToken || !file) return;
+  // 3. Fetch Manual Resume Projects
+  const loadManualProjects = useCallback(async () => {
+    if (!idToken) {
+      setManualProjects([]);
+      setLoadingManualProjects(false);
+      return;
+    }
     try {
-      setReadmeUploading(true);
-      const formData = new FormData(); formData.append("readmeFile", file);
-      const response = await apiRequest<{ project: ProjectItem }>("/projects/from-readme", { method: "POST", token: idToken, body: formData });
-      setProjects((current) => [response.data.project, ...current]);
-      toast.success("Project imported from README");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to import README");
+      setLoadingManualProjects(true);
+      const res = await apiRequest<{ projects: ProjectItem[] }>("/projects", { token: idToken });
+      setManualProjects(res.data.projects || []);
+    } catch {
+      // Non-blocking
     } finally {
-      setReadmeUploading(false);
+      setLoadingManualProjects(false);
+    }
+  }, [idToken]);
+
+  useEffect(() => {
+    void loadTemplates();
+    void loadMyProjects();
+    void loadManualProjects();
+  }, [loadTemplates, loadMyProjects, loadManualProjects]);
+
+  // Handler: Start a project from a blueprint
+  const handleStartProject = async (templateId: string) => {
+    if (!idToken) {
+      toast.error("Please sign in to start a guided project.");
+      return;
+    }
+    try {
+      setStartingTemplateId(templateId);
+      const newProject = await projectStudioApi.startProject(idToken, templateId);
+      setMyProjects((prev) => [newProject, ...prev]);
+      setActiveWorkspaceProject(newProject);
+      setActiveTab("workspace");
+      toast.success(`Started "${newProject.title}". Advancing to project workspace.`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to start project");
+    } finally {
+      setStartingTemplateId(null);
     }
   };
 
-  const handleDeleteProject = async (projectId: string) => {
+  // Handler: Milestone status update
+  const handleUpdateMilestone = async (
+    milestoneId: string,
+    status: "pending" | "in_progress" | "completed",
+    notes: string
+  ) => {
+    if (!idToken || !activeWorkspaceProject) return;
+    try {
+      const updated = await projectStudioApi.updateMilestone(
+        activeWorkspaceProject._id,
+        milestoneId,
+        status,
+        notes,
+        idToken
+      );
+      setActiveWorkspaceProject(updated);
+      setMyProjects((prev) => prev.map((p) => (p._id === updated._id ? updated : p)));
+      toast.success("Milestone progress recorded.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update milestone");
+    }
+  };
+
+  // Handler: Save Deliverables Draft
+  const handleSaveDeliverables = async (deliverables: any[], writtenExplanations: string) => {
+    if (!idToken || !activeWorkspaceProject) return;
+    try {
+      setSavingDeliverables(true);
+      const updated = await projectStudioApi.saveDeliverables(
+        activeWorkspaceProject._id,
+        { deliverables, writtenExplanations },
+        idToken
+      );
+      setActiveWorkspaceProject(updated);
+      setMyProjects((prev) => prev.map((p) => (p._id === updated._id ? updated : p)));
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save deliverables");
+    } finally {
+      setSavingDeliverables(false);
+    }
+  };
+
+  // Handler: Submit for Rubric Evaluation
+  const handleSubmitProject = async (writtenExplanations: string) => {
+    if (!idToken || !activeWorkspaceProject) return;
+    try {
+      setSubmittingEvaluation(true);
+      const evaluated = await projectStudioApi.submitProject(
+        activeWorkspaceProject._id,
+        writtenExplanations,
+        idToken
+      );
+      setActiveWorkspaceProject(evaluated);
+      setMyProjects((prev) => prev.map((p) => (p._id === evaluated._id ? evaluated : p)));
+
+      if (evaluated.status === "completed") {
+        toast.success(`Congratulations! Your project scored ${evaluated.evaluation?.percentScore}% and passed rubric evaluation.`);
+      } else {
+        toast.info("Evaluation complete: revisions requested. Please inspect rubric feedback.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to evaluate project submission");
+    } finally {
+      setSubmittingEvaluation(false);
+    }
+  };
+
+  // Handler: Toggle Evidence Portfolio Visibility
+  const handleToggleVisibility = async (projectId: string, visibility: boolean) => {
     if (!idToken) return;
     try {
-      await apiRequest<{ projectId: string }>(`/projects/${projectId}`, { method: "DELETE", token: idToken });
-      setProjects((current) => current.filter((project) => project._id !== projectId));
-      toast.success("Project deleted");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to delete project");
+      const updated = await projectStudioApi.togglePortfolioVisibility(projectId, visibility, idToken);
+      setMyProjects((prev) => prev.map((p) => (p._id === updated._id ? updated : p)));
+      toast.success(visibility ? "Project is now public in your evidence portfolio." : "Project is now private.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update portfolio visibility");
     }
   };
 
-  const handleDeleteAllProjects = async () => {
-    if (!idToken || !projects.length || deletingAll) return;
-
-    const confirmed = window.confirm("Delete all projects? This action cannot be undone.");
-    if (!confirmed) return;
-
+  // Handler: Sync to Resume Showcase
+  const handleSyncToResume = async (projectId: string) => {
+    if (!idToken) return;
     try {
-      setDeletingAll(true);
-      const results = await Promise.allSettled(
-        projects.map((project) =>
-          apiRequest<{ projectId: string }>(`/projects/${project._id}`, { method: "DELETE", token: idToken })
-        )
-      );
-
-      const successCount = results.filter((item) => item.status === "fulfilled").length;
-      const failedCount = results.length - successCount;
-
-      if (successCount > 0) {
-        setProjects([]);
-      }
-
-      if (failedCount === 0) {
-        toast.success(`Deleted all ${successCount} projects`);
-      } else {
-        toast.error(`Deleted ${successCount} projects, ${failedCount} failed`);
-      }
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to delete all projects");
+      setSyncingProjectId(projectId);
+      const result = await projectStudioApi.syncToResume(projectId, idToken);
+      setMyProjects((prev) => prev.map((p) => (p._id === projectId ? result.project : p)));
+      await loadManualProjects();
+      toast.success("Project successfully synced to Resume Showcase!");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to sync to resume");
     } finally {
-      setDeletingAll(false);
+      setSyncingProjectId(null);
     }
   };
+
+  const activeProjectsList = myProjects.filter((p) =>
+    ["in_progress", "changes_requested", "submitted"].includes(p.status)
+  );
+  const completedProjectsList = myProjects.filter((p) => p.status === "completed");
 
   return (
     <div className="page-shell page-shell-xl space-y-8">
-      {/* Header */}
+      {/* Header Banner */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-gradient mb-2 tracking-tight">Project Portfolio</h1>
-            <p className="text-muted-foreground text-base sm:text-lg">Curate and manage the projects featured on your resumes and sites.</p>
+            <div className="flex items-center gap-2 mb-1">
+              <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
+                Phase 43: Branch-Aware Project Studio
+              </Badge>
+              <Badge variant="secondary" className="text-xs">
+                Multi-Discipline Engineering & Applied Arts
+              </Badge>
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-gradient mb-2 tracking-tight">
+              Project Studio & Evidence Portfolio
+            </h1>
+            <p className="text-muted-foreground text-sm sm:text-base max-w-2xl">
+              Apply your academic discipline through guided, milestone-driven blueprints. Submit tangible evidence deliverables, receive deterministic rubric evaluations, and curate an evidence-backed portfolio.
+            </p>
           </div>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+
+          <div className="flex items-center gap-2">
             <Button
-              variant="outline"
-              disabled={readmeUploading}
-              onClick={() => document.getElementById("readme-upload-input")?.click()}
-              className="w-full sm:w-auto bg-background/50 backdrop-blur-md border-border/50 hover:bg-primary/5 hover:text-primary transition-all"
+              variant="hero"
+              onClick={() => {
+                setActiveWorkspaceProject(null);
+                setActiveTab("catalog");
+              }}
+              className="glow-primary text-xs"
             >
-              <Upload className="h-4 w-4 mr-2" /> {readmeUploading ? "Analyzing..." : "Import README"}
+              <Plus className="h-4 w-4 mr-1.5" /> Explore Blueprints
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => void handleDeleteAllProjects()}
-              disabled={deletingAll || !projects.length}
-              className="w-full sm:w-auto hover:bg-destructive/10 hover:text-destructive border-destructive/30"
-            >
-              <Trash2 className="h-4 w-4 mr-2" /> {deletingAll ? "Deleting..." : "Delete All"}
-            </Button>
-            <Button variant="hero" onClick={openCreateDialog} className="w-full sm:w-auto glow-primary">
-              <Plus className="h-4 w-4 mr-2" /> Add Project
-            </Button>
-            <input
-              id="readme-upload-input" type="file" accept=".md,.markdown,.txt" className="hidden"
-              onChange={(e) => { const file = e.target.files?.[0] ?? null; void handleReadmeUpload(file); e.currentTarget.value = ""; }}
-            />
           </div>
         </div>
       </motion.div>
 
-      {/* Projects Grid */}
-      <div>
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3].map((skeleton) => (
-              <div key={skeleton} className="glass h-64 rounded-2xl animate-pulse bg-card/20" />
-            ))}
-          </div>
-        ) : sortedProjects.length === 0 ? (
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="glass rounded-2xl p-16 text-center flex flex-col items-center justify-center border-dashed border-2 border-border/50">
-            <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">
-              <FolderGit2 className="h-10 w-10 text-primary opacity-80" />
-            </div>
-            <h3 className="text-xl font-bold text-foreground mb-2">No Projects Yet</h3>
-            <p className="text-muted-foreground max-w-sm mb-6">Start building your portfolio. Add a project manually or quickly import one using a GitHub README.md file.</p>
-            <Button variant="hero" onClick={openCreateDialog} className="glow-primary">
-              <Plus className="h-4 w-4 mr-2" /> Create Your First Project
-            </Button>
-          </motion.div>
-        ) : (
-          <motion.div 
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-            initial="hidden" animate="show"
-            variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } }}
-          >
-            <AnimatePresence>
-              {sortedProjects.map((project) => (
-                <motion.div
-                  key={project._id}
-                  layout
-                  initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9 }}
-                  whileHover={{ y: -5 }}
-                  className="glass rounded-2xl p-6 flex flex-col group relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-primary/5"
-                >
-                  {/* Subtle Background Glow on Hover */}
-                  <div className="absolute -inset-1 bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 opacity-0 group-hover:opacity-100 blur-xl transition-opacity duration-500 pointer-events-none" />
+      {/* Navigation Tabs Bar */}
+      <div className="flex items-center gap-2 p-1.5 rounded-2xl glass border border-border/50 overflow-x-auto scrollbar-none">
+        <button
+          data-testid="tab-workspace"
+          onClick={() => {
+            setActiveTab("workspace");
+          }}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+            activeTab === "workspace"
+              ? "bg-primary text-primary-foreground shadow-sm shadow-primary/30"
+              : "text-muted-foreground hover:text-foreground hover:bg-card/50"
+          }`}
+        >
+          <Layers className="h-4 w-4" />
+          Project Workspace
+          {activeProjectsList.length > 0 && (
+            <span className="ml-1 px-1.5 py-0.2 rounded-full bg-primary-foreground/20 text-xs">
+              {activeProjectsList.length}
+            </span>
+          )}
+        </button>
 
-                  {/* Header */}
-                  <div className="flex items-start justify-between mb-4 relative z-10">
-                    <div className="pr-8">
-                      <h3 className="font-bold text-lg text-foreground leading-tight mb-1 group-hover:text-primary transition-colors">{project.title}</h3>
-                      <div className="flex items-center gap-2">
-                        {project.source === "readme" ? (
-                          <Badge variant="outline" className="text-[10px] bg-accent/10 text-accent border-accent/20 px-1.5 py-0">README Imported</Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-[10px] bg-muted/20 text-muted-foreground border-border/40 px-1.5 py-0">Manual Entry</Badge>
-                        )}
-                        {project.date && <span className="text-[11px] text-muted-foreground font-medium">{project.date}</span>}
-                      </div>
-                    </div>
-                    
-                    {/* Action Menu (Visible on Hover) */}
-                    <div className="flex items-center gap-1 sm:absolute sm:top-0 sm:right-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity bg-background/80 backdrop-blur-md rounded-lg border border-border/50 p-1">
-                      <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-primary/20 hover:text-primary" onClick={() => openEditDialog(project)} title="Edit">
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-destructive/20 hover:text-destructive" onClick={() => handleDeleteProject(project._id)} title="Delete">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </div>
+        <button
+          data-testid="tab-catalog"
+          onClick={() => {
+            setActiveTab("catalog");
+          }}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+            activeTab === "catalog"
+              ? "bg-primary text-primary-foreground shadow-sm shadow-primary/30"
+              : "text-muted-foreground hover:text-foreground hover:bg-card/50"
+          }`}
+        >
+          <BookOpen className="h-4 w-4" />
+          Blueprint Catalog ({templates.length})
+        </button>
 
-                  {/* Description */}
-                  <p className="text-sm text-muted-foreground mb-6 line-clamp-3 flex-1 relative z-10">
-                    {project.description}
-                  </p>
+        <button
+          data-testid="tab-portfolio"
+          onClick={() => {
+            setActiveTab("portfolio");
+          }}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+            activeTab === "portfolio"
+              ? "bg-primary text-primary-foreground shadow-sm shadow-primary/30"
+              : "text-muted-foreground hover:text-foreground hover:bg-card/50"
+          }`}
+        >
+          <Award className="h-4 w-4" />
+          Evidence Portfolio
+          {completedProjectsList.length > 0 && (
+            <span className="ml-1 px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-mono">
+              {completedProjectsList.length}
+            </span>
+          )}
+        </button>
 
-                  {/* Footer: Tech Stack & Links */}
-                  <div className="mt-auto relative z-10 space-y-4">
-                    <div className="flex flex-wrap gap-1.5">
-                      {project.stack.map((tech) => (
-                        <Badge key={`${project._id}-${tech}`} variant="secondary" className="text-xs bg-primary/10 text-primary hover:bg-primary/20 border-transparent transition-colors">
-                          {tech}
-                        </Badge>
-                      ))}
-                    </div>
-                    
-                    <div className="flex items-center justify-between pt-4 border-t border-border/40">
-                      <div className="flex gap-2">
-                        {project.githubUrl && (
-                          <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground hover:text-foreground hover:bg-background/80" onClick={() => window.open(project.githubUrl, "_blank", "noopener,noreferrer")}>
-                            <Github className="h-4 w-4 mr-1.5" /> Code
-                          </Button>
-                        )}
-                        {project.demoUrl && (
-                          <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground hover:text-foreground hover:bg-background/80" onClick={() => window.open(project.demoUrl, "_blank", "noopener,noreferrer")}>
-                            <ExternalLink className="h-4 w-4 mr-1.5" /> Live Demo
-                          </Button>
-                        )}
-                      </div>
-                      <Code2 className="h-4 w-4 text-muted-foreground/30" />
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </motion.div>
-        )}
+        <button
+          data-testid="tab-resume"
+          onClick={() => {
+            setActiveTab("resume");
+          }}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+            activeTab === "resume"
+              ? "bg-primary text-primary-foreground shadow-sm shadow-primary/30"
+              : "text-muted-foreground hover:text-foreground hover:bg-card/50"
+          }`}
+        >
+          <FolderGit2 className="h-4 w-4" />
+          Resume Showcase ({manualProjects.length})
+        </button>
       </div>
 
-      {/* Add/Edit Dialog */}
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="glass border-border/50 w-[calc(100vw-1rem)] sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle className="text-xl">{editingProjectId ? "Edit Project Details" : "Add New Project"}</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground ml-1">Project Title <span className="text-destructive">*</span></label>
-                <Input placeholder="e.g. ScholarSync" value={form.title} onChange={(e) => setForm((c) => ({ ...c, title: e.target.value }))} className="bg-background/50 focus-visible:ring-primary" autoFocus />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground ml-1">Timeline (Optional)</label>
-                <Input placeholder="e.g. Jan 2026 - Present" value={form.date} onChange={(e) => setForm((c) => ({ ...c, date: e.target.value }))} className="bg-background/50 focus-visible:ring-primary" />
-              </div>
-            </div>
+      {/* Tab Contents */}
+      <AnimatePresence mode="wait">
+        {/* Tab 1: Project Workspace */}
+        {activeTab === "workspace" && (
+          <motion.div
+            key="workspace-tab"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-6"
+          >
+            {activeWorkspaceProject ? (
+              <ActiveProjectWorkspace
+                project={activeWorkspaceProject}
+                template={templates.find((t) => t.templateId === activeWorkspaceProject.templateId)}
+                onUpdateMilestone={handleUpdateMilestone}
+                onSaveDeliverables={handleSaveDeliverables}
+                onSubmitProject={handleSubmitProject}
+                onBack={() => setActiveWorkspaceProject(null)}
+                onViewPortfolio={() => setActiveTab("portfolio")}
+                saving={savingDeliverables}
+                submitting={submittingEvaluation}
+              />
+            ) : (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+                    <Layers className="h-5 w-5 text-primary" />
+                    Active Guided Projects ({activeProjectsList.length})
+                  </h3>
+                </div>
 
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <label className="text-xs font-semibold text-foreground ml-1">Description <span className="text-destructive">*</span></label>
-                <Button type="button" variant="outline" size="sm" className="h-8 glow-primary" onClick={() => setShowDescriptionGenerator(true)}>
-                  <Sparkles className="h-3.5 w-3.5 mr-1.5" /> Generate
-                </Button>
-              </div>
-              <Textarea placeholder="Explain what the project does, the problem it solves, and your specific contributions..." value={form.description} onChange={(e) => setForm((c) => ({ ...c, description: e.target.value }))} className="min-h-[120px] bg-background/50 focus-visible:ring-primary resize-y" />
-            </div>
+                {loadingMyProjects ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {[1, 2].map((i) => (
+                      <div key={i} className="glass h-48 rounded-2xl animate-pulse bg-card/20" />
+                    ))}
+                  </div>
+                ) : activeProjectsList.length === 0 ? (
+                  <div className="glass rounded-2xl p-16 text-center border-dashed border-2 border-border/50">
+                    <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Layers className="h-8 w-8 text-primary opacity-80" />
+                    </div>
+                    <h3 className="text-lg font-bold text-foreground mb-1">No Active Project in Progress</h3>
+                    <p className="text-xs text-muted-foreground max-w-sm mx-auto mb-6">
+                      Explore academic project blueprints tailored to your discipline and career interests to begin guided development.
+                    </p>
+                    <Button
+                      variant="hero"
+                      size="sm"
+                      onClick={() => setActiveTab("catalog")}
+                      className="glow-primary text-xs"
+                    >
+                      Browse Blueprint Catalog
+                      <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {activeProjectsList.map((project) => {
+                      const completedCount = (project.milestoneProgress || []).filter(
+                        (m) => m.completed || m.status === "completed"
+                      ).length;
+                      const totalCount = (project.milestoneProgress || []).length || 1;
+                      const percent = project.progressPercentage ?? Math.round((completedCount / totalCount) * 100);
+                      const isChanges = project.status === "changes_requested";
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-foreground ml-1">Tech Stack</label>
-              <Input placeholder="Comma separated (e.g. React, Node.js, LangChain)" value={form.stack} onChange={(e) => setForm((c) => ({ ...c, stack: e.target.value }))} className="bg-background/50 focus-visible:ring-primary font-mono text-sm" />
-            </div>
+                      return (
+                        <div
+                          key={project._id}
+                          className="glass rounded-2xl p-6 border border-border/50 hover:border-primary/40 transition-all flex flex-col justify-between hover:shadow-lg hover:shadow-primary/5"
+                        >
+                          <div>
+                            <div className="flex items-center justify-between gap-2 mb-3">
+                              <Badge variant="outline" className="text-[11px] bg-primary/5 text-primary border-primary/20">
+                                {project.branchSlug}
+                              </Badge>
+                              <Badge
+                                variant="outline"
+                                className={`text-[11px] uppercase font-mono ${
+                                  isChanges
+                                    ? "bg-amber-500/10 text-amber-500 border-amber-500/30"
+                                    : "bg-blue-500/10 text-blue-500 border-blue-500/30"
+                                }`}
+                              >
+                                {project.status.replace("_", " ")}
+                              </Badge>
+                            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground ml-1">GitHub URL</label>
-                <Input placeholder="https://github.com/..." value={form.githubUrl} onChange={(e) => setForm((c) => ({ ...c, githubUrl: e.target.value }))} className="bg-background/50 focus-visible:ring-primary" />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground ml-1">Live Demo URL</label>
-                <Input placeholder="https://..." value={form.demoUrl} onChange={(e) => setForm((c) => ({ ...c, demoUrl: e.target.value }))} className="bg-background/50 focus-visible:ring-primary" />
-              </div>
-            </div>
-          </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="ghost" onClick={() => setShowAddDialog(false)}>Cancel</Button>
-            <Button variant="hero" onClick={handleCreateOrUpdateProject} disabled={submitting} className="glow-primary">
-              {submitting ? "Saving Data..." : editingProjectId ? "Update Project" : "Create Project"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                            <h4 className="text-base font-bold text-foreground mb-1.5 line-clamp-1">{project.title}</h4>
+                            <p className="text-xs text-muted-foreground line-clamp-2 mb-4">
+                              {project.writtenExplanations || project.description}
+                            </p>
 
-      <AIDescriptionGeneratorDialog
-        open={showDescriptionGenerator}
-        onOpenChange={setShowDescriptionGenerator}
-        idToken={idToken}
-        title="Generate Project Description"
-        defaultPrompt={AI_PROMPT_PRESETS.projectDescription}
-        context={[
-          `Project title: ${form.title || "N/A"}`,
-          `Tech stack: ${form.stack || "N/A"}`,
-          `Timeline: ${form.date || "N/A"}`,
-          `Current description: ${form.description || "N/A"}`
-        ].join("\n")}
-        onApply={(nextValue) => setForm((current) => ({ ...current, description: nextValue }))}
-      />
+                            <div className="space-y-2 mb-6">
+                              <div className="flex justify-between text-xs text-muted-foreground">
+                                <span>Milestones Progress:</span>
+                                <span className="font-bold text-primary">{completedCount}/{totalCount} ({percent}%)</span>
+                              </div>
+                              <div className="w-full h-2 rounded-full bg-background/60 overflow-hidden border border-border/40">
+                                <div
+                                  className="h-full bg-gradient-to-r from-primary to-accent rounded-full transition-all duration-300"
+                                  style={{ width: `${percent}%` }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 pt-2 border-t border-border/30">
+                            <Button
+                              variant="hero"
+                              size="sm"
+                              className="w-full text-xs glow-primary"
+                              onClick={() => setActiveWorkspaceProject(project)}
+                            >
+                              Open Project Workspace
+                              <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* Tab 2: Blueprint Catalog */}
+        {activeTab === "catalog" && (
+          <motion.div
+            key="catalog-tab"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
+            <ProjectCatalogView
+              templates={templates}
+              loading={loadingTemplates}
+              onStartProject={handleStartProject}
+              startingTemplateId={startingTemplateId}
+            />
+          </motion.div>
+        )}
+
+        {/* Tab 3: Evidence Portfolio */}
+        {activeTab === "portfolio" && (
+          <motion.div
+            key="portfolio-tab"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
+            <EvidencePortfolioView
+              completedProjects={completedProjectsList}
+              loading={loadingMyProjects}
+              onToggleVisibility={handleToggleVisibility}
+              onSyncToResume={handleSyncToResume}
+              onSelectProjectWorkspace={(proj) => {
+                setActiveWorkspaceProject(proj);
+                setActiveTab("workspace");
+              }}
+              syncingProjectId={syncingProjectId}
+            />
+          </motion.div>
+        )}
+
+        {/* Tab 4: Resume Showcase (Manual Projects) */}
+        {activeTab === "resume" && (
+          <motion.div
+            key="resume-tab"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
+            <ManualResumeProjectsTab
+              projects={manualProjects}
+              loading={loadingManualProjects}
+              onRefresh={loadManualProjects}
+              setProjects={setManualProjects}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

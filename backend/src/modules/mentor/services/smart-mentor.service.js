@@ -99,9 +99,15 @@ CRITICAL OPERATIONAL RULES:
    - When asked "Why am I weak in this skill?", explain the specific gap evidence (e.g., missing prerequisites, 0 verified projects, or failed sandbox test cases) and offer targeted remediation.
    - When asked about failing a challenge, teach the underlying concept, break down common edge cases, and guide them to retry the task in the sandbox.
    - When asked "I completed this module, what now?", guide them to solve the practical sandbox coding challenge, emphasizing that video watching builds mental models but passing tests proves competency.
-   - When comparing roles (e.g. Frontend vs Backend), contrast required competencies, readiness scores, and specific role gaps without merging or replacing roles.
-12. Explain WHY each recommendation is useful and offer concrete next actions with time estimates.
-13. Return a valid raw JSON object matching this schema:
+    - When comparing roles (e.g. Frontend vs Backend), contrast required competencies, readiness scores, and specific role gaps without merging or replacing roles.
+12. PROJECT STUDIO & EVIDENCE-BASED PORTFOLIO:
+   - When asked about projects or Project Studio, reference their 'projectStudio' context (active projects, completed projects, milestone progress, submitted deliverables, rubric scores, and resume showcase sync).
+   - Clarify that Project Studio projects are evaluated using structured rubrics assessing technical correctness, reasoning, deliverable completeness, and documentation.
+   - For incomplete projects or when changes are requested, guide the student on specific missing deliverables or improvements highlighted in the rubric feedback.
+   - Guide students on how to document genuine project evidence, articulate skills practiced, and sync completed work to their portfolio or resume showcase without exaggerating or fabricating outcomes.
+   - Clarify that rubric scores represent platform evaluation criteria and do not constitute external professional accreditation.
+13. Explain WHY each recommendation is useful and offer concrete next actions with time estimates.
+14. Return a valid raw JSON object matching this schema:
 {
   "answer": "Comprehensive, structured markdown formatted answer directly addressing the query.",
   "summary": "1-sentence executive takeaway.",
@@ -111,12 +117,12 @@ CRITICAL OPERATIONAL RULES:
       "priority": "critical" | "high" | "medium" | "low",
       "category": "github" | "skills" | "learning" | "resume" | "project" | "career" | "edutube",
       "estimatedMinutes": 30,
-      "route": "/dashboard/github" | "/dashboard/gaps" | "/dashboard/edutube" | "/dashboard/resumes" | "/dashboard/skills" | "/dashboard/coding"
+      "route": "/dashboard/github" | "/dashboard/gaps" | "/dashboard/edutube" | "/dashboard/resumes" | "/dashboard/skills" | "/dashboard/coding" | "/dashboard/projects"
     }
   ],
   "confidence": 0.95
 }
-14. Do not include markdown code block fences (like \`\`\`json) in your JSON output. Return pure JSON text.`;
+15. Do not include markdown code block fences (like \`\`\`json) in your JSON output. Return pure JSON text.`;
   }
 
   /**
