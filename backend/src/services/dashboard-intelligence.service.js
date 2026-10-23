@@ -475,6 +475,13 @@ export class DashboardIntelligenceService {
             issuedAt: b.issuedAt,
           })),
         },
+        academic: {
+          branchSlug: user?.academic?.branchSlug || "",
+          branchName: user?.academic?.branchName || "",
+          degreeSlug: user?.academic?.degreeSlug || "",
+          degreeName: user?.academic?.degreeName || "",
+          isConfigured: Boolean(user?.academic?.branchSlug || user?.academic?.degreeSlug || user?.academic?.branchName),
+        },
       },
       learningConsistency: {
         streakDays: consistencyStreakDays,

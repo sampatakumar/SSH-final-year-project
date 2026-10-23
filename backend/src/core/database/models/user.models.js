@@ -103,7 +103,9 @@ const userSchema = new mongoose.Schema(
       currentYear: { type: Number, min: 1, max: 6, default: null },
       currentSemester: { type: Number, min: 1, max: 12, default: null },
       institution: { type: String, trim: true, default: "" },
+      graduationYear: { type: Number, default: null },
       academicScheme: { type: String, trim: true, default: "" },
+      isConfigured: { type: Boolean, default: false },
     },
     education: {
       type: [String],

@@ -23,20 +23,24 @@ export const SpacedRevisionWidget: React.FC = () => {
   const [selfScore, setSelfScore] = useState<number | null>(null);
   const [answerText, setAnswerText] = useState("");
 
-  const fetchQueue = useCallback(async () => {
+  const fetchQueue = useCallback(async (isMounted = { current: true }) => {
     try {
       setIsLoading(true);
       const data = await SmartSkillApi.getRevisionQueue(10);
-      setQueue(data);
+      if (isMounted.current) setQueue(data);
     } catch {
       // Graceful fallback for non-blocking UI
     } finally {
-      setIsLoading(false);
+      if (isMounted.current) setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchQueue();
+    const isMounted = { current: true };
+    fetchQueue(isMounted);
+    return () => {
+      isMounted.current = false;
+    };
   }, [fetchQueue]);
 
   const handleCompleteRetrieval = async () => {

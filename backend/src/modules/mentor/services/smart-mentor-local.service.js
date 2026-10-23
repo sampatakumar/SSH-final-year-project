@@ -55,6 +55,15 @@ export class SmartMentorLocalService {
       return "unified_next_action";
     }
 
+    // Multi-Branch Academic Discipline & Capability queries (Phase 42)
+    if (/capabilit(y|ies)|what tools|simulation.*branch|cad.*support|circuit.*support/i.test(text)) {
+      return "branch_capabilities";
+    }
+
+    if (/academic branch|my branch|academic background|degree and branch|discipline|specialization|cross-disciplinary|switch.*branch|mechanical student|civil student|ece student|branch guidance/i.test(text)) {
+      return "academic_branch_guidance";
+    }
+
     // 3. GitHub and project queries
     if (/github|repo|repositories|commit|push|pull request/i.test(text)) {
       if (/readme/i.test(text)) return "github_readme";
@@ -854,6 +863,92 @@ Your verified skills represent hard technical proof that code executed and passe
           category: "skills",
           estimatedMinutes: 10,
           route: "/dashboard/skills",
+        });
+        break;
+      }
+
+      case "academic_branch_guidance": {
+        const academic = context.career?.academic || {};
+        const isConfigured = academic.isConfigured;
+        const branchName = academic.branchName || "Engineering / Technical Discipline";
+        const degreeName = academic.degreeName || "Academic Program";
+        const disciplineFamily = academic.disciplineFamily || "Technical";
+
+        if (!isConfigured) {
+          answer = `### Academic Profile Not Yet Configured
+Your academic profile is currently **unconfigured**.
+
+Smart Skill Hub personalizes learning recommendations, skill relevance, and competency expectations to your specific discipline (e.g. Mechanical, ECE, CSE, Civil, BBA, Nursing).
+
+To connect your academic discipline to your career goals:
+1. Navigate to **Profile Settings** or complete the **Academic Background** onboarding step.
+2. Select your Degree (e.g., B.Tech, BBA, B.Sc) and Branch (e.g., Computer Science, Mechanical, Electronics).
+3. Specify your current year and specialization if applicable.`;
+
+          summary = "Academic profile is unconfigured. Please complete academic settings.";
+          actions.push({
+            title: "Configure Academic Profile",
+            priority: "high",
+            category: "career",
+            estimatedMinutes: 3,
+            route: "/dashboard/settings",
+          });
+          break;
+        }
+
+        answer = `### Academic Discipline Guidance: ${branchName} (${degreeName})
+- **Discipline Family**: ${disciplineFamily}
+- **Selected Career Target**: **${targetRole}**
+- **Academic Progress**: Year ${academic.currentYear || "N/A"}, Semester ${academic.currentSemester || "N/A"}
+
+### Domain Alignment & Career Mobility:
+1. **Discipline Relevance**: Smart Skill Hub assesses you based on skills directly relevant to ${targetRole}. For non-software disciplines (such as Mechanical, Civil, or Healthcare), GitHub repositories and web dev tools are not required.
+2. **Cross-Disciplinary Mobility**: If your target role (${targetRole}) is in another stream (e.g. transitioning from ${branchName} to Software or Data Science), Smart Skill Hub fully supports your transition. You will be evaluated against ${targetRole} prerequisites fairly without discipline-based restrictions.
+3. **Evidence Grounding**: Focus on demonstrating verified competencies through practical problem-solving and validated checkpoints.`;
+
+        summary = `Academic guidance tailored to ${branchName} pursuing ${targetRole}.`;
+        actions.push({
+          title: "Review Career Alignment Matrix",
+          priority: "high",
+          category: "career",
+          estimatedMinutes: 10,
+          route: "/dashboard/skills",
+        });
+        break;
+      }
+
+      case "branch_capabilities": {
+        const academic = context.career?.academic || {};
+        const branchName = academic.branchName || "Your Academic Branch";
+
+        answer = `### Supported Capabilities for ${branchName}
+
+Smart Skill Hub provides a clear distinction between currently usable tools and planned specialized modules:
+
+### 1. Currently Implemented & Available (AVAILABLE):
+- **Adaptive Learning Roadmaps**: Milestone-based study planning across all disciplines.
+- **EduTube Educational Video Checkpoints**: Interactive video learning and conceptual retention checks.
+- **Spaced Revision Engine**: Algorithm-driven spaced repetition flashcards for memory retention.
+- **Skill Competency Matrix & Cryptographic Badges**: Platform-verified competency records.
+- **Algorithmic Coding Sandbox**: Multi-language programming execution (available across software/scripting tracks; staging code execution disabled).
+- **GitHub Repository Analysis**: Empirical repository hygiene and documentation audits.
+
+### 2. Planned for Future Specialized Phases (PLANNED):
+- **CAD & 3D Engineering Portfolio**: SolidWorks, AutoCAD, and BIM design portfolio integration (Mechanical & Civil).
+- **Circuit Simulation & Hardware Labs**: SPICE simulation and PCB verification (ECE & EEE).
+- **Engineering Simulations**: FEA, CFD, and smart grid modeling.
+- **Clinical Case Assessments**: Interactive patient care and diagnostic scenarios (Nursing & Allied Health).
+- **Business & Financial Valuation**: Interactive DCF workbooks and business case studies (Commerce & Management).
+
+> **Integrity Note**: Planned modules are cataloged for upcoming specialized phases. Only implemented tools are accessible in the current release.`;
+
+        summary = `Capability breakdown for ${branchName}: available platform tools vs planned specialized modules.`;
+        actions.push({
+          title: "Explore Active Learning Tools",
+          priority: "medium",
+          category: "learning",
+          estimatedMinutes: 10,
+          route: "/dashboard/edutube",
         });
         break;
       }

@@ -16,6 +16,8 @@ import { EduTubeCheckpointAttempt } from "../../edutube/models/edutubeCheckpoint
 import { SpacedRevisionSchedule } from "../../skills/models/spacedRevisionSchedule.models.js";
 import { evaluateStudentCompetencyMatrix } from "../../skills/services/competencyMatrix.service.js";
 import { getUserBadges } from "../../skills/services/badgeIssuance.service.js";
+import { normalizeAcademicProfile } from "../../academic/services/academicNormalization.service.js";
+import { getBranchCapabilities } from "../../academic/services/branchCapabilityRegistry.service.js";
 
 // 10-minute in-memory context cache
 const CONTEXT_CACHE = new Map();
@@ -120,18 +122,13 @@ export class SmartMentorContextService {
     const targetRole = user?.targetRole || skillProfile?.targetRole || "Full Stack Developer";
     const readinessScore = skillProfile?.overallReadinessScore ?? 65;
 
+    const normalizedAcademic = normalizeAcademicProfile(user?.academic);
+    const branchCapabilities = getBranchCapabilities(normalizedAcademic.branchSlug);
+
     const academic = {
-      degreeName: user?.academic?.degreeName || "",
-      degreeSlug: user?.academic?.degreeSlug || "",
-      branchName: user?.academic?.branchName || "",
-      branchSlug: user?.academic?.branchSlug || "",
-      specializationName: user?.academic?.specializationName || "",
-      specializationSlug: user?.academic?.specializationSlug || "",
-      currentYear: user?.academic?.currentYear ?? null,
-      currentSemester: user?.academic?.currentSemester ?? null,
-      institution: user?.academic?.institution || "",
-      academicScheme: user?.academic?.academicScheme || "",
-      isConfigured: Boolean(user?.academic?.degreeName || user?.academic?.branchName),
+      ...normalizedAcademic,
+      disciplineFamily: branchCapabilities.disciplineFamily,
+      capabilities: branchCapabilities.capabilities,
     };
 
     const targetRoles = Array.isArray(user?.targetRoles) && user.targetRoles.length > 0

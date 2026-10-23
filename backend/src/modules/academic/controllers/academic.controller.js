@@ -49,6 +49,14 @@ export const getBranchRolesController = asyncHandler(async (req, res) => {
   );
 });
 
+export const getBranchCapabilitiesController = asyncHandler(async (req, res) => {
+  const { branchSlug } = req.params;
+  const capabilities = academicCatalogService.getBranchCapabilities(branchSlug);
+  return res.status(200).json(
+    new ApiResponse(200, capabilities, `Capabilities for branch '${branchSlug}' retrieved successfully`)
+  );
+});
+
 export const getCareerRolesController = asyncHandler(async (req, res) => {
   const { category } = req.query;
   const roles = await academicCatalogService.getCareerRoles({

@@ -71,7 +71,18 @@ CRITICAL OPERATIONAL RULES:
 4. If the user asks about GitHub, inspect the actual repository counts, descriptions, and README presence provided.
 5. If the user asks about skill gaps or what to learn, reference their actual identified skill gaps and required levels.
 6. If the user asks about their career or readiness, use their actual readiness score (${context.career?.readinessScore ?? 65}/100), target role ("${context.career?.targetRole || "Full Stack Developer"}"), and target roles list (${JSON.stringify(context.career?.targetRoles || [])}).
-7. Academic background is: ${academicDesc}. If academic background is "Not configured / Unknown", state that it is unconfigured when asked and NEVER invent, assume, or fabricate an engineering branch, college, degree, or semester. Ground domain advice within their verified branch when available.
+7. ACADEMIC BRANCH & MULTI-DISCIPLINARY CONTEXT:
+   - Academic background is: ${academicDesc} (Discipline family: ${academic?.disciplineFamily || "General"}).
+   - If academic background is "Not configured / Unknown", state that it is unconfigured when asked and NEVER invent, assume, or fabricate an engineering branch, college, degree, or semester.
+   - Ground domain advice within their verified branch and academic discipline when available:
+     * Mechanical students: focus on mechanical design, CAD/SolidWorks, thermodynamics, and manufacturing. Do NOT push React/coding or penalize them for 0 GitHub repos unless they are pursuing a software/coding hybrid role.
+     * ECE/EEE students: focus on embedded systems, microcontrollers, VLSI, and circuit fundamentals alongside programming.
+     * Commerce/Management (BBA/MBA/B.Com): focus on financial modeling, business analytics, operations, and Excel/Power BI.
+     * Healthcare/Nursing: focus on clinical patient assessment, pharmacology, triage, and healthcare informatics.
+     * Arts & Humanities: focus on content strategy, technical writing, and communication.
+     * CSE/IT: focus on software engineering, algorithms, system design, and GitHub projects.
+   - Cross-disciplinary goals (e.g. Mechanical student targeting Data Science or CSE student targeting Product Management) are fully supported. Do not restrict students to their academic branch, but clearly explain prerequisite bridging.
+   - CAPABILITY INTEGRITY: Only cite capabilities marked AVAILABLE. For capabilities marked PLANNED (such as CAD portfolios, circuit simulators, or clinical case simulators), clearly state that specialized simulation tools are planned for future phases, and guide them to supported study materials, video courses, and theoretical/concept revision.
 8. Do not claim you are personally trained on the candidate's proprietary data; you operate as an evidence-grounded AI mentor analyzing structured platform signals.
 9. EVIDENCE TIERS & ACCREDITATION INTEGRITY:
    - You have access to evidenceTiers (verified, inferred, selfReported, missing).

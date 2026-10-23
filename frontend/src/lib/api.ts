@@ -992,6 +992,13 @@ export interface DashboardIntelligenceData {
       count: number;
       badges: Array<{ id: string; name: string; issuedAt: string }>;
     };
+    academic?: {
+      branchSlug?: string;
+      branchName?: string;
+      degreeSlug?: string;
+      degreeName?: string;
+      isConfigured?: boolean;
+    };
   };
   learningConsistency: {
     streakDays: number;

@@ -104,6 +104,66 @@ export const INITIAL_ACADEMIC_DEGREES = [
     description: "Technical diploma program providing foundational engineering skills.",
     order: 10,
   },
+  {
+    slug: "mba",
+    name: "Master of Business Administration",
+    shortName: "MBA",
+    stream: "Commerce & Management",
+    durationYears: 2,
+    totalSemesters: 4,
+    description: "Postgraduate master's in business administration, organizational strategy, and leadership.",
+    order: 11,
+  },
+  {
+    slug: "mcom",
+    name: "Master of Commerce",
+    shortName: "M.Com",
+    stream: "Commerce & Management",
+    durationYears: 2,
+    totalSemesters: 4,
+    description: "Postgraduate master's in advanced financial accounting, taxation, and commerce.",
+    order: 12,
+  },
+  {
+    slug: "ba",
+    name: "Bachelor of Arts",
+    shortName: "BA",
+    stream: "Arts & Humanities",
+    durationYears: 3,
+    totalSemesters: 6,
+    description: "Undergraduate degree in humanities, social sciences, media, and communication.",
+    order: 13,
+  },
+  {
+    slug: "ma",
+    name: "Master of Arts",
+    shortName: "MA",
+    stream: "Arts & Humanities",
+    durationYears: 2,
+    totalSemesters: 4,
+    description: "Postgraduate master's degree in arts, humanities, literature, and communications.",
+    order: 14,
+  },
+  {
+    slug: "bsc-nursing",
+    name: "Bachelor of Science in Nursing",
+    shortName: "B.Sc Nursing",
+    stream: "Healthcare & Life Sciences",
+    durationYears: 4,
+    totalSemesters: 8,
+    description: "Professional undergraduate nursing degree in clinical healthcare and patient triage.",
+    order: 15,
+  },
+  {
+    slug: "allied-health-degree",
+    name: "Bachelor of Allied Health Sciences",
+    shortName: "B.AHS",
+    stream: "Healthcare & Life Sciences",
+    durationYears: 3,
+    totalSemesters: 6,
+    description: "Undergraduate program in medical laboratory technologies, imaging, and clinical diagnostics.",
+    order: 16,
+  },
 ];
 
 export const INITIAL_ACADEMIC_BRANCHES = [
@@ -513,6 +573,112 @@ export const INITIAL_ACADEMIC_BRANCHES = [
     specializations: [],
     order: 29,
   },
+  // 7. Postgraduate Business & Commerce
+  {
+    slug: "mba-gen",
+    name: "Master of Business Administration (MBA)",
+    code: "MBA",
+    degreeSlugs: ["mba"],
+    stream: "Commerce & Management",
+    description: "Executive and managerial leadership, corporate finance, marketing, and operations strategy.",
+    aliases: ["mba", "master of business administration", "management pg"],
+    specializations: [
+      { slug: "finance-banking", name: "Corporate Finance & Investment Banking" },
+      { slug: "marketing-digital", name: "Marketing Strategy & Brand Management" },
+      { slug: "operations-supply", name: "Operations & Supply Chain Management" },
+      { slug: "business-analytics", name: "Business Analytics & Enterprise AI" },
+      { slug: "human-resources", name: "Strategic Human Resource Management" },
+    ],
+    order: 30,
+  },
+  {
+    slug: "mcom-gen",
+    name: "Commerce & Advanced Accounting (M.Com)",
+    code: "M.Com",
+    degreeSlugs: ["mcom"],
+    stream: "Commerce & Management",
+    description: "Advanced financial reporting, taxation, auditing, and corporate accounting controls.",
+    aliases: ["mcom", "m.com", "master of commerce"],
+    specializations: [
+      { slug: "advanced-taxation", name: "Taxation & Corporate Law" },
+      { slug: "financial-reporting", name: "Financial Reporting & Auditing" },
+    ],
+    order: 31,
+  },
+  // 8. Arts & Humanities
+  {
+    slug: "ba-gen",
+    name: "Arts & Humanities (BA)",
+    code: "BA",
+    degreeSlugs: ["ba"],
+    stream: "Arts & Humanities",
+    description: "Literature, mass communication, journalism, social sciences, and content creation.",
+    aliases: ["ba", "bachelor of arts", "humanities", "arts"],
+    specializations: [
+      { slug: "journalism-media", name: "Journalism & Mass Communication" },
+      { slug: "english-literature", name: "English Literature & Professional Writing" },
+      { slug: "economics-analytics", name: "Economics & Applied Analytics" },
+      { slug: "psychology-behavior", name: "Psychology & Behavioral Science" },
+    ],
+    order: 32,
+  },
+  {
+    slug: "ma-gen",
+    name: "Master of Arts (MA)",
+    code: "MA",
+    degreeSlugs: ["ma"],
+    stream: "Arts & Humanities",
+    description: "Advanced humanities, mass communication research, public relations, and cultural analysis.",
+    aliases: ["ma", "master of arts"],
+    specializations: [
+      { slug: "corporate-pr", name: "Corporate Communication & Public Relations" },
+      { slug: "public-policy", name: "Public Policy & Administration" },
+    ],
+    order: 33,
+  },
+  // 9. Healthcare & Allied Health Sciences
+  {
+    slug: "nursing-gen",
+    name: "Nursing",
+    code: "NURSING",
+    degreeSlugs: ["bsc-nursing"],
+    stream: "Healthcare & Life Sciences",
+    description: "Clinical patient care, pharmacotherapy administration, emergency triage, and healthcare management.",
+    aliases: ["nursing", "bsc nursing", "b.sc nursing", "clinical nursing"],
+    specializations: [
+      { slug: "critical-care", name: "Critical Care & ICU Nursing" },
+      { slug: "pediatric-nursing", name: "Pediatric & Neonatal Care" },
+      { slug: "community-health", name: "Community & Public Health Nursing" },
+    ],
+    order: 34,
+  },
+  {
+    slug: "allied-health-gen",
+    name: "Allied Health Sciences",
+    code: "AHS",
+    degreeSlugs: ["allied-health-degree"],
+    stream: "Healthcare & Life Sciences",
+    description: "Clinical laboratory diagnostic techniques, medical imaging, and healthcare operations.",
+    aliases: ["allied health", "allied health sciences", "ahs", "medical lab technology", "mlt"],
+    specializations: [
+      { slug: "medical-laboratory", name: "Medical Laboratory Technology (MLT)" },
+      { slug: "radiography-imaging", name: "Radiography & Medical Imaging" },
+      { slug: "respiratory-therapy", name: "Respiratory Care Technology" },
+    ],
+    order: 35,
+  },
+  // 10. Interdisciplinary / Other
+  {
+    slug: "other-gen",
+    name: "Other Academic Discipline",
+    code: "OTHER",
+    degreeSlugs: ["btech", "be", "bba", "bcom", "ba", "diploma-eng"],
+    stream: "Other",
+    description: "Emerging or custom academic discipline outside standard taxonomy entries.",
+    aliases: ["other", "general", "undecided", "interdisciplinary"],
+    specializations: [],
+    order: 36,
+  },
 ];
 
 export const INITIAL_CAREER_ROLES = [
@@ -543,8 +709,8 @@ export const INITIAL_CAREER_ROLES = [
     category: "Software & Computing",
     description: "Designs and maintains end-to-end web applications across frontends, backends, databases, and deployments.",
     experienceLevel: "Entry-Level",
-    coreSkills: ["React", "Node.js", "TypeScript", "REST APIs", "MongoDB", "PostgreSQL"],
-    prerequisiteSkills: ["JavaScript", "HTML", "CSS", "Git", "Data Structures"],
+    coreSkills: ["JavaScript", "React", "Node.js", "TypeScript", "REST APIs", "MongoDB", "PostgreSQL"],
+    prerequisiteSkills: ["HTML", "CSS", "Git", "Data Structures"],
     order: 3,
   },
   {
@@ -695,7 +861,7 @@ export const INITIAL_CAREER_ROLES = [
     category: "Electronics & Electrical",
     description: "Programs microcontrollers, real-time operating systems (RTOS), hardware drivers, and IoT sensors.",
     experienceLevel: "Entry-Level",
-    coreSkills: ["Embedded C", "C++", "Microcontrollers (ARM/STM32/ESP32)", "RTOS", "UART/SPI/I2C"],
+    coreSkills: ["Embedded C", "C++", "Microcontrollers", "RTOS", "UART/SPI/I2C"],
     prerequisiteSkills: ["Digital Electronics", "Circuit Debugging"],
     order: 18,
   },
@@ -797,7 +963,7 @@ export const INITIAL_CAREER_ROLES = [
     category: "Mechanical & Industrial",
     description: "Designs mechanisms, mechanical enclosures, linkages, and structural assemblies using 3D CAD parametric modeling.",
     experienceLevel: "Entry-Level",
-    coreSkills: ["SolidWorks", "PTC Creo / CATIA", "GD&T", "Machine Element Design", "FEA Basics"],
+    coreSkills: ["SolidWorks", "AutoCAD", "PTC Creo / CATIA", "GD&T", "Machine Element Design", "FEA Basics"],
     prerequisiteSkills: ["Strength of Materials", "Engineering Mechanics"],
     order: 28,
   },
@@ -1057,6 +1223,48 @@ export const INITIAL_CAREER_ROLES = [
     prerequisiteSkills: ["Software Lifecycle Understanding", "Strategic Prioritization"],
     order: 53,
   },
+  // 7. Healthcare & Clinical
+  {
+    slug: "registered-nurse",
+    title: "Staff Nurse / Clinical Nurse",
+    category: "Healthcare & Clinical",
+    description: "Delivers direct clinical patient care, vital signs monitoring, pharmacotherapy dosage, and triage.",
+    experienceLevel: "Entry-Level",
+    coreSkills: ["Clinical Patient Assessment", "Pharmacology & Drug Administration", "Patient Monitoring & Triage", "Medical Informatics & EHR"],
+    prerequisiteSkills: ["Human Anatomy", "Medical Ethics", "Infection Control"],
+    order: 54,
+  },
+  {
+    slug: "clinical-research-coordinator",
+    title: "Clinical Research Coordinator",
+    category: "Healthcare & Clinical",
+    description: "Coordinates clinical trials, bioethics documentation, patient screening, and health records data integrity.",
+    experienceLevel: "Entry-Level",
+    coreSkills: ["Good Clinical Practice (GCP)", "Medical Informatics & EHR", "Patient Monitoring & Triage", "Clinical Trials Data Management"],
+    prerequisiteSkills: ["Bioethics", "Standard Operating Procedures"],
+    order: 55,
+  },
+  // 8. Arts, Media & Communication
+  {
+    slug: "content-strategist",
+    title: "Content Strategist & Technical Writer",
+    category: "Arts & Humanities",
+    description: "Develops content architecture, technical product documentation, brand voice guidelines, and narrative articles.",
+    experienceLevel: "Entry-Level",
+    coreSkills: ["Content Strategy & Copywriting", "Technical Writing", "SEO Basics", "Digital Media Production"],
+    prerequisiteSkills: ["English Composition", "Research Methodology"],
+    order: 56,
+  },
+  {
+    slug: "corporate-communication-specialist",
+    title: "Corporate Communications Specialist",
+    category: "Arts & Humanities",
+    description: "Manages public relations press releases, corporate narrative, crisis communication, and internal stakeholder alignment.",
+    experienceLevel: "Entry-Level",
+    coreSkills: ["Public Relations & Corporate Comm", "Content Strategy & Copywriting", "Crisis Communication", "Digital Media Production"],
+    prerequisiteSkills: ["Media Ethics", "Public Speaking"],
+    order: 57,
+  },
 ];
 
 /**
@@ -1227,6 +1435,37 @@ export const INITIAL_BRANCH_ROLE_MAPPINGS = [
   { branchSlug: "diploma-civil", roleSlug: "construction-project-engineer", relationshipType: "primary", relevanceScore: 88 },
   { branchSlug: "diploma-eee", roleSlug: "electrical-design-engineer", relationshipType: "primary", relevanceScore: 88 },
   { branchSlug: "diploma-eee", roleSlug: "industrial-automation-engineer", relationshipType: "primary", relevanceScore: 85 },
+
+  // MBA & Postgraduate Commerce Mappings
+  ...["mba-gen", "mcom-gen"].flatMap((b) => [
+    { branchSlug: b, roleSlug: "financial-analyst", relationshipType: "primary", relevanceScore: 96 },
+    { branchSlug: b, roleSlug: "accountant", relationshipType: "primary", relevanceScore: 95 },
+    { branchSlug: b, roleSlug: "business-analyst", relationshipType: "primary", relevanceScore: 96 },
+    { branchSlug: b, roleSlug: "product-manager", relationshipType: "primary", relevanceScore: 92 },
+    { branchSlug: b, roleSlug: "business-intelligence-analyst", relationshipType: "primary", relevanceScore: 92 },
+    { branchSlug: b, roleSlug: "operations-analyst", relationshipType: "primary", relevanceScore: 94 },
+    { branchSlug: b, roleSlug: "digital-marketing-analyst", relationshipType: "related", relevanceScore: 88 },
+  ]),
+
+  // Arts & Humanities Mappings
+  ...["ba-gen", "ma-gen"].flatMap((b) => [
+    { branchSlug: b, roleSlug: "content-strategist", relationshipType: "primary", relevanceScore: 95 },
+    { branchSlug: b, roleSlug: "corporate-communication-specialist", relationshipType: "primary", relevanceScore: 94 },
+    { branchSlug: b, roleSlug: "digital-marketing-analyst", relationshipType: "related", relevanceScore: 86 },
+    { branchSlug: b, roleSlug: "ui-ux-designer", relationshipType: "related", relevanceScore: 84 },
+    { branchSlug: b, roleSlug: "product-manager", relationshipType: "interdisciplinary", relevanceScore: 78 },
+  ]),
+
+  // Healthcare & Clinical Mappings
+  { branchSlug: "nursing-gen", roleSlug: "registered-nurse", relationshipType: "primary", relevanceScore: 98 },
+  { branchSlug: "nursing-gen", roleSlug: "clinical-research-coordinator", relationshipType: "related", relevanceScore: 90 },
+  { branchSlug: "allied-health-gen", roleSlug: "clinical-research-coordinator", relationshipType: "primary", relevanceScore: 95 },
+  { branchSlug: "allied-health-gen", roleSlug: "laboratory-analyst", relationshipType: "primary", relevanceScore: 92 },
+
+  // Interdisciplinary / Other Mappings
+  { branchSlug: "other-gen", roleSlug: "business-analyst", relationshipType: "primary", relevanceScore: 80 },
+  { branchSlug: "other-gen", roleSlug: "full-stack-developer", relationshipType: "interdisciplinary", relevanceScore: 75 },
+  { branchSlug: "other-gen", roleSlug: "content-strategist", relationshipType: "interdisciplinary", relevanceScore: 75 },
 ];
 
 export const ACADEMIC_DEGREES = INITIAL_ACADEMIC_DEGREES;

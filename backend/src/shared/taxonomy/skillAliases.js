@@ -131,6 +131,7 @@ export const SKILL_ALIASES = {
   "arm-cortex": "Microcontrollers",
   "stm32": "Microcontrollers",
   "esp32": "Microcontrollers",
+  "microcontrollers (arm/stm32/esp32)": "Microcontrollers",
   "uart": "UART/SPI/I2C",
   "spi": "UART/SPI/I2C",
   "i2c": "UART/SPI/I2C",

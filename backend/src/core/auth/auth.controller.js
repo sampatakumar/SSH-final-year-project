@@ -15,6 +15,7 @@ import {
   SkillSection,
 } from "../../classes/profile.classes.js";
 import { ROLE_ALIAS_MAP } from "../../modules/gaps/services/skillGap.service.js";
+import { normalizeAcademicProfile } from "../../modules/academic/services/academicNormalization.service.js";
 
 /**
  * Resolve target role identifier to canonical title if known alias is used.
@@ -57,6 +58,7 @@ const updateProfileSchema = z.object({
       currentYear: z.preprocess((val) => (val === "" || val === null || val === undefined ? null : Number(val)), z.number().int().min(1).max(6).nullable()).optional(),
       currentSemester: z.preprocess((val) => (val === "" || val === null || val === undefined ? null : Number(val)), z.number().int().min(1).max(12).nullable()).optional(),
       institution: z.string().max(500).optional(),
+      graduationYear: z.preprocess((val) => (val === "" || val === null || val === undefined ? null : Number(val)), z.number().int().min(1950).max(2100).nullable()).optional(),
       academicScheme: z.string().max(200).optional(),
     })
     .optional(),
@@ -241,7 +243,7 @@ export const updateCurrentUser = asyncHandler(async (req, res) => {
         updatedAcademic[key] = val;
       }
     }
-    user.academic = updatedAcademic;
+    user.academic = normalizeAcademicProfile(updatedAcademic);
     if (typeof user.markModified === "function") {
       user.markModified("academic");
     }

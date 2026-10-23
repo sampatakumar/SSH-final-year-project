@@ -54,6 +54,12 @@ export interface AcademicOptionsResponse {
   careerCategories: string[];
 }
 
+export interface BranchCapabilitiesResponse {
+  branchSlug: string;
+  disciplineFamily: string;
+  capabilities: Record<string, "AVAILABLE" | "UNAVAILABLE_CONFIG" | "PLANNED" | "UNSUPPORTED">;
+}
+
 export const AcademicApi = {
   /**
    * Fetch all academic options (degrees, branches, specializations, career roles)
@@ -72,6 +78,23 @@ export const AcademicApi = {
       `/academic/branches/${encodeURIComponent(branchSlug)}/roles`
     );
     return res.data.roles || [];
+  },
+
+  /**
+   * Fetch capability statuses for a specific academic branch
+   */
+  getBranchCapabilities: async (branchSlug: string): Promise<BranchCapabilitiesResponse> => {
+    if (!branchSlug) {
+      return {
+        branchSlug: "",
+        disciplineFamily: "General",
+        capabilities: {},
+      };
+    }
+    const res = await apiRequest<BranchCapabilitiesResponse>(
+      `/academic/branches/${encodeURIComponent(branchSlug)}/capabilities`
+    );
+    return res.data;
   },
 };
 

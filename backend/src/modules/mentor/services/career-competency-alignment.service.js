@@ -8,6 +8,11 @@ import { SpacedRevisionSchedule } from "../../skills/models/spacedRevisionSchedu
 import { LearningActivityRecord } from "../../skills/models/learningActivityRecord.models.js";
 import { evaluateStudentCompetencyMatrix } from "../../skills/services/competencyMatrix.service.js";
 import { normalizeSkill } from "../../../shared/taxonomy/skillTaxonomy.service.js";
+import {
+  INITIAL_CAREER_ROLES,
+  INITIAL_BRANCH_ROLE_MAPPINGS,
+} from "../../academic/constants/academicCatalog.js";
+import { normalizeAcademicProfile } from "../../academic/services/academicNormalization.service.js";
 
 // Standard canonical requirements fallback for core engineering career roles
 const STANDARD_ROLE_REQUIREMENTS = {
@@ -44,23 +49,23 @@ export class CareerCompetencyAlignmentService {
    */
   async resolveRoleRequirements(roleTitle) {
     const cleanTitle = (roleTitle || "").trim().toLowerCase();
-    const fallback = STANDARD_ROLE_REQUIREMENTS[cleanTitle] || {
-      title: roleTitle || "Full Stack Developer",
-      coreSkills: ["JavaScript", "Python", "Data Structures", "Docker"],
-      prerequisiteSkills: ["Data Structures"],
-    };
 
     const isDbConnected = Boolean(mongoose.connection && mongoose.connection.readyState === 1);
     if (isDbConnected || CareerRole.findOne?.mock) {
       try {
         const dbRole = await CareerRole.findOne({
-          title: { $regex: new RegExp(`^${cleanTitle}$`, "i") },
+          $or: [
+            { title: { $regex: new RegExp(`^${cleanTitle}$`, "i") } },
+            { slug: cleanTitle },
+            { slug: cleanTitle.replace(/\s+/g, "-") },
+          ],
           isActive: true,
         }).lean();
 
         if (dbRole && Array.isArray(dbRole.coreSkills) && dbRole.coreSkills.length > 0) {
           return {
             title: dbRole.title,
+            category: dbRole.category || "Software & Computing",
             coreSkills: dbRole.coreSkills.map(normalizeSkill).filter(Boolean),
             prerequisiteSkills: (dbRole.prerequisiteSkills || []).map(normalizeSkill).filter(Boolean),
           };
@@ -70,15 +75,48 @@ export class CareerCompetencyAlignmentService {
       }
     }
 
+    const standard = STANDARD_ROLE_REQUIREMENTS[cleanTitle];
+    if (standard) {
+      return {
+        title: standard.title,
+        category: standard.category || "Software & Computing",
+        coreSkills: (standard.coreSkills || []).map(normalizeSkill).filter(Boolean),
+        prerequisiteSkills: (standard.prerequisiteSkills || []).map(normalizeSkill).filter(Boolean),
+      };
+    }
+
+    const catalogRole = INITIAL_CAREER_ROLES.find(
+      (r) =>
+        r.title?.toLowerCase() === cleanTitle ||
+        r.slug?.toLowerCase() === cleanTitle ||
+        r.slug?.toLowerCase() === cleanTitle.replace(/\s+/g, "-")
+    );
+    if (catalogRole) {
+      return {
+        title: catalogRole.title,
+        category: catalogRole.category,
+        coreSkills: (catalogRole.coreSkills || []).map(normalizeSkill).filter(Boolean),
+        prerequisiteSkills: (catalogRole.prerequisiteSkills || []).map(normalizeSkill).filter(Boolean),
+      };
+    }
+
+    const fallback = STANDARD_ROLE_REQUIREMENTS[cleanTitle] || {
+      title: roleTitle || "Full Stack Developer",
+      category: "Software & Computing",
+      coreSkills: ["JavaScript", "Python", "Data Structures", "Docker"],
+      prerequisiteSkills: ["Data Structures"],
+    };
+
     return {
       title: fallback.title,
+      category: fallback.category || "Software & Computing",
       coreSkills: fallback.coreSkills.map(normalizeSkill).filter(Boolean),
       prerequisiteSkills: fallback.prerequisiteSkills.map(normalizeSkill).filter(Boolean),
     };
   }
 
   /**
-   * Compare student evidence against their selected career roles.
+   * Compare student evidence against their selected career roles with branch context.
    *
    * @param {string|mongoose.Types.ObjectId} ownerId - User MongoDB ID
    * @returns {Promise<object>} Grounded multi-role competency alignment
@@ -91,6 +129,9 @@ export class CareerCompetencyAlignmentService {
       (isDbConnected || SkillProfile.findOne?.mock) ? SkillProfile.findOne({ owner: ownerId }).lean().catch(() => null) : Promise.resolve(null),
       isDbConnected ? evaluateStudentCompetencyMatrix(ownerId).catch(() => ({ matrix: [], summary: {} })) : Promise.resolve({ matrix: [], summary: {} }),
     ]);
+
+    const academic = normalizeAcademicProfile(user?.academic);
+    const branchSlug = academic.branchSlug;
 
     const primaryTargetRole = user?.targetRole || skillProfile?.targetRole || "Full Stack Developer";
     const rawTargetRoles = Array.isArray(user?.targetRoles) && user.targetRoles.length > 0
@@ -121,6 +162,23 @@ export class CareerCompetencyAlignmentService {
       const reqs = await this.resolveRoleRequirements(roleName);
       const skillBreakdown = [];
       let metCount = 0;
+
+      // Determine relationship with student's branch
+      const roleSlugClean = reqs.title.toLowerCase().replace(/[\s/&]+/g, "-");
+      const branchMapping = branchSlug
+        ? INITIAL_BRANCH_ROLE_MAPPINGS.find(
+            (m) =>
+              m.branchSlug === branchSlug &&
+              (m.roleSlug === roleSlugClean || reqs.title.toLowerCase().includes(m.roleSlug.replace(/-/g, " ")))
+          )
+        : null;
+
+      const isPrimaryDiscipline = Boolean(branchMapping && branchMapping.relationshipType === "primary");
+      const isCrossDisciplinary = Boolean(
+        branchSlug &&
+        (!branchMapping || branchMapping.relationshipType === "interdisciplinary" || branchMapping.relationshipType === "optional")
+      );
+      const isNonSoftwareRole = reqs.category && !["Software & Computing", "Other"].includes(reqs.category);
 
       for (const coreSkill of reqs.coreSkills) {
         const lower = coreSkill.toLowerCase();
@@ -158,7 +216,7 @@ export class CareerCompetencyAlignmentService {
           competencyId: comp?.competencyId || null,
           earnedBadges: (comp?.earnedBadges || []).map((b) => b.badgeType),
           missingRequirements: comp?.missingRequirements || [
-            `Complete knowledge checkpoints and practical coding challenges for ${coreSkill}`,
+            `Complete knowledge checkpoints and practical assessment exercises for ${coreSkill}`,
           ],
         });
       }
@@ -170,12 +228,19 @@ export class CareerCompetencyAlignmentService {
       roleEvaluations.push({
         roleName: reqs.title,
         roleTitle: reqs.title,
+        category: reqs.category,
         readinessPercent,
         groundedReadinessPercent: readinessPercent,
         metCount,
         totalRequired: totalCore,
         skills: skillBreakdown,
         consequentialGaps: topGaps,
+        isPrimaryDiscipline,
+        isCrossDisciplinary,
+        isNonSoftwareRole,
+        evidenceContext: isNonSoftwareRole
+          ? "Domain-specific evaluation. GitHub repository activity is optional and not required for this non-software career path."
+          : "Software evaluation. Empirical code execution and repository activity contribute to evidence tiers.",
       });
     }
 
@@ -233,6 +298,14 @@ export class CareerCompetencyAlignmentService {
       rolesEvaluated: roleEvaluations,
       multiRoleComparison: multiRoleData,
       multiRoleAnalysis: multiRoleData,
+      academicContext: {
+        branchSlug: academic.branchSlug,
+        branchName: academic.branchName,
+        degreeSlug: academic.degreeSlug,
+        degreeName: academic.degreeName,
+        stream: academic.stream,
+        isConfigured: academic.isConfigured,
+      },
       competencySummary: matrixResult.summary,
       evaluatedAt: new Date().toISOString(),
     };

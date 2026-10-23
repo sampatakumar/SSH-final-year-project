@@ -26,6 +26,8 @@ const careerRoleSchema = new mongoose.Schema(
         "Civil & Infrastructure",
         "Science & Biotechnology",
         "Commerce & Business",
+        "Healthcare & Clinical",
+        "Arts & Humanities",
         "Other",
       ],
       index: true,

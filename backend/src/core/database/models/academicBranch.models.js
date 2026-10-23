@@ -77,6 +77,14 @@ const academicBranchSchema = new mongoose.Schema(
       type: [specializationSubSchema],
       default: [],
     },
+    relevantSkillCategories: {
+      type: [String],
+      default: [],
+    },
+    relatedRoleSlugs: {
+      type: [String],
+      default: [],
+    },
     isActive: {
       type: Boolean,
       default: true,

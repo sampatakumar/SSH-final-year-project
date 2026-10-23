@@ -32,6 +32,8 @@ export interface AcademicState {
   specializationName: string;
   currentYear: number | null;
   currentSemester: number | null;
+  graduationYear?: number | null;
+  stream?: string;
   institution: string;
 }
 
@@ -379,8 +381,8 @@ export const AcademicBackgroundStep: React.FC<AcademicBackgroundStepProps> = ({
             </div>
           </div>
 
-          {/* Academic Year and Semester */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Academic Year, Semester, and Graduation Year */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-1.5">
               <label
                 htmlFor="onboarding-year-select"
@@ -434,6 +436,30 @@ export const AcademicBackgroundStep: React.FC<AcademicBackgroundStepProps> = ({
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label
+                htmlFor="onboarding-grad-year-input"
+                className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1"
+              >
+                Graduation Year
+              </label>
+              <Input
+                id="onboarding-grad-year-input"
+                type="number"
+                min={2000}
+                max={2040}
+                placeholder="e.g. 2026"
+                value={academic.graduationYear || ""}
+                onChange={(e) =>
+                  setAcademic((prev) => ({
+                    ...prev,
+                    graduationYear: e.target.value ? parseInt(e.target.value, 10) : null,
+                  }))
+                }
+                className="h-11 rounded-xl shadow-neo-raised-sm"
+              />
             </div>
           </div>
 

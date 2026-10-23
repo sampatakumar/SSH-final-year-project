@@ -9,6 +9,16 @@ import {
   INITIAL_CAREER_ROLES,
   INITIAL_BRANCH_ROLE_MAPPINGS,
 } from "../constants/academicCatalog.js";
+import {
+  getBranchCapabilities,
+  CAPABILITY_DEFINITIONS,
+  CAPABILITY_STATUS,
+} from "./branchCapabilityRegistry.service.js";
+import {
+  resolveCanonicalBranchSlug,
+  resolveCanonicalDegreeSlug,
+  normalizeAcademicProfile,
+} from "./academicNormalization.service.js";
 
 export class AcademicCatalogService {
   isDbConnected() {
@@ -238,10 +248,26 @@ export class AcademicCatalogService {
    */
   async resolveBranchByAlias(rawInput) {
     if (!rawInput || typeof rawInput !== "string") return null;
-    const normalized = rawInput.trim().toLowerCase().replace(/[^\w\s-]/g, "");
+    const directCanonical = resolveCanonicalBranchSlug(rawInput);
+    if (directCanonical) return directCanonical;
 
+    const normalized = rawInput.trim().toLowerCase().replace(/[^\w\s-]/g, "");
     const branch = await this.getBranchBySlug(normalized);
     return branch ? branch.slug : null;
+  }
+
+  /**
+   * Returns supported learning and assessment capabilities for a branch.
+   */
+  getBranchCapabilities(branchSlug) {
+    return getBranchCapabilities(branchSlug);
+  }
+
+  /**
+   * Safe, non-destructive normalization of an academic profile object.
+   */
+  normalizeAcademicProfile(rawAcademic) {
+    return normalizeAcademicProfile(rawAcademic);
   }
 
   /**
@@ -383,6 +409,7 @@ export class AcademicCatalogService {
         curriculumSchemes: ["CBCS 2022", "CBCS 2018", "NEP 2020", "Autonomous 2023", "Other"],
         academicYears: [1, 2, 3, 4, 5],
         semesters: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+        capabilityDefinitions: CAPABILITY_DEFINITIONS,
       };
     }
 
@@ -413,6 +440,7 @@ export class AcademicCatalogService {
       curriculumSchemes: ["CBCS 2022", "CBCS 2018", "NEP 2020", "Autonomous 2023", "Other"],
       academicYears: [1, 2, 3, 4, 5],
       semesters: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      capabilityDefinitions: CAPABILITY_DEFINITIONS,
     };
   }
 }

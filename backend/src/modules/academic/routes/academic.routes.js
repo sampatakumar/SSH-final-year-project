@@ -4,6 +4,7 @@ import {
   getDegreesController,
   getBranchesController,
   getBranchRolesController,
+  getBranchCapabilitiesController,
   getCareerRolesController,
   getCareerRoleBySlugController,
   seedAcademicCatalogController,
@@ -21,6 +22,7 @@ router.get("/options", getAcademicOptionsController);
 router.get("/degrees", getDegreesController);
 router.get("/branches", getBranchesController);
 router.get("/branches/:branchSlug/roles", getBranchRolesController);
+router.get("/branches/:branchSlug/capabilities", getBranchCapabilitiesController);
 router.get("/career-roles", getCareerRolesController);
 router.get("/career-roles/:roleSlug", getCareerRoleBySlugController);
 

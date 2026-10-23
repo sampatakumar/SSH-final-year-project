@@ -17,6 +17,9 @@ export const SKILL_CATEGORIES = {
   MECHANICAL: "Mechanical, CAD & Robotics",
   CIVIL: "Civil & BIM Architecture",
   FINANCE_BI: "Finance & Business Intelligence",
+  BIOTECH: "Biotechnology & Life Sciences",
+  CLINICAL: "Clinical & Healthcare Operations",
+  ARTS_MEDIA: "Arts, Media & Communication",
 };
 
 export const CANONICAL_SKILL_TAXONOMY = {
@@ -154,4 +157,22 @@ export const CANONICAL_SKILL_TAXONOMY = {
   "Financial Modeling": { category: SKILL_CATEGORIES.FINANCE_BI, tags: ["finance", "valuation", "forecasting"] },
   "DCF Valuation": { category: SKILL_CATEGORIES.FINANCE_BI, tags: ["corporate-finance", "valuation", "dcf"] },
   "DAX": { category: SKILL_CATEGORIES.FINANCE_BI, tags: ["power-bi", "formulas", "measures"] },
+
+  // Biotechnology & Life Sciences
+  "Bioinformatics": { category: SKILL_CATEGORIES.BIOTECH, tags: ["genomics", "computational-biology", "data"] },
+  "BLAST": { category: SKILL_CATEGORIES.BIOTECH, tags: ["sequence-alignment", "ncbi", "bioinformatics"] },
+  "Molecular Docking": { category: SKILL_CATEGORIES.BIOTECH, tags: ["drug-discovery", "autodock", "proteins"] },
+  "Bioprocess Optimization": { category: SKILL_CATEGORIES.BIOTECH, tags: ["fermentation", "scale-up", "bioprocess"] },
+
+  // Clinical & Healthcare Operations
+  "Clinical Patient Assessment": { category: SKILL_CATEGORIES.CLINICAL, tags: ["nursing", "vitals", "diagnosis", "healthcare"] },
+  "Pharmacology & Drug Administration": { category: SKILL_CATEGORIES.CLINICAL, tags: ["pharmacology", "dosage", "clinical-safety"] },
+  "Patient Monitoring & Triage": { category: SKILL_CATEGORIES.CLINICAL, tags: ["icu", "emergency", "triage", "vitals"] },
+  "Medical Informatics & EHR": { category: SKILL_CATEGORIES.CLINICAL, tags: ["ehr", "health-records", "hipaa", "informatics"] },
+
+  // Arts, Media & Communication
+  "Content Strategy & Copywriting": { category: SKILL_CATEGORIES.ARTS_MEDIA, tags: ["writing", "strategy", "brand", "media"] },
+  "Technical Writing": { category: SKILL_CATEGORIES.ARTS_MEDIA, tags: ["documentation", "api-docs", "manuals"] },
+  "Public Relations & Corporate Comm": { category: SKILL_CATEGORIES.ARTS_MEDIA, tags: ["pr", "press-releases", "communication"] },
+  "Digital Media Production": { category: SKILL_CATEGORIES.ARTS_MEDIA, tags: ["multimedia", "audio-video", "editing"] },
 };

@@ -27,6 +27,8 @@ const academicDegreeSchema = new mongoose.Schema(
         "Engineering & Technology",
         "Computing & Science",
         "Commerce & Management",
+        "Arts & Humanities",
+        "Healthcare & Life Sciences",
         "Diploma & Polytechnic",
         "Other",
       ],
