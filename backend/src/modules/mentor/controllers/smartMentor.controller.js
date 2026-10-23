@@ -2,6 +2,7 @@ import { asyncHandler } from "../../../core/errors/asyncHandler.js";
 import { ApiResponse } from "../../../core/errors/ApiResponse.js";
 import { smartMentorService } from "../services/smart-mentor.service.js";
 import { smartMentorContextService } from "../services/smart-mentor-context.service.js";
+import { careerCompetencyAlignmentService } from "../services/career-competency-alignment.service.js";
 
 /**
  * GET /api/v1/mentor/context
@@ -98,3 +99,42 @@ export const handleRecommendCourses = asyncHandler(async (req, res) => {
     new ApiResponse(200, recommendations, "Course recommendations retrieved successfully")
   );
 });
+
+/**
+ * GET /api/v1/mentor/career-alignment
+ * Cross-references target career roles against evaluated competency matrix & skill profile.
+ */
+export const getCareerAlignment = asyncHandler(async (req, res) => {
+  const alignment = await careerCompetencyAlignmentService.getCareerCompetencyAlignment(req.user._id);
+  return res.status(200).json(
+    new ApiResponse(200, alignment, "Career competency alignment retrieved successfully")
+  );
+});
+
+/**
+ * GET /api/v1/mentor/progress-explanation
+ * Generates grounded progress explanation from empirical evidence.
+ */
+export const getProgressExplanation = asyncHandler(async (req, res) => {
+  const explanation = await careerCompetencyAlignmentService.getPersonalizedProgressExplanation(req.user._id);
+  return res.status(200).json(
+    new ApiResponse(200, explanation, "Personalized progress explanation retrieved successfully")
+  );
+});
+
+/**
+ * GET /api/v1/mentor/unified-action
+ * Retrieve prioritized cross-module next recommended action.
+ */
+export const getUnifiedNextAction = asyncHandler(async (req, res) => {
+  const context = await smartMentorContextService.getUnifiedUserContext(req.user._id);
+  const actions = context.unifiedNextActions || [];
+  return res.status(200).json(
+    new ApiResponse(200, {
+      primaryAction: actions[0] || null,
+      unifiedNextActions: actions,
+      count: actions.length,
+    }, "Unified next action retrieved successfully")
+  );
+});
+

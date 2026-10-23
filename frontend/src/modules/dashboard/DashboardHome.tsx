@@ -269,6 +269,18 @@ const DashboardHome = () => {
                 {intelligence.telemetry.revisionsDueToday ?? 0}
               </span>
             </div>
+            {intelligence.telemetry.competencyBadgesCount !== undefined && (
+              <div className="text-center sm:text-right">
+                <span className="text-muted-foreground block text-[10px] uppercase font-bold">Badges Earned</span>
+                <Link
+                  to="/dashboard/skills"
+                  className="font-extrabold text-amber-400 text-sm font-mono hover:underline flex items-center justify-end gap-1"
+                >
+                  <Award className="h-3.5 w-3.5" />
+                  {intelligence.telemetry.competencyBadgesCount}
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       )}

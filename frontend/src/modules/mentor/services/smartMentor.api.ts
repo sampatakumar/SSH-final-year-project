@@ -169,4 +169,31 @@ export const SmartMentorApi = {
     });
     return res.data;
   },
+
+  /**
+   * Fetch career competency alignment across selected target roles.
+   */
+  getCareerAlignment: async (): Promise<any> => {
+    const res = await apiRequest<any>("/mentor/career-alignment");
+    return res.data;
+  },
+
+  /**
+   * Fetch grounded personalized progress explanation.
+   */
+  getProgressExplanation: async (): Promise<any> => {
+    const res = await apiRequest<any>("/mentor/progress-explanation");
+    return res.data;
+  },
+
+  /**
+   * Fetch prioritized cross-module unified next actions.
+   */
+  getUnifiedNextAction: async (): Promise<any> => {
+    const res = await apiRequest<any>("/mentor/unified-action");
+    return res.data;
+  },
 };
+
+export const smartMentorApi = SmartMentorApi;
+export default SmartMentorApi;

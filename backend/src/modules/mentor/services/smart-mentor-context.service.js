@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { User } from "../../../core/database/models/user.models.js";
 import { UserSettings } from "../../settings/models/userSettings.models.js";
 import { SkillProfile } from "../../skills/models/skillProfile.models.js";
@@ -11,6 +12,10 @@ import {
   EduTubeSavedVideo,
   EduTubePlaylist,
 } from "../../edutube/models/index.js";
+import { EduTubeCheckpointAttempt } from "../../edutube/models/edutubeCheckpointAttempt.models.js";
+import { SpacedRevisionSchedule } from "../../skills/models/spacedRevisionSchedule.models.js";
+import { evaluateStudentCompetencyMatrix } from "../../skills/services/competencyMatrix.service.js";
+import { getUserBadges } from "../../skills/services/badgeIssuance.service.js";
 
 // 10-minute in-memory context cache
 const CONTEXT_CACHE = new Map();
@@ -65,6 +70,10 @@ export class SmartMentorContextService {
       if (cached) return cached;
     }
 
+    const isDbConnected = Boolean(mongoose.connection && mongoose.connection.readyState === 1);
+    const hasCheckpointMock = Boolean(EduTubeCheckpointAttempt.find?.mock);
+    const hasSpacedMock = Boolean(SpacedRevisionSchedule.find?.mock);
+
     const [
       user,
       settings,
@@ -77,18 +86,34 @@ export class SmartMentorContextService {
       savedVideos,
       playlists,
       codingSubs,
+      checkpointAttempts,
+      spacedSchedules,
+      competencyMatrixResult,
+      userBadges,
     ] = await Promise.all([
-      User.findById(ownerId).lean().catch(() => null),
-      UserSettings.findOne({ owner: ownerId }).lean().catch(() => null),
-      SkillProfile.findOne({ owner: ownerId }).lean().catch(() => null),
-      GitHubAnalysis.findOne({ owner: ownerId }).sort({ updatedAt: -1 }).lean().catch(() => null),
-      Project.find({ owner: ownerId }).limit(10).lean().catch(() => []),
-      Resume.find({ owner: ownerId }).limit(5).lean().catch(() => []),
-      EduTubeWatchHistory.find({ owner: ownerId }).sort({ watchedAt: -1 }).limit(10).lean().catch(() => []),
-      EduTubeProgress.find({ owner: ownerId, completed: true }).lean().catch(() => []),
-      EduTubeSavedVideo.find({ owner: ownerId }).limit(10).lean().catch(() => []),
-      EduTubePlaylist.find({ owner: ownerId }).limit(10).lean().catch(() => []),
-      CodingSubmission.find({ owner: ownerId }).limit(50).lean().catch(() => []),
+      (isDbConnected || User.findById?.mock) ? User.findById(ownerId).lean().catch(() => null) : Promise.resolve(null),
+      (isDbConnected || UserSettings.findOne?.mock) ? UserSettings.findOne({ owner: ownerId }).lean().catch(() => null) : Promise.resolve(null),
+      (isDbConnected || SkillProfile.findOne?.mock) ? SkillProfile.findOne({ owner: ownerId }).lean().catch(() => null) : Promise.resolve(null),
+      (isDbConnected || GitHubAnalysis.findOne?.mock) ? GitHubAnalysis.findOne({ owner: ownerId }).sort({ updatedAt: -1 }).lean().catch(() => null) : Promise.resolve(null),
+      (isDbConnected || Project.find?.mock) ? Project.find({ owner: ownerId }).limit(10).lean().catch(() => []) : Promise.resolve([]),
+      (isDbConnected || Resume.find?.mock) ? Resume.find({ owner: ownerId }).limit(5).lean().catch(() => []) : Promise.resolve([]),
+      (isDbConnected || EduTubeWatchHistory.find?.mock) ? EduTubeWatchHistory.find({ owner: ownerId }).sort({ watchedAt: -1 }).limit(10).lean().catch(() => []) : Promise.resolve([]),
+      (isDbConnected || EduTubeProgress.find?.mock) ? EduTubeProgress.find({ owner: ownerId, completed: true }).lean().catch(() => []) : Promise.resolve([]),
+      (isDbConnected || EduTubeSavedVideo.find?.mock) ? EduTubeSavedVideo.find({ owner: ownerId }).limit(10).lean().catch(() => []) : Promise.resolve([]),
+      (isDbConnected || EduTubePlaylist.find?.mock) ? EduTubePlaylist.find({ owner: ownerId }).limit(10).lean().catch(() => []) : Promise.resolve([]),
+      (isDbConnected || CodingSubmission.find?.mock) ? CodingSubmission.find({ owner: ownerId }).limit(50).lean().catch(() => []) : Promise.resolve([]),
+      (isDbConnected || hasCheckpointMock)
+        ? EduTubeCheckpointAttempt.find({ owner: ownerId }).sort({ attemptedAt: -1 }).limit(20).lean().catch(() => [])
+        : Promise.resolve([]),
+      (isDbConnected || hasSpacedMock)
+        ? SpacedRevisionSchedule.find({ owner: ownerId }).sort({ scheduledDate: 1 }).limit(20).lean().catch(() => [])
+        : Promise.resolve([]),
+      isDbConnected
+        ? evaluateStudentCompetencyMatrix(ownerId).catch(() => ({ matrix: [], summary: {} }))
+        : Promise.resolve({ matrix: [], summary: {} }),
+      isDbConnected
+        ? getUserBadges(ownerId).catch(() => [])
+        : Promise.resolve([]),
     ]);
 
     // 1. Career / User Summary
@@ -137,7 +162,7 @@ export class SmartMentorContextService {
       category: s.category || "General",
       confidence: s.confidence || (Array.isArray(s.sources) && s.sources.length >= 2 ? "high" : "medium"),
       evidenceSources: s.sources || ["inferred"],
-      isDirectEvidence: Boolean(Array.isArray(s.sources) && (s.sources.includes("github") || s.sources.includes("coding"))),
+      isDirectEvidence: Boolean(Array.isArray(s.sources) && (s.sources.includes("coding") || s.sources.includes("assessment"))),
     }));
 
     // 3. Skill Gaps (Distinguishing Missing Evidence from Demonstrated Weakness)
@@ -274,8 +299,199 @@ export class SmartMentorContextService {
       verifiedChallenges: passedProblems.map((p) => p.taskId || p.taskTitle).filter(Boolean).slice(0, 5),
     };
 
-    // 10. Proactive Insights (2-4 grounded dynamic observations)
+    // 10. Phase 40 & 41: Competency Matrix & Verified Badges
+    const demonstratedCompetencies = (competencyMatrixResult.matrix || []).filter(
+      (m) => m.status === "demonstrated_at_specified_level"
+    );
+    const incompleteCompetencies = (competencyMatrixResult.matrix || []).filter(
+      (m) => m.status === "evidence_incomplete"
+    );
+    const activeBadges = (userBadges || []).filter((b) => b.status === "active");
+
+    const competencyMatrix = {
+      summary: competencyMatrixResult.summary || {
+        totalCompetencies: (competencyMatrixResult.matrix || []).length,
+        demonstratedCount: demonstratedCompetencies.length,
+        incompleteCount: incompleteCompetencies.length,
+        notAssessedCount: (competencyMatrixResult.matrix || []).filter((m) => m.status === "not_assessed").length,
+        totalBadgesEarned: activeBadges.length,
+        rubricVersion: "1.0.0",
+      },
+      demonstrated: demonstratedCompetencies.map((d) => ({
+        competencyId: d.competencyId,
+        name: d.name,
+        canonicalSkill: d.canonicalSkill,
+        roles: d.roles,
+        earnedBadges: (d.earnedBadges || []).map((b) => b.badgeType),
+      })),
+      incomplete: incompleteCompetencies.slice(0, 5).map((inc) => ({
+        competencyId: inc.competencyId,
+        name: inc.name,
+        canonicalSkill: inc.canonicalSkill,
+        missingRequirements: inc.missingRequirements,
+        recommendedNextAction: inc.recommendedNextAction,
+      })),
+      earnedBadges: activeBadges.map((b) => ({
+        badgeId: b.badgeId,
+        badgeType: b.badgeType,
+        competencyId: b.competencyId,
+        competencyName: b.competencyName,
+        issuedAt: b.issuedAt,
+        rubricVersion: b.rubricVersion,
+      })),
+    };
+
+    // 11. Retention Health & Spaced Revision
+    const endOfToday = new Date();
+    endOfToday.setUTCHours(23, 59, 59, 999);
+    const revisionsDueToday = spacedSchedules.filter(
+      (s) => (!s.status || s.status === "pending") && new Date(s.scheduledDate) <= endOfToday
+    );
+    const maxRetrievalStreak = spacedSchedules.reduce(
+      (max, s) => Math.max(max, s.consecutiveSuccesses || s.reviewStreak || s.streak || 0),
+      0
+    );
+    const masteredCards = spacedSchedules.filter((s) => (s.stage || 0) >= 2 || (s.consecutiveSuccesses || 0) >= 2 || (s.reviewStreak || 0) >= 2);
+
+    const retentionHealth = {
+      streak: maxRetrievalStreak,
+      revisionsDueToday: revisionsDueToday.length,
+      schedulesCount: spacedSchedules.length,
+      masteredCardsCount: masteredCards.length,
+      overdueSkills: revisionsDueToday.map((r) => r.skill).slice(0, 4),
+    };
+
+    // 12. Knowledge Checkpoints (EduTube Quizzes)
+    const passedCheckpoints = checkpointAttempts.filter((att) => att.isCorrect || (att.score && att.score >= 70));
+    const knowledgeCheckpoints = {
+      totalAttempts: checkpointAttempts.length,
+      passedCount: passedCheckpoints.length,
+      recentAttempts: checkpointAttempts.slice(0, 3).map((att) => ({
+        checkpointId: att.checkpointId,
+        skill: att.skill || att.canonicalName || "Concept",
+        isCorrect: att.isCorrect,
+        score: att.score,
+        attemptedAt: att.attemptedAt,
+      })),
+    };
+
+    // 13. Evidence Tiers Classification (Empirical Grounding)
+    const verifiedSkillNames = new Set([
+      ...passedProblems.flatMap((p) => p.skillsCovered || [p.taskId]),
+      ...passedCheckpoints.map((c) => c.skill || c.canonicalName),
+      ...masteredCards.map((s) => s.skill),
+      ...demonstratedCompetencies.map((d) => d.canonicalSkill),
+    ].filter(Boolean).map((s) => s.toLowerCase()));
+
+    const evidenceTiers = {
+      verified: skills.filter((s) => verifiedSkillNames.has(s.name.toLowerCase())),
+      inferred: skills.filter((s) => !verifiedSkillNames.has(s.name.toLowerCase()) && s.score > 0),
+      selfReported: careerInterests.map((interest) => ({ name: interest, source: "career_interests" })),
+      missing: skillGaps.filter((g) => g.currentScore === 0),
+    };
+
+    // 14. Unified Next Actions (Cross-Module Orchestration)
+    const unifiedNextActions = [];
+
+    // Priority 1: Due Spaced Revision
+    if (revisionsDueToday.length > 0) {
+      unifiedNextActions.push({
+        id: "action_due_revision",
+        title: `Spaced Revision: ${revisionsDueToday[0].skill}`,
+        type: "spaced_revision",
+        targetSkill: revisionsDueToday[0].skill,
+        actionUrl: "/dashboard/skills",
+        estimatedMinutes: 10,
+        priority: "critical",
+        reason: "Scheduled review due today to solidify long-term memory retrieval.",
+        evidenceTier: "RETENTION",
+        module: "skills",
+      });
+    }
+
+    // Priority 2: Incomplete Competency or High-Priority Skill Gap Challenge
+    if (incompleteCompetencies.length > 0) {
+      const inc = incompleteCompetencies[0];
+      const targetRoute = inc.recommendedNextAction?.targetModule === "coding"
+        ? "/dashboard/coding"
+        : inc.recommendedNextAction?.targetModule === "edutube"
+        ? "/dashboard/edutube"
+        : "/dashboard/skills";
+
+      unifiedNextActions.push({
+        id: "action_competency_gap",
+        title: inc.recommendedNextAction?.title || `Complete ${inc.canonicalSkill} Requirements`,
+        type: inc.recommendedNextAction?.actionType || "competency_criterion",
+        targetSkill: inc.canonicalSkill,
+        actionUrl: targetRoute,
+        estimatedMinutes: 25,
+        priority: "high",
+        reason: `Qualify for the ${inc.name} competency badge by satisfying remaining criteria.`,
+        evidenceTier: "COMPETENCY",
+        module: inc.recommendedNextAction?.targetModule || "skills",
+      });
+    } else if (skillGaps.length > 0) {
+      unifiedNextActions.push({
+        id: "action_skill_gap",
+        title: `Solve ${skillGaps[0].skill} Sandbox Challenge`,
+        type: "coding_task",
+        targetSkill: skillGaps[0].skill,
+        actionUrl: "/dashboard/coding",
+        estimatedMinutes: 30,
+        priority: "high",
+        reason: `Highest priority gap for ${targetRole}. Sandbox test execution establishes verified skill proof.`,
+        evidenceTier: "APPLIED",
+        module: "coding",
+      });
+    }
+
+    // Priority 3: Milestone / Resume Badge Import
+    if (activeBadges.length > 0) {
+      unifiedNextActions.push({
+        id: "action_resume_badge",
+        title: "Import Verified Badges to Resume",
+        type: "resume_enhancement",
+        targetSkill: activeBadges[0].competencyName,
+        actionUrl: "/dashboard/resumes",
+        estimatedMinutes: 5,
+        priority: "medium",
+        reason: `Add your verified ${activeBadges[0].competencyName} badge to your resume achievements.`,
+        evidenceTier: "PORTFOLIO",
+        module: "resume",
+      });
+    } else if (learning.continueLearningTitle) {
+      unifiedNextActions.push({
+        id: "action_continue_learning",
+        title: `Continue: ${learning.continueLearningTitle}`,
+        type: "video_lesson",
+        targetSkill: targetRole,
+        actionUrl: "/dashboard/edutube",
+        estimatedMinutes: 20,
+        priority: "medium",
+        reason: "Resume in-progress video course module on EduTube.",
+        evidenceTier: "KNOWLEDGE",
+        module: "edutube",
+      });
+    }
+
+    // 15. Proactive Insights (Grounding across all modules)
     const insights = [];
+
+    if (activeBadges.length > 0) {
+      insights.push(
+        `🏅 Verified Credentials: You have earned ${activeBadges.length} Smart Skill Hub competency badge(s): ${activeBadges.map((b) => b.competencyName).slice(0, 2).join(", ")}.`
+      );
+    }
+
+    if (retentionHealth.revisionsDueToday > 0) {
+      insights.push(
+        `⏳ Retention Alert: ${retentionHealth.revisionsDueToday} spaced revision review(s) are due today to prevent memory decay.`
+      );
+    } else if (retentionHealth.streak >= 2) {
+      insights.push(
+        `🧠 Memory Retention: Strong ${retentionHealth.streak}-review consecutive retrieval streak maintained.`
+      );
+    }
 
     if (github.hasAnalysis && github.repositoriesWithoutDescription > 0) {
       insights.push(
@@ -295,10 +511,6 @@ export class SmartMentorContextService {
     if (learning.completedVideos > 0) {
       insights.push(
         `🎓 You have completed ${learning.completedVideos} lessons and watched ${learning.videosWatched} video modules on EduTube.`
-      );
-    } else if (learning.videosWatched > 0) {
-      insights.push(
-        `▶️ You have active in-progress lessons on EduTube. Consistency will accelerate your roadmap.`
       );
     }
 
@@ -332,6 +544,12 @@ export class SmartMentorContextService {
       projects: userProjects,
       resume,
       coding,
+      competencyMatrix,
+      earnedBadges: activeBadges,
+      retentionHealth,
+      knowledgeCheckpoints,
+      evidenceTiers,
+      unifiedNextActions: unifiedNextActions.slice(0, 3),
       adaptivePlan: adaptivePlan
         ? {
             currentObjective: adaptivePlan.currentObjective,
@@ -340,7 +558,7 @@ export class SmartMentorContextService {
             pendingActionsCount: adaptivePlan.pendingActionsCount,
           }
         : null,
-      insights: insights.slice(0, 4),
+      insights: insights.slice(0, 5),
       updatedAt: new Date().toISOString(),
     };
 

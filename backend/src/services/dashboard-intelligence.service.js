@@ -100,6 +100,22 @@ export class DashboardIntelligenceService {
       EduTubeProgress.find({ owner: ownerId }).lean().catch(() => []),
     ]);
 
+    let competencyMatrix = { matrix: [], summary: { totalCompetencies: 0, demonstratedCount: 0, evidenceIncompleteCount: 0 } };
+    let userBadges = [];
+    const isDbConnected = Boolean(mongoose.connection && mongoose.connection.readyState === 1);
+    if (isDbConnected) {
+      try {
+        const { evaluateStudentCompetencyMatrix } = await import("../modules/skills/services/competencyMatrix.service.js");
+        const { getUserBadges } = await import("../modules/skills/services/badgeIssuance.service.js");
+        [competencyMatrix, userBadges] = await Promise.all([
+          evaluateStudentCompetencyMatrix(ownerId).catch(() => ({ matrix: [], summary: { totalCompetencies: 0, demonstratedCount: 0, evidenceIncompleteCount: 0 } })),
+          getUserBadges(ownerId).catch(() => []),
+        ]);
+      } catch {
+        // Graceful fallback for mock testing environments
+      }
+    }
+
     const targetRole = user?.targetRole || skillProfile?.targetRole || "Full Stack Developer";
     const evaluatedSkills = skillProfile?.skills || [];
     const skillGaps = skillProfile?.skillGaps || [];
@@ -317,14 +333,49 @@ export class DashboardIntelligenceService {
       },
     ];
 
-    // 6. Next Recommended Action Callout
-    const nextRecommendedAction = {
-      title: loopState?.nextStepAction || "Run Multi-Source Profile Evaluation",
-      targetSkill: loopState?.focalSkill || "General",
-      estimatedMinutes: 20,
-      actionUrl: loopState?.practicalExercise ? "/dashboard/coding" : "/dashboard/edutube",
-      reasoning: loopState?.whyRecommended || "Optimized for your current career trajectory.",
-    };
+    // 6. Next Recommended Action Callout (Deterministic Cross-Module Priority)
+    let nextRecommendedAction;
+    const matrixIncomplete = (competencyMatrix.matrix || []).find(
+      (c) => c.status !== "DEMONSTRATED" && c.recommendedNextAction
+    );
+
+    if (spacedRevisions.length > 0) {
+      nextRecommendedAction = {
+        title: `Spaced Revision: ${spacedRevisions[0].skill}`,
+        targetSkill: spacedRevisions[0].skill,
+        estimatedMinutes: 10,
+        actionUrl: "/dashboard/skills",
+        reasoning: "Overdue retrieval review scheduled to reinforce long-term memory.",
+        module: "skills",
+        priority: "critical",
+      };
+    } else if (matrixIncomplete) {
+      const targetRoute = matrixIncomplete.recommendedNextAction?.targetModule === "coding"
+        ? "/dashboard/coding"
+        : matrixIncomplete.recommendedNextAction?.targetModule === "edutube"
+        ? "/dashboard/edutube"
+        : "/dashboard/skills";
+
+      nextRecommendedAction = {
+        title: matrixIncomplete.recommendedNextAction?.title || `Complete ${matrixIncomplete.canonicalSkill} Requirements`,
+        targetSkill: matrixIncomplete.canonicalSkill,
+        estimatedMinutes: 25,
+        actionUrl: targetRoute,
+        reasoning: `Satisfy remaining criteria to demonstrate ${matrixIncomplete.name} competency badge.`,
+        module: matrixIncomplete.recommendedNextAction?.targetModule || "skills",
+        priority: "high",
+      };
+    } else {
+      nextRecommendedAction = {
+        title: loopState?.nextStepAction || "Run Multi-Source Profile Evaluation",
+        targetSkill: loopState?.focalSkill || "General",
+        estimatedMinutes: 20,
+        actionUrl: loopState?.practicalExercise ? "/dashboard/coding" : "/dashboard/edutube",
+        reasoning: loopState?.whyRecommended || "Optimized for your current career trajectory.",
+        module: loopState?.practicalExercise ? "coding" : "edutube",
+        priority: "high",
+      };
+    }
 
     // 7. Top EduTube Recommendations with Grounded Explanations
     let topEduTubeRecommendations = [];
@@ -382,6 +433,8 @@ export class DashboardIntelligenceService {
       overallReadinessScore: readinessEstimateScore,
       revisionsDueToday,
       upcomingRevisionsCount,
+      competencyBadgesCount: userBadges.length,
+      demonstratedCompetenciesCount: competencyMatrix.summary?.demonstratedCount || 0,
       isPersonalized,
       recommendationSource: loopState?.focalSkill ? "adaptive_loop" : "foundational_fallback",
       evaluatedAt: skillProfile?.lastEvaluatedAt || new Date().toISOString(),
@@ -414,6 +467,14 @@ export class DashboardIntelligenceService {
           metSkillsCount,
           totalRequiredSkillsCount,
         },
+        competencyBadges: {
+          count: userBadges.length,
+          badges: userBadges.map((b) => ({
+            id: b._id || b.badgeId,
+            name: b.competencyName,
+            issuedAt: b.issuedAt,
+          })),
+        },
       },
       learningConsistency: {
         streakDays: consistencyStreakDays,
@@ -441,6 +502,11 @@ export class DashboardIntelligenceService {
           sources: s.sources,
         })),
         prerequisiteGaps,
+        competencySummary: {
+          total: competencyMatrix.summary?.totalCompetencies || 0,
+          demonstrated: competencyMatrix.summary?.demonstratedCount || 0,
+          incomplete: competencyMatrix.summary?.evidenceIncompleteCount || 0,
+        },
       },
       recentAssessments: recentAssessmentsFormatted,
       dailyLearningPlan: dailyPlan,

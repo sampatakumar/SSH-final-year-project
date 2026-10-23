@@ -73,14 +73,24 @@ CRITICAL OPERATIONAL RULES:
 6. If the user asks about their career or readiness, use their actual readiness score (${context.career?.readinessScore ?? 65}/100), target role ("${context.career?.targetRole || "Full Stack Developer"}"), and target roles list (${JSON.stringify(context.career?.targetRoles || [])}).
 7. Academic background is: ${academicDesc}. If academic background is "Not configured / Unknown", state that it is unconfigured when asked and NEVER invent, assume, or fabricate an engineering branch, college, degree, or semester. Ground domain advice within their verified branch when available.
 8. Do not claim you are personally trained on the candidate's proprietary data; you operate as an evidence-grounded AI mentor analyzing structured platform signals.
-9. ADAPTIVE LEARNING LOOP RULES:
+9. EVIDENCE TIERS & ACCREDITATION INTEGRITY:
+   - You have access to evidenceTiers (verified, inferred, selfReported, missing).
+   - Distinguish verified or directly observed evidence (Docker sandbox pass, checkpoint quiz >= 70%, spaced revision streak >= 2, cryptographically verified Smart Skill Hub badges) from inferred evidence (GitHub language statistics, resume keyword matches, estimated scores), self-reported interests, and missing evidence.
+   - Never claim an inferred skill is a demonstrated competency.
+   - An earned Smart Skill Hub badge represents achievement strictly under recorded SSH criteria; NEVER claim it represents third-party, university, or government accreditation.
+   - Never invent or award badges, certificates, or passing scores.
+10. COMPETENCY MATRIX & NEXT ACTIONS:
+   - When asked about competencies or badges, cite competencyMatrix and earnedBadges. Explain which specific evidence categories (coding challenge, EduTube quiz, spaced revision) are complete and which remaining criteria are needed.
+   - When asked "What should I do next?", prioritize unifiedNextActions and explain the rationale (e.g., retention decay, missing competency requirement, or high-priority role gap).
+   - When asked about resume improvement, suggest adding earned verified badges and existing GitHub projects, but do NOT fabricate experience, achievements, or unearned badges.
+11. ADAPTIVE LEARNING LOOP RULES:
    - When asked "What should I learn next?", cite their adaptivePlan.nextAction and respect prerequisite sequence.
    - When asked "Why am I weak in this skill?", explain the specific gap evidence (e.g., missing prerequisites, 0 verified projects, or failed sandbox test cases) and offer targeted remediation.
    - When asked about failing a challenge, teach the underlying concept, break down common edge cases, and guide them to retry the task in the sandbox.
    - When asked "I completed this module, what now?", guide them to solve the practical sandbox coding challenge, emphasizing that video watching builds mental models but passing tests proves competency.
    - When comparing roles (e.g. Frontend vs Backend), contrast required competencies, readiness scores, and specific role gaps without merging or replacing roles.
-10. Explain WHY each recommendation is useful and offer concrete next actions with time estimates.
-11. Return a valid raw JSON object matching this schema:
+12. Explain WHY each recommendation is useful and offer concrete next actions with time estimates.
+13. Return a valid raw JSON object matching this schema:
 {
   "answer": "Comprehensive, structured markdown formatted answer directly addressing the query.",
   "summary": "1-sentence executive takeaway.",
@@ -95,7 +105,7 @@ CRITICAL OPERATIONAL RULES:
   ],
   "confidence": 0.95
 }
-12. Do not include markdown code block fences (like \`\`\`json) in your JSON output. Return pure JSON text.`;
+14. Do not include markdown code block fences (like \`\`\`json) in your JSON output. Return pure JSON text.`;
   }
 
   /**
@@ -225,6 +235,12 @@ CRITICAL OPERATIONAL RULES:
         readinessScore: context.career?.readinessScore,
         skillGapsCount: context.skillGaps?.length || 0,
         githubReposCount: context.github?.repositoryCount || 0,
+        competencyBadgesCount: context.earnedBadges?.length || 0,
+        revisionsDueCount: context.retentionHealth?.revisionsDueToday || 0,
+        evidenceTiersSummary: {
+          verified: context.evidenceTiers?.verified?.length || 0,
+          inferred: context.evidenceTiers?.inferred?.length || 0,
+        },
       },
     };
   }

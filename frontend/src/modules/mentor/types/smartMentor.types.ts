@@ -128,6 +128,73 @@ export interface MentorContextData {
     verifiedCompetenciesCount?: number;
     pendingActionsCount?: number;
   } | null;
+  competencyMatrix?: {
+    summary: {
+      totalCompetencies: number;
+      demonstratedCount: number;
+      evidenceIncompleteCount: number;
+      eligibleBadgesCount: number;
+    };
+    demonstrated: Array<{
+      canonicalSkill: string;
+      name: string;
+      earnedPoints: number;
+      totalPoints: number;
+      badgeEligible: boolean;
+    }>;
+    incomplete: Array<{
+      canonicalSkill: string;
+      name: string;
+      earnedPoints: number;
+      totalPoints: number;
+      missingRequirements: string[];
+      recommendedNextAction?: any;
+    }>;
+  };
+  earnedBadges?: Array<{
+    id?: string;
+    badgeId?: string;
+    competencyId: string;
+    competencyName: string;
+    verificationHash: string;
+    issuedAt: string;
+    status: string;
+  }>;
+  retentionHealth?: {
+    totalCards: number;
+    revisionsDueToday: number;
+    streak: number;
+    masteredCards: number;
+  };
+  knowledgeCheckpoints?: {
+    totalAttempts: number;
+    passedCount: number;
+    recentAttempts: Array<{
+      checkpointId: string;
+      skill: string;
+      isCorrect: boolean;
+      score?: number;
+      attemptedAt: string;
+    }>;
+  };
+  evidenceTiers?: {
+    verified: Array<{ name: string; score: number; level: string }>;
+    inferred: Array<{ name: string; score: number; level: string }>;
+    selfReported: Array<{ name: string; source: string }>;
+    missing: Array<{ skill: string; priority: string }>;
+  };
+  unifiedNextActions?: Array<{
+    id: string;
+    title: string;
+    type: string;
+    targetSkill: string;
+    actionUrl: string;
+    estimatedMinutes: number;
+    priority: "critical" | "high" | "medium" | "low";
+    reason: string;
+    evidenceTier: string;
+    module: string;
+  }>;
   insights: string[];
   updatedAt: string;
 }

@@ -34,7 +34,28 @@ export class SmartMentorLocalService {
       return "milestone_readiness";
     }
 
-    // 2. GitHub and project queries
+    // 2. Cross-Module Competency, Revision, Badges & Unified Action queries (Phase 41)
+    if (/add.*badge.*resume|resume.*badge|showcase.*(credential|badge)/i.test(text)) {
+      return "resume_badge_guidance";
+    }
+
+    if (/competenc(y|ies)|badge|badges|verifiable skill badge|credential/i.test(text)) {
+      return "competency_matrix";
+    }
+
+    if (/spaced revision|revision|retention|forgetting curve|flashcard|due review/i.test(text)) {
+      return "retention_revision";
+    }
+
+    if (/how have i improved|progress explanation|my progress|recent improvement|learning progress narrative/i.test(text)) {
+      return "personalized_progress";
+    }
+
+    if (/next action|what to do next|next priority|across modules|what should i do next/i.test(text)) {
+      return "unified_next_action";
+    }
+
+    // 3. GitHub and project queries
     if (/github|repo|repositories|commit|push|pull request/i.test(text)) {
       if (/readme/i.test(text)) return "github_readme";
       if (/description|desc|about/i.test(text)) return "github_repository";
@@ -105,6 +126,11 @@ export class SmartMentorLocalService {
     const github = context.github || {};
     const learning = context.learning || {};
     const projects = context.projects || [];
+    const matrix = context.competencyMatrix?.matrix || [];
+    const earnedBadges = context.earnedBadges || [];
+    const retentionHealth = context.retentionHealth || { revisionsDueToday: 0, streak: 0, totalCards: 0, masteredCards: 0 };
+    const evidenceTiers = context.evidenceTiers || { verified: [], inferred: [], selfReported: [], missing: [] };
+    const unifiedNextActions = context.unifiedNextActions || [];
 
     let answer = "";
     let summary = "";
@@ -636,6 +662,198 @@ ${isReady
           category: "learning",
           estimatedMinutes: 30,
           route: isReady ? "/dashboard/roadmap" : "/dashboard/coding",
+        });
+        break;
+      }
+
+      case "competency_matrix": {
+        const demonstrated = matrix.filter((c) => c.status === "DEMONSTRATED");
+        const incomplete = matrix.filter((c) => c.status !== "DEMONSTRATED");
+
+        let demonstratedText = "";
+        if (demonstrated.length > 0) {
+          demonstratedText = demonstrated.map((c) => `- **${c.name}** (${c.canonicalSkill}): Demonstrated (${c.earnedPoints}/${c.totalPoints} pts) [${c.badgeEligible ? "Badge Eligible" : "Demonstrated"}]`).join("\n");
+        } else {
+          demonstratedText = "_No competencies currently marked Demonstrated. Pass sandbox challenges and checkpoint quizzes to establish empirical proof._";
+        }
+
+        let incompleteText = "";
+        if (incomplete.length > 0) {
+          incompleteText = incomplete.slice(0, 3).map((c) => {
+            const missingCriteria = c.missingRequirements?.join(", ") || "Additional practical evidence needed";
+            return `- **${c.name}**: Incomplete (${c.earnedPoints}/${c.totalPoints} pts) — _Missing: ${missingCriteria}_`;
+          }).join("\n");
+        } else {
+          incompleteText = "_All tracked competencies have met demonstrated criteria!_";
+        }
+
+        answer = `### Verified Competency Matrix & Badges Overview
+**Tracked Competencies**: ${matrix.length} | **Demonstrated**: ${demonstrated.length} | **Badges Earned**: ${earnedBadges.length}
+
+#### Demonstrated Competencies:
+${demonstratedText}
+
+#### Competencies Needing Evidence:
+${incompleteText}
+
+> **Note on Credentials**: Smart Skill Hub competency badges represent verified internal achievement against platform rubric criteria (sandbox tests, quizzes, spaced retrieval). They are cryptographically verifiable records of your demonstrated skill, not third-party university degrees.`;
+
+        summary = `Competency Matrix: ${demonstrated.length}/${matrix.length} demonstrated, ${earnedBadges.length} verified badges earned.`;
+        actions.push({
+          title: "Inspect Competency Matrix",
+          priority: "high",
+          category: "skills",
+          estimatedMinutes: 10,
+          route: "/dashboard/skills",
+        });
+        break;
+      }
+
+      case "retention_revision": {
+        const dueToday = retentionHealth.revisionsDueToday || 0;
+        const streak = retentionHealth.streak || 0;
+        const mastered = retentionHealth.masteredCards || 0;
+        const total = retentionHealth.totalCards || 0;
+
+        answer = `### Spaced Retrieval & Memory Retention Health
+- **Cards Due Today**: ${dueToday}
+- **Retrieval Streak**: ${streak} consecutive reviews
+- **Mastered Cards**: ${mastered} of ${total} cards
+
+${dueToday > 0
+  ? `⚠️ **Action Required**: You have ${dueToday} review(s) scheduled for today. Completing these flashcard retrievals now halts the Ebbinghaus forgetting curve and locks concepts into long-term memory.`
+  : `✅ **Up to Date**: All spaced revision cards are currently up to date! Great job maintaining your memory retention.`}
+
+Retrieval practice forces active recall, which establishes significantly more durable retention than passive video watching.`;
+
+        summary = dueToday > 0 ? `${dueToday} spaced revision review(s) due today.` : `Retention streak active (${streak} reviews). All cards up to date.`;
+        actions.push({
+          title: dueToday > 0 ? "Complete Due Revision Cards" : "Review Spaced Schedule",
+          priority: dueToday > 0 ? "critical" : "medium",
+          category: "skills",
+          estimatedMinutes: 10,
+          route: "/dashboard/skills",
+        });
+        break;
+      }
+
+      case "unified_next_action": {
+        if (unifiedNextActions.length > 0) {
+          const primary = unifiedNextActions[0];
+          const secondary = unifiedNextActions.slice(1);
+
+          const secondaryText = secondary.length > 0
+            ? secondary.map((a, idx) => `${idx + 2}. **${a.title}** (${a.estimatedMinutes}m) — _${a.reason}_`).join("\n")
+            : "_No secondary actions queued._";
+
+          answer = `### Unified Next Recommended Action
+Your primary recommended next step across Smart Skill Hub is:
+
+🎯 **${primary.title}**
+- **Type**: ${primary.type} (${(primary.module || "skills").toUpperCase()})
+- **Target Skill**: ${primary.targetSkill}
+- **Estimated Time**: ~${primary.estimatedMinutes} minutes
+- **Priority**: ${(primary.priority || "high").toUpperCase()}
+- **Why this next?**: ${primary.reason}
+
+#### Secondary Follow-ups:
+${secondaryText}
+
+This recommendation is deterministically prioritized across your retention schedule, incomplete competency requirements, and target role skill gaps.`;
+
+          summary = `Next action: ${primary.title} (~${primary.estimatedMinutes}m, ${primary.priority} priority).`;
+          actions.push({
+            title: primary.title,
+            priority: primary.priority || "high",
+            category: primary.module || "skills",
+            estimatedMinutes: primary.estimatedMinutes || 20,
+            route: primary.actionUrl || "/dashboard/skills",
+          });
+        } else {
+          answer = `### Next Recommended Action
+Based on your current profile, continue with your primary role gap:
+- **Target Role**: ${targetRole}
+- **Recommended**: Solve a practical sandbox challenge in **${topGapName}** to generate verified empirical evidence.`;
+          summary = `Recommended next action: Practice ${topGapName}.`;
+          actions.push({
+            title: `Practice ${topGapName}`,
+            priority: "high",
+            category: "skills",
+            estimatedMinutes: 25,
+            route: "/dashboard/coding",
+          });
+        }
+        break;
+      }
+
+      case "resume_badge_guidance": {
+        if (earnedBadges.length > 0) {
+          const badgeList = earnedBadges.map((b) => `- **${b.competencyName}** (Issued: ${new Date(b.issuedAt).toLocaleDateString()}) — Verification Hash: \`${(b.verificationHash || "").slice(0, 12)}...\``).join("\n");
+
+          answer = `### Integrating Verified Badges into Your Resume
+You have earned **${earnedBadges.length} verified competency badge(s)**:
+${badgeList}
+
+#### Grounded Resume Presentation Guidelines:
+1. **Certifications & Badges Section**: Add an entry titled *"Smart Skill Hub Verified Competency: [Competency Name]"*.
+2. **Include Verification Link**: Link directly to \`/verify/badge/${earnedBadges[0].badgeId || earnedBadges[0]._id}\` so recruiters can cryptographically inspect the evaluation criteria.
+3. **Evidence Integrity**: Highlight the specific sandbox test cases and checkpoint quizzes that qualified you. Do not claim external university or vendor accreditation.`;
+
+          summary = `Add your ${earnedBadges.length} verified badge(s) to your resume.`;
+          actions.push({
+            title: "Update Resume with Badges",
+            priority: "high",
+            category: "resume",
+            estimatedMinutes: 10,
+            route: "/dashboard/resumes",
+          });
+        } else {
+          answer = `### Resume Credential Guidance
+You have not earned any verified Smart Skill Hub competency badges yet.
+
+To earn your first verifiable badge:
+1. Complete all criteria for a competency in the **Competency Matrix** (Docker sandbox coding pass + EduTube quiz >= 70% + spaced revision streak >= 2).
+2. Once criteria are met, claim your badge in the Skills tab.
+3. You can then import the tamper-proof badge record into your resume builder.
+
+⚠️ **Ethical Rule**: Never add unverified claims or unearned badges to your resume. Recruiters value verifiable evidence over ungrounded self-attestations.`;
+
+          summary = "No verified badges earned yet. Complete competency criteria to earn verifiable credentials.";
+          actions.push({
+            title: "View Competency Requirements",
+            priority: "high",
+            category: "skills",
+            estimatedMinutes: 10,
+            route: "/dashboard/skills",
+          });
+        }
+        break;
+      }
+
+      case "personalized_progress": {
+        const verifiedCount = evidenceTiers.verified?.length || 0;
+        const inferredCount = evidenceTiers.inferred?.length || 0;
+        const passedChallenges = context.coding?.passedCount || 0;
+
+        answer = `### Personalized Progress Narrative
+Here is your evidence-based progress summary:
+
+- **Verified Empirical Skills**: ${verifiedCount} skill(s) proven through Docker sandbox tests, checkpoint quizzes, or spaced retrieval.
+- **Inferred Skills**: ${inferredCount} skill(s) detected via GitHub repository code volume and project keywords.
+- **Verified Coding Challenges**: ${passedChallenges} sandbox challenge(s) solved.
+- **Target Role Readiness**: ${readiness}/100 for **${targetRole}**.
+- **Competency Badges**: ${earnedBadges.length} earned.
+
+#### Distinguishing Proven Mastery from Estimates:
+Your verified skills represent hard technical proof that code executed and passed automated tests. Your readiness score is an overall trajectory estimate. Focus next on turning inferred skills into verified competencies.`;
+
+        summary = `Progress: ${verifiedCount} verified skills, ${passedChallenges} sandbox passes, ${earnedBadges.length} badges earned.`;
+        actions.push({
+          title: "View Skill Evidence",
+          priority: "medium",
+          category: "skills",
+          estimatedMinutes: 10,
+          route: "/dashboard/skills",
         });
         break;
       }

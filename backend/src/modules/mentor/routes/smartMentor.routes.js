@@ -9,6 +9,9 @@ import {
   getMentorHistory,
   clearMentorHistory,
   handleRecommendCourses,
+  getCareerAlignment,
+  getProgressExplanation,
+  getUnifiedNextAction,
 } from "../controllers/smartMentor.controller.js";
 
 const router = Router();
@@ -33,5 +36,8 @@ router.get("/history", verifyFirebaseToken, getMentorHistory);
 router.delete("/history", verifyFirebaseToken, clearMentorHistory);
 router.get("/courses", verifyFirebaseToken, mentorLimiter, handleRecommendCourses);
 router.post("/recommend-courses", verifyFirebaseToken, mentorLimiter, handleRecommendCourses);
+router.get("/career-alignment", verifyFirebaseToken, getCareerAlignment);
+router.get("/progress-explanation", verifyFirebaseToken, getProgressExplanation);
+router.get("/unified-action", verifyFirebaseToken, getUnifiedNextAction);
 
 export default router;

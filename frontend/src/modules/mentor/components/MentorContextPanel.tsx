@@ -11,6 +11,11 @@ import {
   X,
   Zap,
   CheckCircle2,
+  Award,
+  Brain,
+  ShieldCheck,
+  Layers,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -232,6 +237,121 @@ export const MentorContextPanel: React.FC<MentorContextPanelProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Phase 41: Unified Next Action */}
+        {context.unifiedNextActions && context.unifiedNextActions.length > 0 && (
+          <div className="space-y-2">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">
+              <Sparkles className="h-3 w-3 text-primary" />
+              Prioritized Next Action
+            </span>
+            <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 space-y-2 shadow-neo-raised-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-foreground line-clamp-1">
+                  {context.unifiedNextActions[0].title}
+                </span>
+                <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-primary/20 text-primary border border-primary/30">
+                  {context.unifiedNextActions[0].priority}
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground font-medium">
+                {context.unifiedNextActions[0].reason}
+              </p>
+              <div className="pt-1 flex items-center justify-between text-[10px] text-muted-foreground">
+                <span>~{context.unifiedNextActions[0].estimatedMinutes} mins • {context.unifiedNextActions[0].module}</span>
+                {context.unifiedNextActions[0].actionUrl && (
+                  <a
+                    href={context.unifiedNextActions[0].actionUrl}
+                    className="inline-flex items-center gap-1 text-primary font-bold hover:underline"
+                  >
+                    Act Now <ArrowRight className="h-2.5 w-2.5" />
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Phase 41: Verified Competency Badges */}
+        <div className="space-y-2">
+          <span className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">
+            <Award className="h-3 w-3 text-warning" />
+            Verified Competency Badges ({context.earnedBadges?.length || 0})
+          </span>
+          <div className="p-3 rounded-xl bg-surface/80 border border-border/40 space-y-2 shadow-neo-raised-sm">
+            {context.earnedBadges && context.earnedBadges.length > 0 ? (
+              <div className="space-y-1.5">
+                {context.earnedBadges.slice(0, 3).map((b, idx) => (
+                  <div key={b.id || b.badgeId || idx} className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-foreground flex items-center gap-1.5 line-clamp-1">
+                      <ShieldCheck className="h-3.5 w-3.5 text-warning shrink-0" />
+                      {b.competencyName}
+                    </span>
+                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-warning/10 text-warning border border-warning/20">
+                      Verified
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[11px] text-muted-foreground italic">
+                No badges earned yet. Complete sandbox tests and checkpoint quizzes to qualify.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Phase 41: Spaced Retention Health */}
+        {context.retentionHealth && (
+          <div className="space-y-2">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">
+              <Brain className="h-3 w-3 text-primary" />
+              Memory Retention Health
+            </span>
+            <div className="grid grid-cols-3 gap-1.5">
+              <div className="p-2 rounded-xl bg-surface/80 border border-border/40 text-center shadow-neo-raised-sm">
+                <p className={cn("text-xs font-black", context.retentionHealth.revisionsDueToday > 0 ? "text-warning" : "text-foreground")}>
+                  {context.retentionHealth.revisionsDueToday}
+                </p>
+                <p className="text-[9px] text-muted-foreground font-medium">Due Today</p>
+              </div>
+              <div className="p-2 rounded-xl bg-surface/80 border border-border/40 text-center shadow-neo-raised-sm">
+                <p className="text-xs font-black text-primary">{context.retentionHealth.streak}</p>
+                <p className="text-[9px] text-muted-foreground font-medium">Streak</p>
+              </div>
+              <div className="p-2 rounded-xl bg-surface/80 border border-border/40 text-center shadow-neo-raised-sm">
+                <p className="text-xs font-black text-success">{context.retentionHealth.masteredCards}</p>
+                <p className="text-[9px] text-muted-foreground font-medium">Mastered</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Phase 41: Evidence Quality Grounding */}
+        {context.evidenceTiers && (
+          <div className="space-y-2">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">
+              <Layers className="h-3 w-3 text-primary" />
+              Evidence Quality Grounding
+            </span>
+            <div className="p-2.5 rounded-xl bg-surface/80 border border-border/40 space-y-1.5 shadow-neo-raised-sm text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-success"></span>
+                  Verified Empirical:
+                </span>
+                <span className="font-bold text-foreground">{context.evidenceTiers.verified?.length || 0} skills</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-warning"></span>
+                  Inferred Signals:
+                </span>
+                <span className="font-bold text-foreground">{context.evidenceTiers.inferred?.length || 0} skills</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };

@@ -988,6 +988,10 @@ export interface DashboardIntelligenceData {
       metSkillsCount: number;
       totalRequiredSkillsCount: number;
     };
+    competencyBadges?: {
+      count: number;
+      badges: Array<{ id: string; name: string; issuedAt: string }>;
+    };
   };
   learningConsistency: {
     streakDays: number;
@@ -1077,6 +1081,8 @@ export interface AdaptiveTelemetryData {
   quizCheckpointsAttempted?: number;
   quizCheckpointsPassed?: number;
   quizPassRate?: number;
+  competencyBadgesCount?: number;
+  demonstratedCompetenciesCount?: number;
   isPersonalized: boolean;
   recommendationSource: string;
   evaluatedAt: string;
