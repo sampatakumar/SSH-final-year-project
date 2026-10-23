@@ -40,6 +40,7 @@ const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
 const VerifyEmailPage = lazy(() => import("./pages/VerifyEmailPage"));
 const AuthActionPage = lazy(() => import("./pages/AuthActionPage"));
 const OnboardingFlow = lazy(() => import("./pages/OnboardingFlow"));
+const PublicBadgeVerificationPage = lazy(() => import("./pages/PublicBadgeVerificationPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 import RequireAuth from "./components/RequireAuth";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -82,6 +83,7 @@ const App = () => (
                   <Route path="/verify-email" element={<VerifyEmailPage />} />
                   <Route path="/auth/verify-email" element={<VerifyEmailPage />} />
                   <Route path="/auth/action" element={<AuthActionPage />} />
+                  <Route path="/badges/verify/:badgeId" element={<PublicBadgeVerificationPage />} />
 
                   <Route element={<RequireAuth />}>
                     <Route path="/onboarding" element={<OnboardingFlow />} />

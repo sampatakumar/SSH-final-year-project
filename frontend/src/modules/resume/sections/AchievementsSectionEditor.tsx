@@ -1,7 +1,9 @@
-import React from "react";
-import { Plus, Trash2, ChevronUp, ChevronDown, Trophy } from "lucide-react";
+import React, { useState } from "react";
+import { Plus, Trash2, ChevronUp, ChevronDown, Trophy, Award, CheckCircle2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SmartSkillApi, CompetencyBadgeItem } from "@/lib/api";
+import { toast } from "sonner";
 import type { Achievement } from "../templates/types";
 
 export interface AchievementsSectionEditorProps {
@@ -13,6 +15,42 @@ export const AchievementsSectionEditor: React.FC<AchievementsSectionEditorProps>
   achievements = [],
   onChange,
 }) => {
+  const [badges, setBadges] = useState<CompetencyBadgeItem[]>([]);
+  const [showBadgePicker, setShowBadgePicker] = useState(false);
+  const [loadingBadges, setLoadingBadges] = useState(false);
+
+  const handleOpenBadgePicker = async () => {
+    try {
+      setLoadingBadges(true);
+      const myBadges = await SmartSkillApi.getMyBadges();
+      const active = (myBadges || []).filter((b) => b.status === "active");
+      if (active.length === 0) {
+        toast.info("No active earned badges found. Complete competency requirements in the Skills module first.");
+        return;
+      }
+      setBadges(active);
+      setShowBadgePicker(true);
+    } catch (err: any) {
+      toast.error("Could not load verifiable badges.");
+    } finally {
+      setLoadingBadges(false);
+    }
+  };
+
+  const handleImportBadge = (badge: CompetencyBadgeItem) => {
+    const newAch: Achievement = {
+      title: `Verified Competency: ${badge.competencyName}`,
+      date: badge.issuedAt ? new Date(badge.issuedAt).toISOString().slice(0, 7) : "",
+      bullets: [
+        `Smart Skill Hub Verified Credential (${badge.badgeType.replace(/_/g, " ")})`,
+        `Verification ID: ${badge.badgeId} (Rubric v${badge.rubricVersion})`,
+      ],
+    };
+    onChange([...achievements, newAch]);
+    toast.success(`Imported ${badge.competencyName} badge into resume!`);
+    setShowBadgePicker(false);
+  };
+
   const handleAddAchievement = () => {
     const newAch: Achievement = {
       title: "",
@@ -43,19 +81,72 @@ export const AchievementsSectionEditor: React.FC<AchievementsSectionEditorProps>
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
           <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
             <Trophy className="h-4 w-4 text-primary" /> Honors, Awards & Achievements
           </h3>
           <p className="text-[11px] text-muted-foreground">
-            Hackathons, leadership awards, academic honors, and competitive rankings.
+            Hackathons, leadership awards, and verifiable competency credentials.
           </p>
         </div>
-        <Button size="sm" onClick={handleAddAchievement} className="h-7 text-xs gap-1">
-          <Plus className="h-3 w-3" /> Add Award
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleOpenBadgePicker}
+            disabled={loadingBadges}
+            className="h-7 text-xs gap-1 border-primary/30 text-primary hover:bg-primary/10"
+          >
+            <Award className="h-3 w-3" /> Import Earned Badge
+          </Button>
+          <Button size="sm" onClick={handleAddAchievement} className="h-7 text-xs gap-1">
+            <Plus className="h-3 w-3" /> Add Award
+          </Button>
+        </div>
       </div>
+
+      {/* Badge Selection Modal / Card */}
+      {showBadgePicker && (
+        <div className="p-4 rounded-2xl bg-surface border border-primary/40 shadow-neo-raised space-y-3">
+          <div className="flex items-center justify-between border-b border-border/30 pb-2">
+            <div className="flex items-center gap-1.5">
+              <Award className="w-4 h-4 text-primary" />
+              <span className="text-xs font-bold text-foreground">Select Earned Badge to Import</span>
+            </div>
+            <button
+              onClick={() => setShowBadgePicker(false)}
+              className="text-muted-foreground hover:text-foreground text-xs"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+            {badges.map((b) => (
+              <div
+                key={b.badgeId}
+                className="p-2.5 rounded-xl bg-background/80 border border-border/40 flex items-center justify-between gap-2"
+              >
+                <div className="truncate">
+                  <span className="text-xs font-bold text-foreground block truncate">
+                    {b.competencyName}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground font-mono">
+                    {b.badgeType.replace(/_/g, " ")} &bull; {b.badgeId.slice(0, 14)}...
+                  </span>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => handleImportBadge(b)}
+                  className="h-6 text-[11px] px-2 font-bold shrink-0"
+                >
+                  Import
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* List */}
       {achievements.length === 0 ? (

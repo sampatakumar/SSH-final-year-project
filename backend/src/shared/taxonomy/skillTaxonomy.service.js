@@ -1,6 +1,8 @@
 import { SKILL_ALIASES } from "./skillAliases.js";
 import { CANONICAL_SKILL_TAXONOMY, SKILL_CATEGORIES } from "./skillTaxonomy.js";
 
+export { CANONICAL_SKILL_TAXONOMY, SKILL_CATEGORIES };
+
 function cleanRawString(str) {
   if (typeof str !== "string") return "";
   return str

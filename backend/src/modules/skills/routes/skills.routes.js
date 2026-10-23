@@ -23,6 +23,16 @@ import {
   reviewRevisionAttemptController,
   createRevisionTargetController,
 } from "../controllers/spacedRevision.controller.js";
+import {
+  getCompetencyMatrixController,
+  getCompetencyTaxonomyController,
+  getCompetencyEvidenceController,
+  getCapstoneWorkflowController,
+  getMyBadgesController,
+  claimBadgeController,
+  revokeBadgeController,
+  verifyPublicBadgeController,
+} from "../controllers/competencyBadge.controller.js";
 import { getUserGaps, getRoleGaps } from "../../gaps/controllers/gaps.controller.js";
 import { getRecommendations, getRecommendationRoadmap } from "../../recommendations/controllers/recommendations.controller.js";
 import { verifyFirebaseToken } from "../../../core/auth/auth.middleware.js";
@@ -63,6 +73,18 @@ router.get("/spaced-revision/upcoming", getUpcomingRevisionsController);
 router.get("/spaced-revision/queue", getRevisionQueueController);
 router.post("/spaced-revision/target", createRevisionTargetController);
 router.post("/spaced-revision/:id/review", reviewRevisionAttemptController);
+
+// Competency Matrix & Synthesis (Phase 40)
+router.get("/competencies/matrix", getCompetencyMatrixController);
+router.get("/competencies/taxonomy", getCompetencyTaxonomyController);
+router.get("/competencies/:id/evidence", getCompetencyEvidenceController);
+router.get("/competencies/:id/capstone", getCapstoneWorkflowController);
+
+// Verifiable Skill Badges (Phase 40)
+router.get("/badges/my", getMyBadgesController);
+router.post("/badges/claim", claimBadgeController);
+router.post("/badges/:badgeId/revoke", revokeBadgeController);
+router.get("/badges/verify/:badgeId", verifyPublicBadgeController);
 
 // Compatibility aliases for legacy/variant route patterns
 router.get("/gaps", getUserGaps);

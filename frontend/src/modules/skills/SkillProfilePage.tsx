@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   ArrowUpDown,
+  Award,
   CheckCircle2,
   Code2,
   FileText,
@@ -9,14 +10,18 @@ import {
   Info,
   RefreshCw,
   Search,
+  ShieldCheck,
   Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SmartSkillApi, EvaluatedSkill, SkillProfileData } from "@/lib/api";
+import { CompetencyMatrixWidget } from "./components/CompetencyMatrixWidget";
+import { BadgeWalletWidget } from "./components/BadgeWalletWidget";
 import { toast } from "sonner";
 
 const SkillProfilePage = () => {
+  const [activeTab, setActiveTab] = useState<"profile" | "competencies" | "badges">("profile");
   const [profile, setProfile] = useState<SkillProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEvaluating, setIsEvaluating] = useState(false);
@@ -95,8 +100,50 @@ const SkillProfilePage = () => {
         </Button>
       </div>
 
-      {/* Filters Bar */}
-      <div className="p-4 bg-surface border border-border/40 rounded-2xl shadow-neo-raised flex flex-col md:flex-row gap-3 items-center justify-between">
+      {/* Module Navigation Tabs */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-border/30 pb-3">
+        <button
+          onClick={() => setActiveTab("profile")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            activeTab === "profile"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "bg-surface text-muted-foreground hover:text-foreground border border-border/40"
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          Skill Evidence Profile
+        </button>
+        <button
+          onClick={() => setActiveTab("competencies")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            activeTab === "competencies"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "bg-surface text-muted-foreground hover:text-foreground border border-border/40"
+          }`}
+        >
+          <ShieldCheck className="w-3.5 h-3.5" />
+          Competency Matrix
+        </button>
+        <button
+          onClick={() => setActiveTab("badges")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            activeTab === "badges"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "bg-surface text-muted-foreground hover:text-foreground border border-border/40"
+          }`}
+        >
+          <Award className="w-3.5 h-3.5" />
+          Verifiable Badges
+        </button>
+      </div>
+
+      {activeTab === "competencies" && <CompetencyMatrixWidget />}
+      {activeTab === "badges" && <BadgeWalletWidget />}
+
+      {activeTab === "profile" && (
+        <>
+          {/* Filters Bar */}
+          <div className="p-4 bg-surface border border-border/40 rounded-2xl shadow-neo-raised flex flex-col md:flex-row gap-3 items-center justify-between">
         <div className="relative w-full md:w-80">
           <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -296,6 +343,8 @@ const SkillProfilePage = () => {
             </Button>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

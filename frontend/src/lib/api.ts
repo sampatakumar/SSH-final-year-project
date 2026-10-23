@@ -463,6 +463,141 @@ export interface GitHubProfileAnalysis {
   analyzedAt: string;
 }
 
+export interface CompetencyEvidenceKnowledge {
+  satisfied: boolean;
+  distinctCheckpointsPassed: number;
+  totalCheckpointsAttempted: number;
+  averageScore: number;
+  passingThreshold: number;
+  checkpoints: Array<{
+    checkpointId: string;
+    score: number;
+    isCorrect: boolean;
+    attemptedAt: string;
+  }>;
+}
+
+export interface CompetencyEvidenceRetention {
+  satisfied: boolean;
+  maxStage: number;
+  consecutiveSuccesses: number;
+  bestScore: number;
+  schedulesCount: number;
+}
+
+export interface CompetencyEvidenceApplied {
+  satisfied: boolean;
+  problemsSolvedCount: number;
+  solvedTaskIds: string[];
+  totalTestCasesPassed: number;
+  totalTestCases: number;
+  testPassRate: number;
+}
+
+export interface CompetencyEvidenceCapstone {
+  satisfied: boolean;
+  allPillarsSatisfied: boolean;
+}
+
+export interface CompetencyEvidenceBreakdown {
+  knowledge: CompetencyEvidenceKnowledge;
+  retention: CompetencyEvidenceRetention;
+  applied: CompetencyEvidenceApplied;
+  capstone: CompetencyEvidenceCapstone;
+}
+
+export interface CompetencyMatrixItem {
+  competencyId: string;
+  name: string;
+  description: string;
+  canonicalSkill: string;
+  category: string;
+  roles: string[];
+  rubricVersion: string;
+  status: "not_assessed" | "insufficient_evidence" | "knowledge_verified" | "applied_verified" | "retention_verified" | "capstone_competence";
+  evidence: CompetencyEvidenceBreakdown;
+  missingRequirements: string[];
+  recommendedNextAction: {
+    actionType: string;
+    title: string;
+    description: string;
+    targetModule: string;
+  };
+  eligibleBadgeTypes: Array<"knowledge_specialist" | "applied_practitioner" | "retention_master" | "capstone_competence">;
+  earnedBadges: CompetencyBadgeItem[];
+}
+
+export interface CompetencyMatrixSummary {
+  totalCompetencies: number;
+  capstoneVerified: number;
+  appliedVerified: number;
+  knowledgeVerified: number;
+  retentionVerified: number;
+  totalBadgesEarned: number;
+  rubricVersion: string;
+  evaluatedAt: string;
+}
+
+export interface CompetencyBadgeItem {
+  _id?: string;
+  badgeId: string;
+  recipientIdentifier: string;
+  competencyId: string;
+  competencyName: string;
+  skill: string;
+  canonicalSkill: string;
+  badgeType: "knowledge_specialist" | "applied_practitioner" | "retention_master" | "capstone_competence";
+  rubricVersion: string;
+  status: "active" | "revoked";
+  revocationReason?: string;
+  revokedAt?: string;
+  issuedAt: string;
+  signature: string;
+  keyId: string;
+  evidenceSummary: {
+    evidenceCategories: string[];
+    knowledgeScore: number;
+    knowledgeCheckpointsPassed: number;
+    retentionStage: number;
+    consecutiveRetrievals: number;
+    appliedProblemsSolved: number;
+    appliedTestCasesPassed: number;
+    verifiedAt: string;
+  };
+  issuer: string;
+  criteriaUrl: string;
+}
+
+export interface PublicBadgeVerification {
+  exists: boolean;
+  isValid: boolean;
+  isRevoked: boolean;
+  revocationReason?: string;
+  revokedAt?: string;
+  badge?: {
+    badgeId: string;
+    recipientIdentifier: string;
+    competencyId: string;
+    competencyName: string;
+    skill: string;
+    canonicalSkill: string;
+    badgeType: string;
+    rubricVersion: string;
+    issuedAt: string;
+    issuer: string;
+    keyId: string;
+    evidenceSummary: {
+      evidenceCategories: string[];
+      knowledgeScore: number;
+      knowledgeCheckpointsPassed: number;
+      retentionStage: number;
+      appliedProblemsSolved: number;
+      verifiedAt: string;
+    };
+  };
+  message: string;
+}
+
 export const SmartSkillApi = {
   // Skills
   evaluateSkills: async () =>
@@ -748,6 +883,34 @@ export const SmartSkillApi = {
       method: "POST",
       body: payload,
     })).data,
+
+  // Competency Matrix & Verifiable Badges (Phase 40)
+  getCompetencyMatrix: async () =>
+    (await apiRequest<{ matrix: CompetencyMatrixItem[]; summary: CompetencyMatrixSummary }>("/skills/competencies/matrix")).data,
+
+  getCompetencyEvidence: async (id: string) =>
+    (await apiRequest<CompetencyMatrixItem>(`/skills/competencies/${encodeURIComponent(id)}/evidence`)).data,
+
+  getCompetencyTaxonomy: async () =>
+    (await apiRequest<{ taxonomy: any[] }>("/skills/competencies/taxonomy")).data.taxonomy,
+
+  getMyBadges: async () =>
+    (await apiRequest<{ badges: CompetencyBadgeItem[] }>("/skills/badges/my")).data.badges,
+
+  claimCompetencyBadge: async (payload: { competencyId: string; badgeType: string; recipientIdentifier?: string }) =>
+    (await apiRequest<{ badge: CompetencyBadgeItem; isNewlyIssued: boolean }>("/skills/badges/claim", {
+      method: "POST",
+      body: payload,
+    })).data,
+
+  revokeBadge: async (badgeId: string, reason?: string) =>
+    (await apiRequest<{ badge: CompetencyBadgeItem }>(`/skills/badges/${encodeURIComponent(badgeId)}/revoke`, {
+      method: "POST",
+      body: { reason },
+    })).data,
+
+  verifyPublicBadge: async (badgeId: string) =>
+    (await apiRequest<PublicBadgeVerification>(`/badges/verify/${encodeURIComponent(badgeId)}`)).data,
 };
 
 export interface AdaptivePlanAction {
