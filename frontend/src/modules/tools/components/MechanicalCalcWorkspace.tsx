@@ -6,15 +6,17 @@ import {
   ShieldCheck,
   CheckCircle2,
   AlertTriangle,
-  FileSpreadsheet,
-  Download,
-  Bookmark,
-  BookmarkCheck,
   RotateCcw,
+  Sparkles,
 } from "lucide-react";
+import { SharedEngineeringReportBuilder } from "./SharedEngineeringReportBuilder";
 
 export const MechanicalCalcWorkspace: React.FC = () => {
   const [calculationType, setCalculationType] = useState<string>("stress_strain");
+  const [problemStatement, setProblemStatement] = useState<string>(
+    "Tensile testing of mild steel specimen under 50 kN axial tensile load."
+  );
+  const [enableAiInterpretation, setEnableAiInterpretation] = useState<boolean>(true);
   const [inputs, setInputs] = useState<Record<string, any>>({
     forceN: 50000,
     areaMm2: 250,
@@ -34,6 +36,7 @@ export const MechanicalCalcWorkspace: React.FC = () => {
 
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any | null>(null);
+  const [activityRecordId, setActivityRecordId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(false);
 
@@ -48,14 +51,34 @@ export const MechanicalCalcWorkspace: React.FC = () => {
     try {
       const data = await toolsApi.executeTool("mech-calc", {
         calculationType,
+        problemStatement,
+        enableAiInterpretation,
         ...inputs,
       });
       setResult(data.resultData);
+      setActivityRecordId(data.activityRecordId || null);
       setIsSaved(false);
     } catch (err: any) {
       setError(err.message || "Failed to execute mechanical calculation.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTogglePortfolio = async () => {
+    if (!activityRecordId) return;
+    try {
+      const res = await toolsApi.togglePortfolioSave(activityRecordId, {
+        headline: result?.reportDraft?.title || "Mechanical AI Studio Study Artifact",
+        summary:
+          result?.reportDraft?.engineeringDiscussion?.slice(0, 200) ||
+          "Axial stress and strain mechanical analysis.",
+        tags: ["Mechanical Engineering", "Strength of Materials", calculationType],
+        isSaved: !isSaved,
+      });
+      setIsSaved(res.isSavedToPortfolio);
+    } catch (err) {
+      console.warn("Failed to toggle portfolio save:", err);
     }
   };
 
@@ -96,6 +119,32 @@ export const MechanicalCalcWorkspace: React.FC = () => {
           </div>
 
           <form onSubmit={handleRunCalculation} className="space-y-4">
+            {/* Problem Statement & AI Studio Context */}
+            <div className="p-3 rounded-lg border border-primary/20 bg-primary/5 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-primary" />
+                  Problem Statement & Context
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={enableAiInterpretation}
+                    onChange={(e) => setEnableAiInterpretation(e.target.checked)}
+                    className="rounded border-border text-primary focus:ring-primary w-3.5 h-3.5"
+                  />
+                  <span>AI Studio Reasoning</span>
+                </label>
+              </div>
+              <textarea
+                rows={2}
+                value={problemStatement}
+                onChange={(e) => setProblemStatement(e.target.value)}
+                placeholder="e.g. Tensile test of mild steel tie rod under 50 kN load..."
+                className="w-full px-2.5 py-1.5 rounded-md bg-background border border-border text-xs focus:ring-1 focus:ring-primary outline-none leading-relaxed"
+              />
+            </div>
+
             {calculationType === "stress_strain" && (
               <>
                 <div>
@@ -425,6 +474,21 @@ export const MechanicalCalcWorkspace: React.FC = () => {
                 <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px] leading-relaxed flex items-start gap-2">
                   <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5" />
                   <span>{result.safetyNotice}</span>
+                </div>
+              )}
+
+              {/* Shared Engineering Report Builder */}
+              {result.reportDraft && (
+                <div className="pt-2">
+                  <SharedEngineeringReportBuilder
+                    reportDraft={result.reportDraft}
+                    activityRecordId={activityRecordId}
+                    isSavedToPortfolio={isSaved}
+                    onSaveToPortfolio={handleTogglePortfolio}
+                    onUpdateDraft={(updated) => {
+                      setResult((prev: any) => ({ ...prev, reportDraft: updated }));
+                    }}
+                  />
                 </div>
               )}
             </div>

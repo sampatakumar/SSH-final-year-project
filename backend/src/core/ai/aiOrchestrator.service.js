@@ -112,6 +112,42 @@ export const TASK_REGISTRY = {
     timeoutMs: 25000,
     maxRetries: 2,
   },
+  MECHANICAL_ENGINEERING_AI_STUDIO: {
+    taskName: "MECHANICAL_ENGINEERING_AI_STUDIO",
+    version: "2.1.0",
+    taskTier: TASK_TIERS.HIGH_REASONING,
+    temperature: 0.25,
+    maxTokens: 2200,
+    timeoutMs: 25000,
+    maxRetries: 2,
+  },
+  ECE_CIRCUIT_AI_STUDIO: {
+    taskName: "ECE_CIRCUIT_AI_STUDIO",
+    version: "2.1.0",
+    taskTier: TASK_TIERS.HIGH_REASONING,
+    temperature: 0.25,
+    maxTokens: 2200,
+    timeoutMs: 25000,
+    maxRetries: 2,
+  },
+  CIVIL_ENGINEERING_AI_STUDIO: {
+    taskName: "CIVIL_ENGINEERING_AI_STUDIO",
+    version: "2.1.0",
+    taskTier: TASK_TIERS.HIGH_REASONING,
+    temperature: 0.25,
+    maxTokens: 2200,
+    timeoutMs: 25000,
+    maxRetries: 2,
+  },
+  CHEMICAL_PROCESS_AI_STUDIO: {
+    taskName: "CHEMICAL_PROCESS_AI_STUDIO",
+    version: "2.1.0",
+    taskTier: TASK_TIERS.HIGH_REASONING,
+    temperature: 0.25,
+    maxTokens: 2200,
+    timeoutMs: 25000,
+    maxRetries: 2,
+  },
 };
 
 /**

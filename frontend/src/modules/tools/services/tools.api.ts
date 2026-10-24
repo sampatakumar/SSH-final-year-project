@@ -75,4 +75,21 @@ export const toolsApi = {
     );
     return res.data;
   },
+
+  /**
+   * Update editable report draft on student's tool activity record.
+   */
+  async updateReportDraft(
+    recordId: string,
+    reportDraft: Record<string, any>
+  ): Promise<{ recordId: string; reportDraft: any }> {
+    const res = await apiRequest<{ recordId: string; reportDraft: any }>(
+      `/tools/history/${encodeURIComponent(recordId)}/report`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ reportDraft }),
+      }
+    );
+    return res.data;
+  },
 };

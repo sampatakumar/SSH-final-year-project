@@ -138,6 +138,10 @@ export const executeToolController = asyncHandler(async (req, res) => {
         resultData: executionResult.resultData,
         executionMode: tool.executionMode,
         status: "success",
+        problemStatement: inputs.problemStatement ? String(inputs.problemStatement).trim() : "",
+        reportDraft: executionResult.resultData?.reportDraft || null,
+        verificationStatus: executionResult.resultData?.verification?.status || "NOT_RUN",
+        provenance: executionResult.resultData?.aiInterpretation?.provenance || "deterministic_engine",
       });
     } catch (saveErr) {
       console.warn("[tools] Failed to persist activity record:", saveErr.message);
@@ -227,6 +231,53 @@ export const togglePortfolioSaveController = asyncHandler(async (req, res) => {
         portfolioMetadata: record.portfolioMetadata,
       },
       record.isSavedToPortfolio ? "Saved to student portfolio" : "Removed from student portfolio"
+    )
+  );
+});
+
+/**
+ * PUT /api/v1/tools/history/:recordId/report
+ * Update editable report draft on student's tool activity record.
+ */
+export const updateToolReportDraftController = asyncHandler(async (req, res) => {
+  const userId = req.user?._id;
+  const { recordId } = req.params;
+  const { reportDraft } = req.body;
+
+  if (!userId) {
+    throw new ApiError(401, "Authentication required to update engineering report draft.");
+  }
+  if (!reportDraft || typeof reportDraft !== "object") {
+    throw new ApiError(400, "reportDraft object is required.");
+  }
+
+  const record = await ToolActivityRecord.findOne({ _id: recordId, user: userId });
+  if (!record) {
+    throw new ApiError(404, "Tool activity record not found or access denied.");
+  }
+
+  const updatedDraft = {
+    ...(record.reportDraft || {}),
+    ...reportDraft,
+    lastEditedAt: new Date().toISOString(),
+  };
+
+  record.reportDraft = updatedDraft;
+  if (record.resultData && typeof record.resultData === "object") {
+    record.resultData.reportDraft = updatedDraft;
+    record.markModified("resultData");
+  }
+  record.markModified("reportDraft");
+  await record.save();
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        recordId: record._id,
+        reportDraft: record.reportDraft,
+      },
+      "Engineering report draft updated successfully"
     )
   );
 });

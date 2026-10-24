@@ -1,11 +1,19 @@
 import React, { useState } from "react";
 import { toolsApi } from "../services/tools.api";
-import { Cpu, Zap, ShieldCheck, CheckCircle2, AlertTriangle, Layers } from "lucide-react";
+import { Cpu, Zap, ShieldCheck, CheckCircle2, AlertTriangle, Sparkles } from "lucide-react";
+import { SharedEngineeringReportBuilder } from "./SharedEngineeringReportBuilder";
 
 export const EceCircuitsWorkspace: React.FC = () => {
   const [analysisType, setAnalysisType] = useState<string>("series_parallel");
+  const [problemStatement, setProblemStatement] = useState<string>(
+    "DC resistive network voltage divider analysis and breadboard measurement verification."
+  );
+  const [enableAiInterpretation, setEnableAiInterpretation] = useState<boolean>(true);
   const [inputs, setInputs] = useState<Record<string, any>>({
     sourceVoltageV: 12,
+    voltageV: 12,
+    currentA: 0.05,
+    resistanceOhms: 240,
     resistors: "100, 220, 470",
     networkTopology: "series",
     loadResistance: 100,
@@ -13,7 +21,9 @@ export const EceCircuitsWorkspace: React.FC = () => {
 
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any | null>(null);
+  const [activityRecordId, setActivityRecordId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isSaved, setIsSaved] = useState(false);
 
   const handleInputChange = (field: string, val: any) => {
     setInputs((prev) => ({ ...prev, [field]: val }));
@@ -26,13 +36,34 @@ export const EceCircuitsWorkspace: React.FC = () => {
     try {
       const data = await toolsApi.executeTool("ece-circuits", {
         analysisType,
+        problemStatement,
+        enableAiInterpretation,
         ...inputs,
       });
       setResult(data.resultData);
+      setActivityRecordId(data.activityRecordId || null);
+      setIsSaved(false);
     } catch (err: any) {
       setError(err.message || "Circuit analysis calculation failed.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTogglePortfolio = async () => {
+    if (!activityRecordId) return;
+    try {
+      const res = await toolsApi.togglePortfolioSave(activityRecordId, {
+        headline: result?.reportDraft?.title || "ECE Circuit AI Studio Study Artifact",
+        summary:
+          result?.reportDraft?.engineeringDiscussion?.slice(0, 200) ||
+          "DC circuit analysis and parasitic discrepancy resolution.",
+        tags: ["ECE", "Circuits", analysisType],
+        isSaved: !isSaved,
+      });
+      setIsSaved(res.isSavedToPortfolio);
+    } catch (err) {
+      console.warn("Failed to toggle portfolio save:", err);
     }
   };
 
@@ -45,6 +76,7 @@ export const EceCircuitsWorkspace: React.FC = () => {
           { id: "voltage_divider", label: "Voltage Divider Rule" },
           { id: "current_divider", label: "Current Divider Rule" },
           { id: "thevenin_equivalent", label: "Thévenin Equivalent & Max Power" },
+          { id: "ohms_law", label: "Ohm's Law & Power Dissipation" },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -69,10 +101,78 @@ export const EceCircuitsWorkspace: React.FC = () => {
         <div className="lg:col-span-5 rounded-xl border border-border/60 bg-card/60 p-5 backdrop-blur-md space-y-4">
           <div className="flex items-center gap-2 pb-3 border-b border-border/40">
             <Zap className="w-4 h-4 text-cyan-400" />
-            <h3 className="text-sm font-semibold text-foreground">Circuit Parameters</h3>
+            <h3 className="text-sm font-semibold text-foreground">Circuit Parameters & Lab Context</h3>
           </div>
 
           <form onSubmit={handleRunAnalysis} className="space-y-4">
+            {/* Problem Statement & AI Toggle */}
+            <div className="p-3 rounded-lg border border-cyan-500/20 bg-cyan-500/5 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                  Circuit Scenario / Lab Observation
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={enableAiInterpretation}
+                    onChange={(e) => setEnableAiInterpretation(e.target.checked)}
+                    className="rounded border-border text-cyan-500 focus:ring-cyan-500 w-3.5 h-3.5"
+                  />
+                  <span>AI Studio Reasoning</span>
+                </label>
+              </div>
+              <textarea
+                rows={2}
+                value={problemStatement}
+                onChange={(e) => setProblemStatement(e.target.value)}
+                placeholder="e.g. Measuring 12V voltage divider on breadboard with 10k potentiometer..."
+                className="w-full px-2.5 py-1.5 rounded-md bg-background border border-border text-xs focus:ring-1 focus:ring-cyan-500 outline-none leading-relaxed"
+              />
+            </div>
+
+            {analysisType === "ohms_law" && (
+              <>
+                <div>
+                  <label className="text-xs font-medium text-foreground block mb-1">
+                    Voltage V (Volts)
+                  </label>
+                  <input
+                    type="number"
+                    value={inputs.voltageV}
+                    onChange={(e) => handleInputChange("voltageV", e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-cyan-500 outline-none font-mono"
+                    placeholder="e.g. 12"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-foreground block mb-1">
+                    Current I (Amperes)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    value={inputs.currentA}
+                    onChange={(e) => handleInputChange("currentA", e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-cyan-500 outline-none font-mono"
+                    placeholder="e.g. 0.05"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-foreground block mb-1">
+                    Resistance R (Ohms Ω)
+                  </label>
+                  <input
+                    type="number"
+                    value={inputs.resistanceOhms}
+                    onChange={(e) => handleInputChange("resistanceOhms", e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-cyan-500 outline-none font-mono"
+                    placeholder="e.g. 240"
+                  />
+                </div>
+              </>
+            )}
+
             {analysisType === "series_parallel" && (
               <>
                 <div>
@@ -82,7 +182,7 @@ export const EceCircuitsWorkspace: React.FC = () => {
                   <select
                     value={inputs.networkTopology}
                     onChange={(e) => handleInputChange("networkTopology", e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary outline-none"
+                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-cyan-500 outline-none"
                   >
                     <option value="series">Series Network (R_eq = Σ R_i)</option>
                     <option value="parallel">Parallel Network (1/R_eq = Σ 1/R_i)</option>
@@ -97,21 +197,21 @@ export const EceCircuitsWorkspace: React.FC = () => {
                     type="text"
                     value={inputs.resistors}
                     onChange={(e) => handleInputChange("resistors", e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary outline-none font-mono"
-                    placeholder="e.g. 100, 220, 470"
+                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-cyan-500 outline-none font-mono"
+                    placeholder="100, 220, 470"
                     required
                   />
                 </div>
 
                 <div>
                   <label className="text-xs font-medium text-foreground block mb-1">
-                    Source DC Voltage (V)
+                    Source DC Voltage (V) [Optional for Current & Power]
                   </label>
                   <input
                     type="number"
                     value={inputs.sourceVoltageV}
                     onChange={(e) => handleInputChange("sourceVoltageV", e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary outline-none font-mono"
+                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-cyan-500 outline-none font-mono"
                     placeholder="e.g. 12"
                   />
                 </div>
@@ -122,31 +222,29 @@ export const EceCircuitsWorkspace: React.FC = () => {
               <>
                 <div>
                   <label className="text-xs font-medium text-foreground block mb-1">
-                    Input Source Voltage V_in (V) *
+                    Source Input Voltage Vin (V) *
                   </label>
                   <input
                     type="number"
                     value={inputs.sourceVoltageV}
                     onChange={(e) => handleInputChange("sourceVoltageV", e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary outline-none font-mono"
+                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-cyan-500 outline-none font-mono"
+                    placeholder="e.g. 12"
                     required
                   />
                 </div>
                 <div>
                   <label className="text-xs font-medium text-foreground block mb-1">
-                    Resistors R₁, R₂ (Ω) *
+                    Resistors R1, R2 in Ohms (Ω) — Comma Separated *
                   </label>
                   <input
                     type="text"
                     value={inputs.resistors}
                     onChange={(e) => handleInputChange("resistors", e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary outline-none font-mono"
-                    placeholder="e.g. 1000, 4000"
+                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-cyan-500 outline-none font-mono"
+                    placeholder="e.g. 1000, 2000"
                     required
                   />
-                  <span className="text-[10px] text-muted-foreground mt-0.5 block">
-                    Two series resistors where output voltage is taken across R₂.
-                  </span>
                 </div>
               </>
             )}
@@ -155,26 +253,28 @@ export const EceCircuitsWorkspace: React.FC = () => {
               <>
                 <div>
                   <label className="text-xs font-medium text-foreground block mb-1">
-                    Total Input Current I_total (A) *
+                    Total Injected Current Itotal (Amperes) *
                   </label>
                   <input
                     type="number"
+                    step="0.001"
                     value={inputs.sourceVoltageV}
                     onChange={(e) => handleInputChange("sourceVoltageV", e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary outline-none font-mono"
+                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-cyan-500 outline-none font-mono"
+                    placeholder="e.g. 0.05"
                     required
                   />
                 </div>
                 <div>
                   <label className="text-xs font-medium text-foreground block mb-1">
-                    Parallel Branch Resistors R₁, R₂ (Ω) *
+                    Branch Resistors R1, R2 in Ohms (Ω) — Comma Separated *
                   </label>
                   <input
                     type="text"
                     value={inputs.resistors}
                     onChange={(e) => handleInputChange("resistors", e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary outline-none font-mono"
-                    placeholder="e.g. 10, 20"
+                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-cyan-500 outline-none font-mono"
+                    placeholder="e.g. 100, 200"
                     required
                   />
                 </div>
@@ -183,43 +283,42 @@ export const EceCircuitsWorkspace: React.FC = () => {
 
             {analysisType === "thevenin_equivalent" && (
               <>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-medium text-foreground block mb-1">
-                      Thévenin Voltage V_th (V) *
-                    </label>
-                    <input
-                      type="number"
-                      value={inputs.sourceVoltageV}
-                      onChange={(e) => handleInputChange("sourceVoltageV", e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary outline-none font-mono"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-foreground block mb-1">
-                      Thévenin Resistance R_th (Ω) *
-                    </label>
-                    <input
-                      type="text"
-                      value={inputs.resistors}
-                      onChange={(e) => handleInputChange("resistors", e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary outline-none font-mono"
-                      placeholder="e.g. 50"
-                      required
-                    />
-                  </div>
-                </div>
-
                 <div>
                   <label className="text-xs font-medium text-foreground block mb-1">
-                    Connected Load Resistor R_L (Ω) *
+                    Thévenin Voltage Vth (Volts) *
+                  </label>
+                  <input
+                    type="number"
+                    value={inputs.sourceVoltageV}
+                    onChange={(e) => handleInputChange("sourceVoltageV", e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-cyan-500 outline-none font-mono"
+                    placeholder="e.g. 10"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-foreground block mb-1">
+                    Thévenin Resistance Rth (Ohms Ω) *
+                  </label>
+                  <input
+                    type="text"
+                    value={inputs.resistors}
+                    onChange={(e) => handleInputChange("resistors", e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-cyan-500 outline-none font-mono"
+                    placeholder="e.g. 50"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-foreground block mb-1">
+                    Load Resistance RL (Ohms Ω) *
                   </label>
                   <input
                     type="number"
                     value={inputs.loadResistance}
                     onChange={(e) => handleInputChange("loadResistance", e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary outline-none font-mono"
+                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-cyan-500 outline-none font-mono"
+                    placeholder="e.g. 50"
                     required
                   />
                 </div>
@@ -236,16 +335,16 @@ export const EceCircuitsWorkspace: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 px-4 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-medium text-xs transition-all flex items-center justify-center gap-2 shadow-sm"
+              className="w-full py-2.5 px-4 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-medium text-xs transition-all flex items-center justify-center gap-2 shadow-xs"
             >
               {loading ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Solving Circuit Network...</span>
+                  <span>Solving DC Network & AI Analysis...</span>
                 </>
               ) : (
                 <>
-                  <Cpu className="w-4 h-4" />
+                  <Zap className="w-4 h-4" />
                   <span>Solve Circuit Equations</span>
                 </>
               )}
@@ -326,6 +425,21 @@ export const EceCircuitsWorkspace: React.FC = () => {
                   <span>{result.safetyNotice}</span>
                 </div>
               )}
+
+              {/* Shared Engineering Report Builder */}
+              {result.reportDraft && (
+                <div className="pt-2">
+                  <SharedEngineeringReportBuilder
+                    reportDraft={result.reportDraft}
+                    activityRecordId={activityRecordId}
+                    isSavedToPortfolio={isSaved}
+                    onSaveToPortfolio={handleTogglePortfolio}
+                    onUpdateDraft={(updated) => {
+                      setResult((prev: any) => ({ ...prev, reportDraft: updated }));
+                    }}
+                  />
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -333,3 +447,5 @@ export const EceCircuitsWorkspace: React.FC = () => {
     </div>
   );
 };
+
+export default EceCircuitsWorkspace;

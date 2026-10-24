@@ -69,3 +69,79 @@ export interface ToolCatalogResponse {
   availableCategories: string[];
   availableDisciplines: string[];
 }
+
+export interface EngineeringMissingInput {
+  item: string;
+  importance: "CRITICAL" | "RECOMMENDED" | "ADVISORY";
+  explanation: string;
+}
+
+export interface LearningPathwayLink {
+  id: string;
+  title: string;
+  type: "PRACTICAL_LAB" | "ASSESSMENT" | "PROJECT_STUDIO";
+  route: string;
+}
+
+export interface EngineeringAiInterpretation {
+  problemSummary: string;
+  applicableTheory: string;
+  assumptionsAndIdealizations: string[];
+  limitationsAndCaveats: string[];
+  missingInputsChecklist: EngineeringMissingInput[];
+  troubleshootingAdvice?: string[] | null;
+  learningPathwayLinks: LearningPathwayLink[];
+  provenance: string;
+  provider: string;
+}
+
+export interface VerifiedClaim {
+  parameter?: string;
+  claim?: string;
+  value?: any;
+  status: "VERIFIED_DETERMINISTIC" | "USER_PROVIDED" | "THEORETICAL_MODEL_ASSUMPTION" | "UNVERIFIED_ESTIMATE";
+  provenance: string;
+  verificationMethod: string;
+}
+
+export interface EngineeringVerificationResult {
+  status: string;
+  summary: string;
+  verifiedClaimsCount: number;
+  unverifiedClaimsCount: number;
+  verifiedClaims: VerifiedClaim[];
+  unverifiedClaims: VerifiedClaim[];
+  isAuthoritativeMathGuaranteed: boolean;
+}
+
+export interface EngineeringReportDraft {
+  reportId: string;
+  title: string;
+  discipline: string;
+  toolId: string;
+  toolDisplayName: string;
+  objective: string;
+  problemStatement: string;
+  governingEquations: string;
+  suppliedInputs: Record<string, any>;
+  calculationSteps: string[];
+  numericalResults: Record<string, any>;
+  billOfQuantities?: any[] | null;
+  engineeringDiscussion: string;
+  applicableTheory: string;
+  assumptions: string[];
+  limitations: string[];
+  missingInputsChecklist: EngineeringMissingInput[];
+  troubleshootingAdvice?: string[] | null;
+  verificationStatus: string;
+  verificationSummary: string;
+  verifiedClaims: VerifiedClaim[];
+  unverifiedClaims: VerifiedClaim[];
+  learningPathwayLinks: LearningPathwayLink[];
+  safetyNotice: string;
+  studentNotes?: string;
+  authorName: string;
+  generatedAt: string;
+  lastEditedAt?: string | null;
+  isStudentDraft: boolean;
+}

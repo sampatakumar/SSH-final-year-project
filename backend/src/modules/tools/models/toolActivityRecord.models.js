@@ -62,6 +62,23 @@ const toolActivityRecordSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    problemStatement: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    reportDraft: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    verificationStatus: {
+      type: String,
+      default: "NOT_RUN",
+    },
+    provenance: {
+      type: String,
+      default: "deterministic_engine",
+    },
   },
   {
     timestamps: true,

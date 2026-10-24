@@ -5,6 +5,7 @@ import {
   executeToolController,
   getMyToolActivityController,
   togglePortfolioSaveController,
+  updateToolReportDraftController,
 } from "../controllers/tools.controller.js";
 import { verifyFirebaseToken, optionalFirebaseToken } from "../../../core/auth/auth.middleware.js";
 
@@ -14,6 +15,7 @@ const router = Router();
 router.get("/", optionalFirebaseToken, getToolCatalogController);
 router.get("/history/my-activity", verifyFirebaseToken, getMyToolActivityController);
 router.patch("/history/:recordId/portfolio", verifyFirebaseToken, togglePortfolioSaveController);
+router.put("/history/:recordId/report", verifyFirebaseToken, updateToolReportDraftController);
 router.get("/:toolId", getToolByIdController);
 router.post("/:toolId/execute", optionalFirebaseToken, executeToolController);
 

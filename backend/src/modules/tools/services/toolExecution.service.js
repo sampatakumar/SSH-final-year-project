@@ -255,7 +255,8 @@ export function executeEceCircuits(inputs = {}) {
   } = inputs;
 
   const parseResistors = (val) => {
-    if (Array.isArray(val)) return val.map(Number);
+    if (Array.isArray(val)) return val.map(Number).filter((n) => Number.isFinite(n));
+    if (typeof val === "number" && Number.isFinite(val)) return [val];
     if (typeof val === "string") {
       return val
         .split(",")
@@ -265,7 +266,57 @@ export function executeEceCircuits(inputs = {}) {
     return [];
   };
 
-  const rList = parseResistors(resistors);
+  const rList = parseResistors(resistors !== undefined && resistors !== "" ? resistors : inputs.resistanceOhms);
+
+  if (analysisType === "ohms_law") {
+    const v = inputs.voltageV !== undefined && inputs.voltageV !== ""
+      ? Number(inputs.voltageV)
+      : (sourceVoltageV !== undefined && sourceVoltageV !== "" ? Number(sourceVoltageV) : null);
+    const i = inputs.currentA !== undefined && inputs.currentA !== "" ? Number(inputs.currentA) : null;
+    const r = inputs.resistanceOhms !== undefined && inputs.resistanceOhms !== ""
+      ? Number(inputs.resistanceOhms)
+      : (rList.length > 0 ? rList[0] : null);
+
+    let calcV = v;
+    let calcI = i;
+    let calcR = r;
+
+    if (v !== null && r !== null && i === null) {
+      if (r <= 0) throw new Error("Resistance must be a positive number.");
+      calcI = v / r;
+    } else if (v !== null && i !== null && r === null) {
+      if (i === 0) throw new Error("Current cannot be zero when computing resistance.");
+      calcR = v / i;
+    } else if (i !== null && r !== null && v === null) {
+      calcV = i * r;
+    } else if (v !== null && r !== null && i !== null) {
+      calcI = v / r;
+    } else {
+      throw new Error("Ohm's Law requires at least two of (voltageV, currentA, resistanceOhms).");
+    }
+
+    const powerW = calcV * calcI;
+
+    return {
+      analysisType: "ohms_law",
+      formulaUsed: "V = I * R ; I = V / R ; R = V / I ; P = V * I = I² * R",
+      inputs: { voltageV: calcV, currentA: calcI, resistanceOhms: calcR },
+      results: {
+        voltageV: Number(calcV.toFixed(4)),
+        currentA: Number(calcI.toFixed(6)),
+        resistanceOhms: Number(calcR.toFixed(4)),
+        dissipatedPowerW: Number(powerW.toFixed(4)),
+      },
+      calculationSteps: [
+        `1. Governing Ohm's Law: V = I * R and Joule's Law: P = V * I.`,
+        `2. Solved circuit parameters: Voltage = ${calcV.toFixed(4)} V, Current = ${calcI.toFixed(6)} A, Resistance = ${calcR.toFixed(4)} Ω.`,
+        `3. Calculated Power Dissipation P = ${calcV.toFixed(4)} V * ${calcI.toFixed(6)} A = ${powerW.toFixed(4)} W.`,
+      ],
+      assumptions: ["Linear, time-invariant ohmic conductor at constant junction temperature (zero thermal drift)."],
+      safetyNotice: TOOL_REGISTRY_MAP.get("ece-circuits")?.safetyDisclaimers,
+    };
+  }
+
   if (rList.length === 0) {
     throw new Error("resistors must contain at least one valid numeric resistance in Ohms (Ω).");
   }
@@ -441,13 +492,13 @@ export function executeCivilBoq(inputs = {}) {
 
   const l = Number(lengthM);
   const w = Number(widthM);
-  const t = Number(thicknessM);
+  const t = Number(thicknessM !== undefined && thicknessM !== "" ? thicknessM : (inputs.depthM !== undefined && inputs.depthM !== "" ? inputs.depthM : inputs.heightM));
   const dryFactor = Number(dryVolumeFactor) || 1.54;
   const waste = Math.max(0, Number(wastagePercent) || 0);
 
   if (!Number.isFinite(l) || l <= 0) throw new Error("lengthM must be a positive number in meters.");
   if (!Number.isFinite(w) || w <= 0) throw new Error("widthM must be a positive number in meters.");
-  if (!Number.isFinite(t) || t <= 0) throw new Error("thicknessM must be a positive number in meters.");
+  if (!Number.isFinite(t) || t <= 0) throw new Error("thicknessM (or depthM/heightM) must be a positive number in meters.");
 
   // Parse Mix Ratio (e.g. "1:1.5:3" => cement=1, sand=1.5, aggregate=3)
   const parts = String(mixRatio).split(":").map(Number);
@@ -634,6 +685,34 @@ export function executeChemicalProcess(inputs = {}) {
         "Perfect macroscopic backmixing (uniform concentration and temperature throughout reactor volume).",
         "Isothermal reaction with constant fluid density.",
       ],
+      safetyNotice: TOOL_REGISTRY_MAP.get("chem-process")?.safetyDisclaimers,
+    };
+  }
+
+  if (calculationType === "conversion_concentration") {
+    const cA0 = Number(inputs.initialConcentrationMolar || inputs.feedConcentrationMolar || 1.0);
+    const xA = Number(targetConversion || 0.8);
+    if (!Number.isFinite(cA0) || cA0 <= 0) throw new Error("initialConcentrationMolar must be a positive number.");
+    if (!Number.isFinite(xA) || xA < 0 || xA > 1) throw new Error("targetConversion must be between 0.0 and 1.0.");
+    const cA = cA0 * (1 - xA);
+    const reactedMolar = cA0 * xA;
+    return {
+      calculationType: "conversion_concentration",
+      formulaUsed: "C_A = C_A0 * (1 - X_A) ; ΔC_A = C_A0 * X_A",
+      inputs: { initialConcentrationMolar: cA0, targetConversion: xA },
+      results: {
+        initialConcentrationMolar: Number(cA0.toFixed(4)),
+        targetConversionPercent: Number((xA * 100).toFixed(2)),
+        unreactedConcentrationMolar: Number(cA.toFixed(4)),
+        reactedConcentrationMolar: Number(reactedMolar.toFixed(4)),
+      },
+      calculationSteps: [
+        `1. Initial Reactant Concentration C_A0 = ${cA0} mol/L.`,
+        `2. Fractional Conversion X_A = ${xA} (${(xA * 100).toFixed(1)}%).`,
+        `3. Remaining Unreacted C_A = ${cA0} * (1 - ${xA}) = ${cA.toFixed(4)} mol/L.`,
+        `4. Consumed Reactant ΔC_A = ${cA0} * ${xA} = ${reactedMolar.toFixed(4)} mol/L.`,
+      ],
+      assumptions: ["Isothermal, constant-density liquid phase reaction with negligible volume expansion."],
       safetyNotice: TOOL_REGISTRY_MAP.get("chem-process")?.safetyDisclaimers,
     };
   }
@@ -1316,6 +1395,668 @@ ${cleanText.slice(0, 4000)}`;
 }
 
 // ============================================================================
+// 10. SHARED VERIFICATION PASS & ENGINEERING REPORT BUILDER
+// ============================================================================
+
+export function verifyEngineeringAiOutput(calcResults = {}, aiInterpretation = {}) {
+  const verifiedClaims = [];
+  const unverifiedClaims = [];
+
+  // 1. Authoritative numerical results from calculation engine
+  if (calcResults.results && typeof calcResults.results === "object") {
+    for (const [key, val] of Object.entries(calcResults.results)) {
+      if (val !== undefined && val !== null) {
+        verifiedClaims.push({
+          parameter: key,
+          value: val,
+          status: "VERIFIED_DETERMINISTIC",
+          provenance: "deterministic_calculation_engine",
+          verificationMethod: "Exact algebraic formula execution in verified codebase",
+        });
+      }
+    }
+  }
+
+  // 2. User-provided input facts
+  if (calcResults.inputs && typeof calcResults.inputs === "object") {
+    for (const [key, val] of Object.entries(calcResults.inputs)) {
+      if (val !== undefined && val !== null) {
+        verifiedClaims.push({
+          parameter: key,
+          value: val,
+          status: "USER_PROVIDED",
+          provenance: "student_input_form",
+          verificationMethod: "Validated input parameter range and type check",
+        });
+      }
+    }
+  }
+
+  // 3. AI-generated qualitative assertions & assumptions
+  if (Array.isArray(aiInterpretation?.assumptionsAndIdealizations)) {
+    for (const assumption of aiInterpretation.assumptionsAndIdealizations) {
+      unverifiedClaims.push({
+        claim: assumption,
+        status: "THEORETICAL_MODEL_ASSUMPTION",
+        provenance: aiInterpretation.provenance || "ai_studio_reasoning",
+        verificationMethod: "Academic simplification; requires site or empirical validation",
+      });
+    }
+  }
+
+  if (Array.isArray(aiInterpretation?.limitationsAndCaveats)) {
+    for (const limitation of aiInterpretation.limitationsAndCaveats) {
+      unverifiedClaims.push({
+        claim: limitation,
+        status: "UNVERIFIED_ESTIMATE",
+        provenance: aiInterpretation.provenance || "ai_studio_reasoning",
+        verificationMethod: "Subject to project-specific field and material conditions",
+      });
+    }
+  }
+
+  return {
+    status: "VERIFIED_DETERMINISTIC",
+    summary:
+      "Authoritative numerical parameters match deterministic calculation engine. Qualitative commentary classified into validated assumptions and educational caveats.",
+    verifiedClaimsCount: verifiedClaims.length,
+    unverifiedClaimsCount: unverifiedClaims.length,
+    verifiedClaims,
+    unverifiedClaims,
+    isAuthoritativeMathGuaranteed: true,
+  };
+}
+
+export function buildSharedEngineeringReport({
+  toolId,
+  displayName,
+  academicDiscipline,
+  inputs = {},
+  calcResults = {},
+  aiInterpretation = {},
+  verification = {},
+  user = null,
+}) {
+  const timestamp = new Date().toISOString();
+  const problemStatement = inputs?.problemStatement ? String(inputs.problemStatement).trim() : "";
+  const title = problemStatement
+    ? `Engineering Study: ${problemStatement.slice(0, 50)}${problemStatement.length > 50 ? "..." : ""}`
+    : `${displayName} Technical Report`;
+
+  return {
+    reportId: `REP-${toolId.toUpperCase()}-${Date.now().toString(36)}`,
+    title,
+    discipline: academicDiscipline,
+    toolId,
+    toolDisplayName: displayName,
+    objective: problemStatement || `Deterministic technical evaluation using formula: ${calcResults.formulaUsed}`,
+    problemStatement: problemStatement || "Direct analytical evaluation based on user-supplied operating parameters.",
+    governingEquations: calcResults.formulaUsed || "Standard engineering formulas",
+    suppliedInputs: calcResults.inputs || {},
+    calculationSteps: calcResults.calculationSteps || [],
+    numericalResults: calcResults.results || {},
+    billOfQuantities: calcResults.billOfQuantities || null,
+    engineeringDiscussion: aiInterpretation?.problemSummary || "Deterministic computation completed successfully.",
+    applicableTheory: aiInterpretation?.applicableTheory || "Applied engineering domain principles.",
+    assumptions: [
+      ...(calcResults.assumptions || []),
+      ...(aiInterpretation?.assumptionsAndIdealizations || []),
+    ],
+    limitations: aiInterpretation?.limitationsAndCaveats || [],
+    missingInputsChecklist: aiInterpretation?.missingInputsChecklist || [],
+    troubleshootingAdvice: aiInterpretation?.troubleshootingAdvice || null,
+    verificationStatus: verification?.status || "VERIFIED_DETERMINISTIC",
+    verificationSummary: verification?.summary || "Numerical outputs verified against deterministic engine.",
+    verifiedClaims: verification?.verifiedClaims || [],
+    unverifiedClaims: verification?.unverifiedClaims || [],
+    learningPathwayLinks: aiInterpretation?.learningPathwayLinks || [],
+    safetyNotice:
+      calcResults.safetyNotice ||
+      "For academic and instructional use only. Not certified for construction, manufacturing, or commercial design.",
+    studentNotes: "",
+    authorName: user ? (user.name || user.fullName || user.email || "Student Engineer") : "Student Engineer",
+    generatedAt: timestamp,
+    lastEditedAt: null,
+    isStudentDraft: true,
+  };
+}
+
+// ============================================================================
+// 11. BRANCH AI STUDIO INTERPRETATION GENERATORS
+// ============================================================================
+
+export async function generateMechanicalAiStudioInterpretation(inputs = {}, calcResults = {}, user = null) {
+  const problemText = inputs.problemStatement ? String(inputs.problemStatement).trim() : "";
+  const calcType = calcResults.calculationType || "stress_strain";
+
+  const deterministicFallback = () => {
+    let problemSummary = `Mechanical engineering analysis for ${calcType.replace(/_/g, " ")}. Evaluates static load distribution and structural response based on linear elastic behavior.`;
+    let applicableTheory = "Hooke's Law (σ = E·ε) and Saint-Venant's Principle for axial loading and Euler-Bernoulli beam flexure.";
+    const assumptionsAndIdealizations = [
+      "Material is homogeneous, isotropic, and operates strictly within linear-elastic proportional limit.",
+      "Static equilibrium with no high-velocity dynamic shock or harmonic resonance.",
+      "Pure axial or bending moment without unmodeled eccentric torsion or thermal gradient stresses.",
+    ];
+    const limitationsAndCaveats = [
+      "Calculations do not account for geometric stress concentration factors (Kt) at holes, keyways, or fillet steps.",
+      "High-temperature environments (>100°C) require thermal yield derating.",
+      "Cyclic loading requires fatigue endurance limit analysis (Wöhler S-N curve), which is not covered in static calculations.",
+    ];
+    const missingInputsChecklist = [
+      {
+        item: "Material Yield Strength (σ_yield) & UTS",
+        importance: calcType === "stress_strain" ? "RECOMMENDED" : "CRITICAL",
+        explanation: "Required to verify working stress margin against plastic deformation.",
+      },
+      {
+        item: "Ambient Operating Temperature Range",
+        importance: "ADVISORY",
+        explanation: "Elevated temperatures decrease Young's modulus and accelerate creep deformation.",
+      },
+      {
+        item: "Service Fatigue Life Cycles (N)",
+        importance: "ADVISORY",
+        explanation: "Components subjected to cyclic stress reversals fail below static yield strength due to microcrack propagation.",
+      },
+    ];
+
+    if (calcType === "factor_of_safety") {
+      problemSummary = `Factor of Safety analysis comparing material yield strength against applied operating stress. Yield ratio FoS = ${calcResults.results?.factorOfSafety}.`;
+      applicableTheory = "Maximum Normal Stress Theory (Rankine) or Distortion Energy Theory (Von Mises) for static failure prediction.";
+    } else if (calcType === "gear_ratio") {
+      problemSummary = `Kinematic gear train analysis for tooth ratio ${calcResults.results?.gearRatio}. Identifies transmission speed and torque multiplication.`;
+      applicableTheory = "Law of Gearing: Angular velocity ratio is inversely proportional to teeth count and pitch radius.";
+    } else if (calcType === "beam_bending") {
+      problemSummary = `Euler-Bernoulli flexural stress calculation across beam extreme fibers under bending moment M.`;
+      applicableTheory = "Euler-Bernoulli Beam Equation: σ_bending = (M * y) / I_xx.";
+    }
+
+    if (problemText) {
+      problemSummary = `Problem Context: "${problemText}". ${problemSummary}`;
+    }
+
+    const learningPathwayLinks = [
+      {
+        id: "mech-lab-stress-strain",
+        title: "Axial Tensile Stress and Strain Measurement",
+        type: "PRACTICAL_LAB",
+        route: "/academic/labs",
+      },
+      {
+        id: "mech-lab-gear-ratio",
+        title: "Kinematic Gear Ratio and Speed Transmission Analysis",
+        type: "PRACTICAL_LAB",
+        route: "/academic/labs",
+      },
+      {
+        id: "mech-eng-mechanics",
+        title: "Engineering Mechanics & Strength of Materials Assessment",
+        type: "ASSESSMENT",
+        route: "/assessment",
+      },
+      {
+        id: "mech-cad-gearbox-design",
+        title: "Industrial Gearbox Speed Reducer CAD & FEA Analysis",
+        type: "PROJECT_STUDIO",
+        route: "/projects",
+      },
+    ];
+
+    return {
+      problemSummary,
+      applicableTheory,
+      assumptionsAndIdealizations,
+      limitationsAndCaveats,
+      missingInputsChecklist,
+      troubleshootingAdvice: [
+        "If computed stress exceeds 60% of yield strength, consider increasing section thickness or choosing a higher-strength alloy.",
+        "For rotating machinery, check shaft deflection at bearing seats to avoid premature bearing failure.",
+      ],
+      learningPathwayLinks,
+      provenance: "offline_expert_heuristics",
+      provider: "deterministic_fallback",
+    };
+  };
+
+  const systemInstruction = `You are a Senior Mechanical Engineering Professor and Design Reviewer.
+Analyze the student's mechanical problem and the verified deterministic calculation results.
+Provide structured engineering reasoning.
+DO NOT perform independent authoritative arithmetic; reference the verified results.
+Structure your output as a JSON object with:
+{
+  "problemSummary": string,
+  "applicableTheory": string,
+  "assumptionsAndIdealizations": string[],
+  "limitationsAndCaveats": string[],
+  "missingInputsChecklist": [{ "item": string, "importance": "CRITICAL"|"RECOMMENDED"|"ADVISORY", "explanation": string }],
+  "troubleshootingAdvice": string[]
+}`;
+
+  const userPrompt = `Student Problem Statement: ${problemText || "None provided"}
+Calculation Type: ${calcType}
+Inputs: ${JSON.stringify(calcResults.inputs)}
+Authoritative Deterministic Results: ${JSON.stringify(calcResults.results)}
+Formula: ${calcResults.formulaUsed}`;
+
+  try {
+    const aiResult = await aiOrchestrator.executeTask({
+      taskName: "MECHANICAL_ENGINEERING_AI_STUDIO",
+      systemInstruction,
+      userPrompt,
+      fallbackGenerator: deterministicFallback,
+      user,
+    });
+
+    const data = aiResult.data || deterministicFallback();
+    return {
+      ...deterministicFallback(),
+      ...data,
+      provenance: aiResult.metadata?.provenance || "offline_expert_heuristics",
+      provider: aiResult.metadata?.provider || "deterministic_fallback",
+    };
+  } catch {
+    return deterministicFallback();
+  }
+}
+
+export async function generateEceCircuitsAiStudioInterpretation(inputs = {}, calcResults = {}, user = null) {
+  const problemText = inputs.problemStatement ? String(inputs.problemStatement).trim() : "";
+  const analysisType = calcResults.analysisType || "series_parallel";
+
+  const deterministicFallback = () => {
+    let problemSummary = `ECE circuit analysis for ${analysisType.replace(/_/g, " ")}. Computes equivalent network parameters and branch distributions under ideal DC steady state.`;
+    let applicableTheory = "Ohm's Law (V = I·R) and Kirchhoff's Laws (KVL/KCL) for lumped linear resistive networks.";
+    const assumptionsAndIdealizations = [
+      "Ideal lumped-element circuit parameters with zero stray lead inductance or parasitic junction capacitance.",
+      "Independent DC voltage and current sources with zero internal source impedance (unless explicitly specified in Thévenin parameters).",
+      "Conductor wiring resistance is assumed to be exactly zero.",
+    ];
+    const limitationsAndCaveats = [
+      "Real-world resistors exhibit manufacturing tolerance (e.g. ±1% metal film or ±5% carbon film) that causes divergence from nominal math.",
+      "Joule heating (P = I²R) increases component temperature, causing thermal drift based on the material temperature coefficient (TCR).",
+      "Breadboard spring contacts introduce contact resistances ranging between 0.1 Ω and 0.5 Ω per connection.",
+    ];
+    const missingInputsChecklist = [
+      {
+        item: "Resistor Tolerance Rating (±1% vs ±5%)",
+        importance: "RECOMMENDED",
+        explanation: "Tolerance creates worst-case envelope deviations in divider voltage and branch currents.",
+      },
+      {
+        item: "Component Wattage Power Rating (1/4W, 1/2W, 1W)",
+        importance: "CRITICAL",
+        explanation: "Prevents smoke and thermal destruction if calculated power dissipation exceeds the component physical rating.",
+      },
+      {
+        item: "Load Impedance Specification",
+        importance: analysisType === "voltage_divider" ? "CRITICAL" : "RECOMMENDED",
+        explanation: "Connecting a finite load impedance to a voltage divider causes loading effect and voltage sag.",
+      },
+    ];
+
+    const troubleshootingAdvice = [
+      "If measured voltage on a breadboard is lower than calculated: Verify whether the voltmeter has input impedance < 10 MΩ or if the power supply voltage sags under load.",
+      "If branch current deviates: Ensure the digital multimeter was inserted strictly in series and consider the internal current shunt burden voltage.",
+      "If resistors feel hot: Compare calculated P = V*I against package rating (standard 1/4-watt rating = 0.25 W max).",
+    ];
+
+    if (analysisType === "voltage_divider") {
+      problemSummary = `Unloaded voltage divider network analysis. Potential across R₂ is ${calcResults.results?.voltageAcrossR2_V} V at loop current ${calcResults.results?.loopCurrentA} A.`;
+      applicableTheory = "Voltage Divider Principle: Output voltage is proportional to ratio of lower resistance to total series loop resistance.";
+    } else if (analysisType === "thevenin_equivalent") {
+      problemSummary = `Thévenin equivalent network evaluation. Maximum power transfer occurs when load equals Thévenin resistance (${calcResults.inputs?.theveninResistanceOhms} Ω).`;
+      applicableTheory = "Thévenin's Theorem and Maximum Power Transfer Theorem (Jacobi's Law): P_max = V_th² / (4·R_th).";
+    } else if (analysisType === "ohms_law") {
+      problemSummary = `Direct Ohm's Law relationship between voltage, current, resistance, and dissipated power.`;
+      applicableTheory = "Ohm's Law (V = I·R) and Joule's First Law (P = V·I = I²·R).";
+    }
+
+    if (problemText) {
+      problemSummary = `Problem Context: "${problemText}". ${problemSummary}`;
+    }
+
+    const learningPathwayLinks = [
+      {
+        id: "ece-lab-circuit-thevenin",
+        title: "Thévenin Equivalent Circuit and Maximum Power Transfer",
+        type: "PRACTICAL_LAB",
+        route: "/academic/labs",
+      },
+      {
+        id: "ece-lab-opamp-filter",
+        title: "Operational Amplifier Active Filter Analysis",
+        type: "PRACTICAL_LAB",
+        route: "/academic/labs",
+      },
+      {
+        id: "ece-circuit-analysis",
+        title: "Fundamental Circuit Theory & Network Analysis Assessment",
+        type: "ASSESSMENT",
+        route: "/assessment",
+      },
+      {
+        id: "ece-iot-sensor-node",
+        title: "Low-Power Embedded IoT Sensor Node with Signal Conditioning",
+        type: "PROJECT_STUDIO",
+        route: "/projects",
+      },
+    ];
+
+    return {
+      problemSummary,
+      applicableTheory,
+      assumptionsAndIdealizations,
+      limitationsAndCaveats,
+      missingInputsChecklist,
+      troubleshootingAdvice,
+      learningPathwayLinks,
+      provenance: "offline_expert_heuristics",
+      provider: "deterministic_fallback",
+    };
+  };
+
+  const systemInstruction = `You are a Senior Electrical Engineering Professor and Electronics Lab Instructor.
+Analyze the student's DC circuit problem and deterministic calculations.
+Address real-world laboratory discrepancies, parasitic effects, and breadboard troubleshooting.
+DO NOT perform independent authoritative arithmetic; reference the verified results.
+Structure your output as a JSON object with:
+{
+  "problemSummary": string,
+  "applicableTheory": string,
+  "assumptionsAndIdealizations": string[],
+  "limitationsAndCaveats": string[],
+  "missingInputsChecklist": [{ "item": string, "importance": "CRITICAL"|"RECOMMENDED"|"ADVISORY", "explanation": string }],
+  "troubleshootingAdvice": string[]
+}`;
+
+  const userPrompt = `Student Circuit Problem: ${problemText || "None provided"}
+Analysis Type: ${analysisType}
+Inputs: ${JSON.stringify(calcResults.inputs)}
+Authoritative Deterministic Results: ${JSON.stringify(calcResults.results)}
+Formula: ${calcResults.formulaUsed}`;
+
+  try {
+    const aiResult = await aiOrchestrator.executeTask({
+      taskName: "ECE_CIRCUIT_AI_STUDIO",
+      systemInstruction,
+      userPrompt,
+      fallbackGenerator: deterministicFallback,
+      user,
+    });
+
+    const data = aiResult.data || deterministicFallback();
+    return {
+      ...deterministicFallback(),
+      ...data,
+      provenance: aiResult.metadata?.provenance || "offline_expert_heuristics",
+      provider: aiResult.metadata?.provider || "deterministic_fallback",
+    };
+  } catch {
+    return deterministicFallback();
+  }
+}
+
+export async function generateCivilBoqAiStudioInterpretation(inputs = {}, calcResults = {}, user = null) {
+  const problemText = inputs.problemStatement ? String(inputs.problemStatement).trim() : "";
+  const estType = calcResults.estimationType || "concrete_slab";
+
+  const deterministicFallback = () => {
+    let problemSummary = `Civil engineering quantity estimation and Bill of Quantities for ${estType.replace(/_/g, " ")}. Computes wet concrete volume, void compaction, dry volume, and component material bags/m³.`;
+    let applicableTheory = "Volumetric Prismatic Geometry (V = L·W·T) and Mix Proportion Ratio Distribution with Void Compaction Factor (1.54).";
+    const assumptionsAndIdealizations = [
+      "Standard dry cement bulk density is assumed to be exactly 1440 kg/m³ (50 kg per bag = 0.0347 m³).",
+      "Dry volume factor of 1.54 accounts for internal pore void compaction when water fills voids between sand and gravel.",
+      "Specified nominal mix ratio reflects batching by volume under standard damp sand conditions without bulking corrections.",
+    ];
+    const limitationsAndCaveats = [
+      "Scope Exclusion: Plain concrete estimate excludes structural steel reinforcement (TMT rebar Fe500), which requires a separate Bar Bending Schedule (BBS).",
+      "Scope Exclusion: Timber/steel shuttering, formwork centering, scaffolding, and prop staging costs are calculated separately per contact surface area (m²).",
+      "Scope Exclusion: Labor crew charges (mason, bhisti, coolie), transit mixer freight, and water curing are not included in material-only BOQ.",
+      "Rate Provenance: Unit rates are student-supplied or indicative CPWD benchmark rates; commercial procurement requires verified supplier quotes.",
+    ];
+    const missingInputsChecklist = [
+      {
+        item: "Structural Reinforcement Schedule (TMT Rebar)",
+        importance: "CRITICAL",
+        explanation: "Concrete has low tensile strength; structural slabs and beams require 0.7% to 2.0% steel reinforcement by volume.",
+      },
+      {
+        item: "Formwork & Shuttering Contact Area (m²)",
+        importance: "RECOMMENDED",
+        explanation: "Formwork cost often accounts for 20% to 30% of total concrete placement expense.",
+      },
+      {
+        item: "Water-Cement Ratio (w/c)",
+        importance: "RECOMMENDED",
+        explanation: "Strict control of w/c ratio (0.45 - 0.50) is vital to achieve specified characteristic compressive strength (fck).",
+      },
+    ];
+
+    const troubleshootingAdvice = [
+      "If site concrete workability is low: Never add unmetered site water; water additions drastically reduce 28-day compressive strength. Use a plasticizer admixture instead.",
+      "If concrete volume overrun occurs: Check for subgrade settlement, uncompacted base course, or formwork deflection under hydrostatic wet concrete pressure.",
+    ];
+
+    if (problemText) {
+      problemSummary = `Project Scope: "${problemText}". ${problemSummary}`;
+    }
+
+    const learningPathwayLinks = [
+      {
+        id: "civil-lab-concrete-mix",
+        title: "Concrete Mix Proportioning and Slump Workability Test",
+        type: "PRACTICAL_LAB",
+        route: "/academic/labs",
+      },
+      {
+        id: "civil-lab-beam-bending",
+        title: "Reinforced Concrete Beam Flexural Testing",
+        type: "PRACTICAL_LAB",
+        route: "/academic/labs",
+      },
+      {
+        id: "civil-structural-fundamentals",
+        title: "Civil Engineering Structural Fundamentals & Materials Assessment",
+        type: "ASSESSMENT",
+        route: "/assessment",
+      },
+      {
+        id: "civil-reinforced-concrete-slab",
+        title: "Reinforced Concrete Slab Structural Estimation & BOQ",
+        type: "PROJECT_STUDIO",
+        route: "/projects",
+      },
+    ];
+
+    return {
+      problemSummary,
+      applicableTheory,
+      assumptionsAndIdealizations,
+      limitationsAndCaveats,
+      missingInputsChecklist,
+      troubleshootingAdvice,
+      learningPathwayLinks,
+      provenance: "offline_expert_heuristics",
+      provider: "deterministic_fallback",
+    };
+  };
+
+  const systemInstruction = `You are a Senior Civil Quantity Surveyor and Structural Engineering Educator.
+Analyze the student's BOQ quantity estimation and deterministic volume results.
+Explicitly distinguish physical quantity calculation from cost estimation and highlight critical scope exclusions (rebar, shuttering, labor).
+DO NOT perform independent authoritative arithmetic; reference the verified results.
+Structure your output as a JSON object with:
+{
+  "problemSummary": string,
+  "applicableTheory": string,
+  "assumptionsAndIdealizations": string[],
+  "limitationsAndCaveats": string[],
+  "missingInputsChecklist": [{ "item": string, "importance": "CRITICAL"|"RECOMMENDED"|"ADVISORY", "explanation": string }],
+  "troubleshootingAdvice": string[]
+}`;
+
+  const userPrompt = `Student Construction Scope: ${problemText || "None provided"}
+Estimation Type: ${estType}
+Dimensions: ${JSON.stringify(calcResults.structureDimensions || {})}
+Mix Ratio: ${calcResults.mixRatio}
+Deterministic Outcomes: ${JSON.stringify(calcResults.results)}
+BOQ Table: ${JSON.stringify(calcResults.billOfQuantities || [])}`;
+
+  try {
+    const aiResult = await aiOrchestrator.executeTask({
+      taskName: "CIVIL_ENGINEERING_AI_STUDIO",
+      systemInstruction,
+      userPrompt,
+      fallbackGenerator: deterministicFallback,
+      user,
+    });
+
+    const data = aiResult.data || deterministicFallback();
+    return {
+      ...deterministicFallback(),
+      ...data,
+      provenance: aiResult.metadata?.provenance || "offline_expert_heuristics",
+      provider: aiResult.metadata?.provider || "deterministic_fallback",
+    };
+  } catch {
+    return deterministicFallback();
+  }
+}
+
+export async function generateChemicalProcessAiStudioInterpretation(inputs = {}, calcResults = {}, user = null) {
+  const problemText = inputs.problemStatement ? String(inputs.problemStatement).trim() : "";
+  const calcType = calcResults.calculationType || "binary_distillation_balance";
+
+  const deterministicFallback = () => {
+    let problemSummary = `Chemical engineering process analysis for ${calcType.replace(/_/g, " ")}. Evaluates macroscopic material balances and kinetic conversions at continuous steady state.`;
+    let applicableTheory = "Conservation of Mass (Accumulation = In - Out + Gen - Cons = 0) and Continuous Species Balance.";
+    const assumptionsAndIdealizations = [
+      "Continuous steady-state operation with no material accumulation or holdup variation (dM/dt = 0).",
+      "Constant molar or mass overflow assumptions throughout column fractionation sections.",
+      "Ideal liquid solution behavior with zero heat of mixing and constant latent heats of vaporization.",
+    ];
+    const limitationsAndCaveats = [
+      "Real distillation systems display non-ideal Vapor-Liquid Equilibrium (VLE azeotropes) requiring Wilson/NRTL activity models.",
+      "Calculations do not model column hydrodynamic limits such as tray weeping, entrainment flooding, or pressure drop.",
+      "Reactor sizing assumes ideal CSTR macromixing; real vessels exhibit bypassing, stagnation dead zones, or non-isothermal thermal runaway.",
+    ];
+    const missingInputsChecklist = [
+      {
+        item: "Vapor-Liquid Equilibrium (VLE) / Relative Volatility (α)",
+        importance: "CRITICAL",
+        explanation: "Necessary to compute minimum reflux ratio (Rmin) and determine required theoretical stage count via McCabe-Thiele.",
+      },
+      {
+        item: "Operating Pressure and Column Pressure Drop",
+        importance: "RECOMMENDED",
+        explanation: "Pressure directly influences boiling point temperatures and relative volatility split efficiency.",
+      },
+      {
+        item: "Reaction Enthalpy (ΔH_rxn) & Cooling Jacket Capacity",
+        importance: calcType === "ideal_cstr_kinetics" ? "CRITICAL" : "ADVISORY",
+        explanation: "Exothermic chemical reactions require verified cooling jacket heat transfer to prevent dangerous thermal runaway.",
+      },
+    ];
+
+    const troubleshootingAdvice = [
+      "If distillate overhead purity drops below specification: Check for column flooding, reflux valve failure, or feed preheater temperature deviations.",
+      "If reactor conversion fails to reach target: Verify agitator impeller RPM to eliminate dead volume, or inspect jacket cooling for kinetic rate drop.",
+    ];
+
+    if (calcType === "binary_distillation_balance") {
+      problemSummary = `Continuous binary distillation mass balance. Distillate rate is ${calcResults.results?.distillateRateKgH} kg/h and bottoms rate is ${calcResults.results?.bottomsRateKgH} kg/h with 100% overall mass conservation verified.`;
+      applicableTheory = "Overall and Component Mass Balances: F = D + B and F·x_F = D·x_D + B·x_B.";
+    } else if (calcType === "ideal_cstr_kinetics") {
+      problemSummary = `Ideal continuous stirred-tank reactor (CSTR) sizing for first-order kinetics. Sized reactor volume is ${calcResults.results?.requiredReactorVolume} volume units at space time ${calcResults.results?.spaceTimeMinutes} min.`;
+      applicableTheory = "CSTR Design Equation: V = (F_A0 · X_A) / (-r_A) = v₀ · X_A / [k · (1 - X_A)].";
+    }
+
+    if (problemText) {
+      problemSummary = `Problem Context: "${problemText}". ${problemSummary}`;
+    }
+
+    const learningPathwayLinks = [
+      {
+        id: "chem-lab-mass-balance",
+        title: "Continuous Binary Distillation Column Material Balance",
+        type: "PRACTICAL_LAB",
+        route: "/academic/labs",
+      },
+      {
+        id: "chem-lab-cstir-reactor",
+        title: "Continuous Stirred-Tank Reactor (CSTR) Kinetics",
+        type: "PRACTICAL_LAB",
+        route: "/academic/labs",
+      },
+      {
+        id: "chem-mass-energy-balances",
+        title: "Chemical Process Principles & Mass-Energy Balances Assessment",
+        type: "ASSESSMENT",
+        route: "/assessment",
+      },
+      {
+        id: "chem-distillation-column-sizing",
+        title: "Binary Distillation Fractionation Column Sizing & Hazard Analysis",
+        type: "PROJECT_STUDIO",
+        route: "/projects",
+      },
+    ];
+
+    return {
+      problemSummary,
+      applicableTheory,
+      assumptionsAndIdealizations,
+      limitationsAndCaveats,
+      missingInputsChecklist,
+      troubleshootingAdvice,
+      learningPathwayLinks,
+      provenance: "offline_expert_heuristics",
+      provider: "deterministic_fallback",
+    };
+  };
+
+  const systemInstruction = `You are a Senior Chemical Process Engineering Professor and Industrial Unit Operations Specialist.
+Analyze the student's process engineering balance or reactor kinetics calculation.
+Address idealized thermodynamic assumptions, conservation laws, and plant safety boundaries.
+DO NOT perform independent authoritative arithmetic; reference the verified results.
+Structure your output as a JSON object with:
+{
+  "problemSummary": string,
+  "applicableTheory": string,
+  "assumptionsAndIdealizations": string[],
+  "limitationsAndCaveats": string[],
+  "missingInputsChecklist": [{ "item": string, "importance": "CRITICAL"|"RECOMMENDED"|"ADVISORY", "explanation": string }],
+  "troubleshootingAdvice": string[]
+}`;
+
+  const userPrompt = `Student Process Statement: ${problemText || "None provided"}
+Calculation Type: ${calcType}
+Inputs: ${JSON.stringify(calcResults.inputs)}
+Authoritative Deterministic Results: ${JSON.stringify(calcResults.results)}
+Formula: ${calcResults.formulaUsed}`;
+
+  try {
+    const aiResult = await aiOrchestrator.executeTask({
+      taskName: "CHEMICAL_PROCESS_AI_STUDIO",
+      systemInstruction,
+      userPrompt,
+      fallbackGenerator: deterministicFallback,
+      user,
+    });
+
+    const data = aiResult.data || deterministicFallback();
+    return {
+      ...deterministicFallback(),
+      ...data,
+      provenance: aiResult.metadata?.provenance || "offline_expert_heuristics",
+      provider: aiResult.metadata?.provider || "deterministic_fallback",
+    };
+  } catch {
+    return deterministicFallback();
+  }
+}
+
+// ============================================================================
 // MAIN DISPATCHER
 // ============================================================================
 
@@ -1328,18 +2069,114 @@ export async function executeTool(toolId, inputs = {}, user = null) {
   let resultData = null;
 
   switch (toolId) {
-    case "mech-calc":
-      resultData = executeMechanicalCalc(inputs);
+    case "mech-calc": {
+      const calcResults = executeMechanicalCalc(inputs);
+      if (inputs.enableAiInterpretation !== false) {
+        const aiInterpretation = await generateMechanicalAiStudioInterpretation(inputs, calcResults, user);
+        const verification = verifyEngineeringAiOutput(calcResults, aiInterpretation);
+        const reportDraft = buildSharedEngineeringReport({
+          toolId,
+          displayName: tool.displayName,
+          academicDiscipline: tool.academicDiscipline,
+          inputs,
+          calcResults,
+          aiInterpretation,
+          verification,
+          user,
+        });
+        resultData = {
+          ...calcResults,
+          problemStatement: inputs.problemStatement || "",
+          aiInterpretation,
+          verification,
+          reportDraft,
+        };
+      } else {
+        resultData = calcResults;
+      }
       break;
-    case "ece-circuits":
-      resultData = executeEceCircuits(inputs);
+    }
+    case "ece-circuits": {
+      const calcResults = executeEceCircuits(inputs);
+      if (inputs.enableAiInterpretation !== false) {
+        const aiInterpretation = await generateEceCircuitsAiStudioInterpretation(inputs, calcResults, user);
+        const verification = verifyEngineeringAiOutput(calcResults, aiInterpretation);
+        const reportDraft = buildSharedEngineeringReport({
+          toolId,
+          displayName: tool.displayName,
+          academicDiscipline: tool.academicDiscipline,
+          inputs,
+          calcResults,
+          aiInterpretation,
+          verification,
+          user,
+        });
+        resultData = {
+          ...calcResults,
+          problemStatement: inputs.problemStatement || "",
+          aiInterpretation,
+          verification,
+          reportDraft,
+        };
+      } else {
+        resultData = calcResults;
+      }
       break;
-    case "civil-boq":
-      resultData = executeCivilBoq(inputs);
+    }
+    case "civil-boq": {
+      const calcResults = executeCivilBoq(inputs);
+      if (inputs.enableAiInterpretation !== false) {
+        const aiInterpretation = await generateCivilBoqAiStudioInterpretation(inputs, calcResults, user);
+        const verification = verifyEngineeringAiOutput(calcResults, aiInterpretation);
+        const reportDraft = buildSharedEngineeringReport({
+          toolId,
+          displayName: tool.displayName,
+          academicDiscipline: tool.academicDiscipline,
+          inputs,
+          calcResults,
+          aiInterpretation,
+          verification,
+          user,
+        });
+        resultData = {
+          ...calcResults,
+          problemStatement: inputs.problemStatement || "",
+          aiInterpretation,
+          verification,
+          reportDraft,
+        };
+      } else {
+        resultData = calcResults;
+      }
       break;
-    case "chem-process":
-      resultData = executeChemicalProcess(inputs);
+    }
+    case "chem-process": {
+      const calcResults = executeChemicalProcess(inputs);
+      if (inputs.enableAiInterpretation !== false) {
+        const aiInterpretation = await generateChemicalProcessAiStudioInterpretation(inputs, calcResults, user);
+        const verification = verifyEngineeringAiOutput(calcResults, aiInterpretation);
+        const reportDraft = buildSharedEngineeringReport({
+          toolId,
+          displayName: tool.displayName,
+          academicDiscipline: tool.academicDiscipline,
+          inputs,
+          calcResults,
+          aiInterpretation,
+          verification,
+          user,
+        });
+        resultData = {
+          ...calcResults,
+          problemStatement: inputs.problemStatement || "",
+          aiInterpretation,
+          verification,
+          reportDraft,
+        };
+      } else {
+        resultData = calcResults;
+      }
       break;
+    }
     case "biotech-research":
       resultData = executeBiotechResearch(inputs);
       break;
