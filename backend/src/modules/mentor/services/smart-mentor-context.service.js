@@ -719,6 +719,41 @@ export class SmartMentorContextService {
       `💼 Current Target Role: ${targetRole} • Skill Readiness Score: ${readinessScore}/100.`
     );
 
+    let careerPathwayContext = null;
+    try {
+      const { careerPathwayService } = await import("../../career/services/careerPathway.service.js");
+      const matchedRoles = careerPathwayService.getCareerRoles({
+        branch: normalizedAcademic.branchSlug,
+        search: targetRole,
+      });
+      const candidateRole = matchedRoles[0] || careerPathwayService.getCareerRoles({ branch: normalizedAcademic.branchSlug })[0];
+      if (candidateRole) {
+        const readiness = await careerPathwayService.evaluateRoleReadiness(ownerId, candidateRole.roleId);
+        careerPathwayContext = {
+          roleId: candidateRole.roleId,
+          roleTitle: candidateRole.title,
+          roleFamily: candidateRole.roleFamily,
+          disciplineCategory: candidateRole.disciplineCategory,
+          heuristicReadinessIndex: readiness.heuristicReadinessIndex,
+          readinessBand: readiness.readinessBand,
+          evidenceCoveragePercent: readiness.evidenceCoveragePercent,
+          demonstratedSkillsCount: readiness.counts.demonstrated,
+          unassessedSkillsCount: readiness.counts.unassessed,
+          gapSkillsCount: readiness.counts.gaps,
+          topDemonstratedSkills: readiness.skillsBreakdown.demonstrated.slice(0, 3).map((d) => d.skill),
+          topGaps: readiness.skillsBreakdown.gaps.slice(0, 3).map((g) => g.skill),
+          unassessableCompetencies: readiness.unassessableCompetencies,
+          regulatoryNotes: readiness.regulatoryNotes,
+          disclaimer: readiness.disclaimer,
+        };
+        insights.push(
+          `🎯 Career Pathway: ${candidateRole.title} (${readiness.readinessBand}, ${readiness.heuristicReadinessIndex}% Readiness).`
+        );
+      }
+    } catch {
+      // Graceful non-blocking fallback
+    }
+
     let adaptivePlan = null;
     try {
       if (isDbConnected) {
@@ -764,6 +799,7 @@ export class SmartMentorContextService {
         masteredCount: competencyMatrix?.competencyCounts?.advanced || 0,
         primaryNextStep: unifiedNextActions[0] || null,
       },
+      careerPathway: careerPathwayContext,
       insights: insights.slice(0, 5),
       updatedAt: new Date().toISOString(),
     };

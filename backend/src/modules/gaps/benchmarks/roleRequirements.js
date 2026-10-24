@@ -48,6 +48,16 @@ export const TARGET_ROLES = {
   BIM_SPECIALIST: "BIM Specialist",
   FINANCIAL_ANALYST: "Financial Analyst",
   BUSINESS_INTELLIGENCE_ANALYST: "Business Intelligence Analyst",
+  CHEMICAL_PROCESS_ENGINEER: "Chemical Process Engineer",
+  BIOTECHNOLOGY_RESEARCH_ASSOCIATE: "Biotechnology Research Associate",
+  BIOINFORMATICS_ANALYST: "Bioinformatics Analyst",
+  BUSINESS_ANALYST: "Business Analyst",
+  OPERATIONS_ANALYST: "Operations Analyst",
+  ACCOUNTANT: "Accountant",
+  CONTENT_STRATEGIST: "Content Strategist",
+  CORPORATE_COMMUNICATIONS_SPECIALIST: "Corporate Communications Specialist",
+  CLINICAL_RESEARCH_COORDINATOR: "Clinical Research Coordinator",
+  REGISTERED_NURSE: "Registered Nurse",
 };
 
 export const ROLE_REQUIREMENTS = {
@@ -844,6 +854,167 @@ export const ROLE_REQUIREMENTS = {
       "Case study documentation explaining business KPIs and dashboard user workflow",
     ],
   },
+
+  // 36. Chemical Process Engineer
+  "Chemical Process Engineer": {
+    roleName: "Chemical Process Engineer",
+    category: "Science & Biotechnology",
+    description: "Models industrial distillation trains, catalytic reactors, fluid piping networks, heat exchangers, and P&ID automation architectures.",
+    coreSkills: [
+      { skill: "Mass Balance", importance: "critical", minProficiency: "Proficient", evidenceType: ["lab", "assessment"] },
+      { skill: "Thermodynamics", importance: "critical", minProficiency: "Proficient", evidenceType: ["lab", "assessment"] },
+      { skill: "Chemical Reaction Engineering", importance: "critical", minProficiency: "Proficient", evidenceType: ["lab", "assessment"] },
+      { skill: "Process Safety & Hazard Analysis", importance: "critical", minProficiency: "Proficient", evidenceType: ["assessment", "project"] },
+      { skill: "Heat & Mass Transfer", importance: "high", minProficiency: "Competent", evidenceType: ["lab", "project"] },
+    ],
+    recommendedSkills: [
+      { skill: "Aspen Plus / Simulation", importance: "high", minProficiency: "Competent" },
+      { skill: "P&ID Development", importance: "high", minProficiency: "Competent" },
+    ],
+    prerequisites: ["General Chemistry", "Calculus II", "Fluid Mechanics"],
+    observableEvidence: [
+      "Distillation column mass and energy balance calculations",
+      "CSTR and plug flow reactor kinetics simulations",
+    ],
+  },
+
+  // 37. Biotechnology Research Associate
+  "Biotechnology Research Associate": {
+    roleName: "Biotechnology Research Associate",
+    category: "Science & Biotechnology",
+    description: "Conducts molecular biology assays, PCR primer design, recombinant protein expression, and spectrophotometric analytics.",
+    coreSkills: [
+      { skill: "Molecular Biology", importance: "critical", minProficiency: "Proficient", evidenceType: ["lab", "assessment"] },
+      { skill: "Biochemistry", importance: "critical", minProficiency: "Proficient", evidenceType: ["lab", "assessment"] },
+      { skill: "PCR & Primer Design", importance: "critical", minProficiency: "Proficient", evidenceType: ["lab", "assessment"] },
+      { skill: "Enzyme Kinetics", importance: "high", minProficiency: "Competent", evidenceType: ["lab", "assessment"] },
+      { skill: "Laboratory Quality & Documentation", importance: "critical", minProficiency: "Proficient", evidenceType: ["lab", "project"] },
+    ],
+    recommendedSkills: [
+      { skill: "Bioinformatics", importance: "high", minProficiency: "Competent" },
+      { skill: "Cell Culture Techniques", importance: "medium", minProficiency: "Competent" },
+    ],
+    prerequisites: ["Cell Biology", "General Chemistry", "Biostatistics"],
+    observableEvidence: [
+      "PCR assay primer design document with melting temperature evaluations",
+      "Enzyme kinetics assay analysis with Km and Vmax calculations",
+    ],
+  },
+
+  // 38. Business Analyst
+  "Business Analyst": {
+    roleName: "Business Analyst",
+    category: "Commerce & Business",
+    description: "Translates stakeholder goals into detailed software specifications, user journey maps, process models, and acceptance criteria.",
+    coreSkills: [
+      { skill: "Requirements Gathering", importance: "critical", minProficiency: "Proficient", evidenceType: ["assessment", "project"] },
+      { skill: "Business Process Mapping", importance: "critical", minProficiency: "Proficient", evidenceType: ["assessment", "project"] },
+      { skill: "SQL Basics", importance: "high", minProficiency: "Competent", evidenceType: ["coding", "lab"] },
+      { skill: "User Stories & Acceptance Criteria", importance: "critical", minProficiency: "Proficient", evidenceType: ["project"] },
+      { skill: "Data Visualization", importance: "high", minProficiency: "Competent", evidenceType: ["lab", "project"] },
+    ],
+    recommendedSkills: [
+      { skill: "Agile / Scrum", importance: "high", minProficiency: "Competent" },
+      { skill: "UML / BPMN", importance: "high", minProficiency: "Competent" },
+    ],
+    prerequisites: ["Business Communication", "Logical Modeling"],
+    observableEvidence: [
+      "Product requirement documents (PRD) with BPMN workflow diagrams",
+      "User story mapping workshops and acceptance criteria documentation",
+    ],
+  },
+
+  // 39. Accountant
+  "Accountant": {
+    roleName: "Accountant",
+    category: "Commerce & Business",
+    description: "Maintains general ledgers, performs reconciliations, validates GST/tax compliance, and prepares statutory financial balance sheets.",
+    coreSkills: [
+      { skill: "Double-Entry Bookkeeping", importance: "critical", minProficiency: "Proficient", evidenceType: ["assessment", "lab"] },
+      { skill: "Financial Accounting", importance: "critical", minProficiency: "Proficient", evidenceType: ["assessment", "lab"] },
+      { skill: "Reconciliation & Ledgers", importance: "critical", minProficiency: "Proficient", evidenceType: ["lab", "project"] },
+      { skill: "Ratio Analysis", importance: "high", minProficiency: "Competent", evidenceType: ["lab", "assessment"] },
+      { skill: "Auditing & Internal Controls", importance: "high", minProficiency: "Competent", evidenceType: ["project"] },
+    ],
+    recommendedSkills: [
+      { skill: "Taxation Fundamentals", importance: "high", minProficiency: "Competent" },
+      { skill: "Excel Modeling", importance: "medium", minProficiency: "Competent" },
+    ],
+    prerequisites: ["Double-Entry Principles", "Business Law"],
+    observableEvidence: [
+      "Audit working papers identifying internal control anomalies",
+      "Trial balance reconciliations and financial statements",
+    ],
+  },
+
+  // 40. Content Strategist
+  "Content Strategist": {
+    roleName: "Content Strategist",
+    category: "Arts & Humanities",
+    description: "Authors technical documentation, content architecture guidelines, user onboarding manuals, research briefs, and narrative publications.",
+    coreSkills: [
+      { skill: "Critical Analysis", importance: "critical", minProficiency: "Proficient", evidenceType: ["assessment", "lab"] },
+      { skill: "Technical Writing", importance: "critical", minProficiency: "Proficient", evidenceType: ["project", "portfolio"] },
+      { skill: "Content Strategy & Copywriting", importance: "critical", minProficiency: "Proficient", evidenceType: ["project"] },
+      { skill: "Source Evaluation & Ethics", importance: "high", minProficiency: "Competent", evidenceType: ["lab", "assessment"] },
+      { skill: "Informal Logic & Fallacy Detection", importance: "high", minProficiency: "Competent", evidenceType: ["lab"] },
+    ],
+    recommendedSkills: [
+      { skill: "SEO Basics", importance: "medium", minProficiency: "Competent" },
+      { skill: "Markdown & Docs-as-Code", importance: "medium", minProficiency: "Competent" },
+    ],
+    prerequisites: ["English Composition", "Research Methodology"],
+    observableEvidence: [
+      "Technical documentation portal or comprehensive editorial style guide",
+      "Critical source critique analyzing institutional perspective and bias",
+    ],
+  },
+
+  // 41. Clinical Research Coordinator
+  "Clinical Research Coordinator": {
+    roleName: "Clinical Research Coordinator",
+    category: "Healthcare & Clinical",
+    description: "Coordinates clinical trials, manages institutional review board (IRB) filings, tracks patient consent, and monitors drug accountability records.",
+    coreSkills: [
+      { skill: "Clinical Assessment", importance: "critical", minProficiency: "Proficient", evidenceType: ["assessment", "lab"] },
+      { skill: "Good Clinical Practice (GCP)", importance: "critical", minProficiency: "Proficient", evidenceType: ["assessment", "project"] },
+      { skill: "Pharmacology & Drug Administration", importance: "critical", minProficiency: "Proficient", evidenceType: ["assessment", "lab"] },
+      { skill: "Medical Informatics & EHR", importance: "high", minProficiency: "Competent", evidenceType: ["project"] },
+      { skill: "Clinical Communication (SBAR)", importance: "high", minProficiency: "Competent", evidenceType: ["lab"] },
+    ],
+    recommendedSkills: [
+      { skill: "Patient Safety & Triage", importance: "high", minProficiency: "Competent" },
+      { skill: "Regulatory Documentation", importance: "high", minProficiency: "Competent" },
+    ],
+    prerequisites: ["Human Anatomy & Physiology", "Bioethics", "Clinical Terminology"],
+    observableEvidence: [
+      "Clinical trial case report form (CRF) review and protocol compliance documentation",
+      "SBAR clinical handover communication record with medication dosage audit",
+    ],
+  },
+
+  // 42. Registered Nurse
+  "Registered Nurse": {
+    roleName: "Registered Nurse",
+    category: "Healthcare & Clinical",
+    description: "Evaluates patient health status, administers prescribed pharmacotherapies, maintains aseptic bedside care, monitors vitals, and executes emergency triage.",
+    coreSkills: [
+      { skill: "Clinical Assessment", importance: "critical", minProficiency: "Proficient", evidenceType: ["assessment", "lab"] },
+      { skill: "Pharmacology & Drug Administration", importance: "critical", minProficiency: "Proficient", evidenceType: ["assessment", "lab"] },
+      { skill: "Clinical Communication (SBAR)", importance: "critical", minProficiency: "Proficient", evidenceType: ["lab"] },
+      { skill: "Patient Safety & Triage", importance: "critical", minProficiency: "Proficient", evidenceType: ["assessment", "lab"] },
+      { skill: "Infection Control & Asepsis", importance: "critical", minProficiency: "Proficient", evidenceType: ["assessment"] },
+    ],
+    recommendedSkills: [
+      { skill: "Medical Informatics & EHR", importance: "high", minProficiency: "Competent" },
+      { skill: "Emergency Life Support (BLS)", importance: "high", minProficiency: "Competent" },
+    ],
+    prerequisites: ["Human Anatomy & Physiology", "Pathophysiology", "Microbiology"],
+    observableEvidence: [
+      "Pediatric and adult medication dosage calculation sheet with double-check verification steps",
+      "Structured clinical case study reflection using Gibbs reflective cycle on clinical prioritization",
+    ],
+  },
 };
 
 // Seamless Canonical Aliases for Multi-Branch Roles
@@ -852,4 +1023,14 @@ ROLE_REQUIREMENTS["Mechanical Design Engineer"] = ROLE_REQUIREMENTS["CAD/CAM Eng
 ROLE_REQUIREMENTS["Structural Engineer"] = ROLE_REQUIREMENTS["Structural Design Engineer"];
 ROLE_REQUIREMENTS["BIM Engineer"] = ROLE_REQUIREMENTS["BIM Specialist"];
 ROLE_REQUIREMENTS["Embedded Systems & IoT Engineer"] = ROLE_REQUIREMENTS["Embedded Systems Engineer"];
+ROLE_REQUIREMENTS["Biotechnology Research Associate"] = ROLE_REQUIREMENTS["Biotechnology Research Associate"];
+ROLE_REQUIREMENTS["Bioprocess Associate"] = ROLE_REQUIREMENTS["Biotechnology Research Associate"];
+ROLE_REQUIREMENTS["Clinical Research Coordinator"] = ROLE_REQUIREMENTS["Clinical Research Coordinator"];
+ROLE_REQUIREMENTS["Staff Nurse"] = ROLE_REQUIREMENTS["Registered Nurse"];
+ROLE_REQUIREMENTS["Staff Nurse / Clinical Nurse"] = ROLE_REQUIREMENTS["Registered Nurse"];
+ROLE_REQUIREMENTS["Content Strategist & Technical Writer"] = ROLE_REQUIREMENTS["Content Strategist"];
+ROLE_REQUIREMENTS["Corporate Communications Specialist"] = ROLE_REQUIREMENTS["Content Strategist"];
+ROLE_REQUIREMENTS["Operations Analyst"] = ROLE_REQUIREMENTS["Business Analyst"];
+ROLE_REQUIREMENTS["Associate Product Manager"] = ROLE_REQUIREMENTS["Business Analyst"];
+
 

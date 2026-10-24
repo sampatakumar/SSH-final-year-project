@@ -37,6 +37,13 @@ describe("Phase 8 Navigation & Re-Export Suite", () => {
     expect(labLink?.icon).toBeDefined();
   });
 
+  it("includes /dashboard/career-pathways with Compass icon in dashboardLinks", () => {
+    const careerLink = dashboardLinks.find((l) => l.to === "/dashboard/career-pathways");
+    expect(careerLink).toBeDefined();
+    expect(careerLink?.label).toBe("Career Pathways");
+    expect(careerLink?.icon).toBeDefined();
+  });
+
   it("renders Projects and Portfolios links in DashboardSidebar", () => {
     const mockAuthContext: any = {
       firebaseUser: { email: "student@example.com" },
