@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { normalizeSkill } from "../../../shared/taxonomy/skillTaxonomy.service.js";
 import { AssessmentAttempt } from "../../academic/models/assessmentAttempt.models.js";
+import { PracticalLabAttempt } from "../../academic/models/practicalLabAttempt.models.js";
 import { StudentProject } from "../../academic/models/studentProject.models.js";
 import { CodingSubmission } from "../../coding/models/codingSubmission.models.js";
 import { SpacedRevisionSchedule } from "../models/spacedRevisionSchedule.models.js";
@@ -50,6 +51,7 @@ export class EvidenceNormalizationService {
       spacedRevisions,
       checkpointAttempts,
       historyRecords,
+      practicalLabAttempts,
     ] = await Promise.all([
       this.safeFind(AssessmentAttempt, { owner: ownerId, status: "submitted" }, { submittedAt: -1 }, 50),
       this.safeFind(StudentProject, { owner: ownerId }, { updatedAt: -1 }, 30),
@@ -57,6 +59,7 @@ export class EvidenceNormalizationService {
       this.safeFind(SpacedRevisionSchedule, { owner: ownerId }, { updatedAt: -1 }, 30),
       this.safeFind(EduTubeCheckpointAttempt, { owner: ownerId }, { attemptedAt: -1 }, 30),
       this.safeFind(LearnerSkillAssessmentHistory, { owner: ownerId }, { assessmentDate: -1 }, 50),
+      this.safeFind(PracticalLabAttempt, { owner: ownerId, status: "submitted" }, { submittedAt: -1 }, 50),
     ]);
 
     const timeline = [];
@@ -211,6 +214,38 @@ export class EvidenceNormalizationService {
           evidenceSource: hist.evidenceSource,
         },
       });
+    }
+
+    // 7. Normalize Practical Learning Lab Attempts (Phase 46)
+    for (const labAttempt of practicalLabAttempts) {
+      const percentage = labAttempt.percentage ?? (labAttempt.maxScore ? Math.round((labAttempt.serverScore / labAttempt.maxScore) * 100) : 0);
+      const isPass = labAttempt.isPassing ?? percentage >= 70;
+      const skills = (labAttempt.skillsEvaluated && labAttempt.skillsEvaluated.length > 0)
+        ? labAttempt.skillsEvaluated
+        : [labAttempt.disciplineCategory || "Practical Skills"];
+
+      for (const rawSkill of skills) {
+        const canonical = normalizeSkill(rawSkill) || rawSkill;
+        timeline.push({
+          evidenceId: `ev_lab_${labAttempt._id}_${canonical.toLowerCase().replace(/[^a-z0-9]/g, "_")}`,
+          canonicalSkill: canonical,
+          sourceType: "practical_lab",
+          status: "demonstrated_knowledge", // Server-evaluated practical exercise
+          isPassing: isPass,
+          score: labAttempt.serverScore ?? 0,
+          maxScore: labAttempt.maxScore ?? 100,
+          percentage,
+          timestamp: labAttempt.submittedAt || labAttempt.createdAt || new Date().toISOString(),
+          confidence: 0.90, // Server-evaluated interactive problem solving
+          labId: labAttempt.labId,
+          version: labAttempt.labVersion || 1,
+          metadata: {
+            disciplineCategory: labAttempt.disciplineCategory,
+            masteryLevel: labAttempt.masteryLevel,
+            taskResultsCount: (labAttempt.taskResults || []).length,
+          },
+        });
+      }
     }
 
     // Sort complete timeline descending by timestamp

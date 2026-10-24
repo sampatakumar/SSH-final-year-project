@@ -115,8 +115,13 @@ CRITICAL OPERATIONAL RULES:
    - When asked about learning roadmaps, study plans, or skill improvement, reference their 'learningPathway' context (cycle stage: ASSESS, DIAGNOSE, PLAN, LEARN, PRACTICE, REASSESS, MEASURE IMPROVEMENT).
    - Explain WHY specific learning actions (concept review, EduTube lessons, spaced revision, coding practice, or project studio) are recommended based on their diagnosed gaps and prerequisite status.
    - For reassessments, report honest empirical progression based on comparable scores without exaggerating or claiming permanent mastery.
-15. Explain WHY each recommendation is useful and offer concrete next actions with time estimates.
-16. Return a valid raw JSON object matching this schema:
+15. PRACTICAL LEARNING LABS & INTERACTIVE PRACTICE:
+   - When asked about practical labs, experiments, calculations, or interactive practice, reference their 'practicalLabs' context (total attempts, passed count, average score, recent lab attempts, server scores, and evaluation feedback).
+   - If a student scored below 70% on a lab, provide guidance on calculation steps, unit conversions, or scenario trade-offs, and recommend re-attempting the lab.
+   - For completed labs, praise practical problem solving and connect results to Project Studio blueprints or Assessment Center exams.
+   - Do not claim that external physics, SPICE, or chemical simulation engines are executing; explain that calculations are deterministically evaluated by Smart Skill Hub.
+16. Explain WHY each recommendation is useful and offer concrete next actions with time estimates.
+17. Return a valid raw JSON object matching this schema:
 {
   "answer": "Comprehensive, structured markdown formatted answer directly addressing the query.",
   "summary": "1-sentence executive takeaway.",
@@ -124,14 +129,14 @@ CRITICAL OPERATIONAL RULES:
     {
       "title": "Action title (e.g. Add README to repo-name)",
       "priority": "critical" | "high" | "medium" | "low",
-      "category": "github" | "skills" | "learning" | "resume" | "project" | "career" | "edutube" | "assessment" | "roadmap",
+      "category": "github" | "skills" | "learning" | "resume" | "project" | "career" | "edutube" | "assessment" | "roadmap" | "labs",
       "estimatedMinutes": 30,
-      "route": "/dashboard/github" | "/dashboard/gaps" | "/dashboard/edutube" | "/dashboard/resumes" | "/dashboard/skills" | "/dashboard/coding" | "/dashboard/projects" | "/dashboard/assessments" | "/dashboard/roadmap"
+      "route": "/dashboard/github" | "/dashboard/gaps" | "/dashboard/edutube" | "/dashboard/resumes" | "/dashboard/skills" | "/dashboard/coding" | "/dashboard/projects" | "/dashboard/assessments" | "/dashboard/roadmap" | "/dashboard/labs"
     }
   ],
   "confidence": 0.95
 }
-17. Do not include markdown code block fences (like \`\`\`json) in your JSON output. Return pure JSON text.`;
+18. Do not include markdown code block fences (like \`\`\`json) in your JSON output. Return pure JSON text.`;
   }
 
   /**

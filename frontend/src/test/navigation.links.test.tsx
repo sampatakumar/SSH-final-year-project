@@ -30,6 +30,13 @@ describe("Phase 8 Navigation & Re-Export Suite", () => {
     expect(assessmentLink?.icon).toBeDefined();
   });
 
+  it("includes /dashboard/labs with FlaskConical icon in dashboardLinks", () => {
+    const labLink = dashboardLinks.find((l) => l.to === "/dashboard/labs");
+    expect(labLink).toBeDefined();
+    expect(labLink?.label).toBe("Practical Labs");
+    expect(labLink?.icon).toBeDefined();
+  });
+
   it("renders Projects and Portfolios links in DashboardSidebar", () => {
     const mockAuthContext: any = {
       firebaseUser: { email: "student@example.com" },

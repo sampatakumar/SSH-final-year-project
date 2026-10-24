@@ -16,6 +16,7 @@ import {
 import { ensureAdmin } from "../../../core/middleware/admin.middleware.js";
 import projectStudioRouter from "./projectStudio.routes.js";
 import assessmentCenterRouter from "./assessmentCenter.routes.js";
+import practicalLabRouter from "./practicalLab.routes.js";
 
 const router = Router();
 
@@ -24,6 +25,9 @@ router.use("/projects", projectStudioRouter);
 
 // Assessment Center sub-router
 router.use("/assessments", assessmentCenterRouter);
+
+// Practical Learning Labs sub-router
+router.use("/labs", practicalLabRouter);
 
 // Student / Public read endpoints
 router.get("/options", getAcademicOptionsController);

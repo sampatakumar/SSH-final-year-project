@@ -60,6 +60,11 @@ export class SmartMentorLocalService {
       return "branch_capabilities";
     }
 
+    // Practical Learning Labs & Interactive Practice queries (Phase 46)
+    if (/practical lab|lab experiment|interactive practice|lab attempt|lab score|calculation exercise|scenario exercise|branch lab/i.test(text)) {
+      return "practical_lab_guidance";
+    }
+
     if (/academic branch|my branch|academic background|degree and branch|discipline|specialization|cross-disciplinary|switch.*branch|mechanical student|civil student|ece student|branch guidance/i.test(text)) {
       return "academic_branch_guidance";
     }
@@ -1154,6 +1159,66 @@ ${primaryStep
           estimatedMinutes: primaryStep?.estimatedMinutes || 25,
           route: "/dashboard/roadmap",
         });
+        break;
+      }
+
+      case "practical_lab_guidance": {
+        const labContext = context.practicalLabs || {};
+        const recentAttempts = labContext.recentAttempts || [];
+        const avgScore = labContext.averageScore || 0;
+
+        if (recentAttempts.length > 0) {
+          const latest = recentAttempts[0];
+          const isPass = latest.isPassing || latest.percentage >= 70;
+          const skillsList = latest.skillsEvaluated || [];
+
+          answer = `### Practical Learning Labs: Recent Performance Overview
+You have completed **${labContext.totalAttempts || recentAttempts.length}** practical lab attempt(s) with an average score of **${avgScore}%**.
+
+- **Latest Lab**: \`${latest.labId}\` (${latest.disciplineCategory})
+- **Score**: **${latest.percentage}%** (${latest.serverScore} / ${latest.maxScore} points) — ${isPass ? "✅ **PASSED (≥70%)**" : "⚠️ **REVIEW & RETRY RECOMMENDED (<70%)**"}
+- **Skills Evaluated**: ${skillsList.join(", ") || "Discipline practical skills"}
+- **Feedback**: ${latest.feedbackSummary || "Objective server-side calculation and scenario evaluation."}
+
+### Guidance & Next Steps:
+${!isPass
+  ? `> **Re-attempt Recommended**: Your latest attempt scored ${latest.percentage}%. Re-verify your formula steps, rounding, and engineering assumptions, then re-attempt the lab to earn verified practical evidence.`
+  : `> **Competency Demonstrated**: Excellent work achieving ${latest.percentage}%! You demonstrated verified practical problem-solving competency in ${skillsList.slice(0, 2).join(" & ") || latest.labId}.`
+}
+
+1. **Review Task Explanations**: Inspect step-by-step formula explanations and accepted tolerance ranges in the lab results.
+2. **Apply in Project Studio**: Connect your demonstrated practical calculations into larger design blueprints in Project Studio.
+3. **Explore Additional Labs**: Solve complementary exercises across your discipline in Practical Labs.`;
+
+          summary = `Latest practical lab attempt scored ${latest.percentage}% (${isPass ? "Passed" : "Retry recommended"}).`;
+          actions.push({
+            title: isPass ? "Explore Next Practical Lab" : `Retry ${latest.labId}`,
+            priority: isPass ? "medium" : "high",
+            category: "labs",
+            estimatedMinutes: 20,
+            route: `/dashboard/labs${isPass ? "" : `?labId=${latest.labId}`}`,
+          });
+        } else {
+          answer = `### Welcome to Practical Learning Labs
+Practical Labs provide interactive, discipline-tailored problem solving and calculation exercises designed for your academic branch.
+
+### Features of Practical Labs:
+1. **Multi-Discipline Starter Labs**: Hands-on exercises for CSE, Mechanical, ECE/EEE, Civil, Chemical, Biotech, Business, Finance, Humanities, and Allied Health.
+2. **Server-Side Scoring**: Deterministic numerical tolerance evaluation and structured scenario reasoning with transparent answer feedback.
+3. **Zero Untrusted Code Execution**: Safe, reliable learning activities without client-side score fabrication.
+4. **Adaptive Pathway Integration**: Verified lab completions generate direct skill evidence feeding your personalized learning roadmap.
+
+Visit Practical Labs to start your first branch-specific exercise!`;
+
+          summary = "Practical Labs are available to build verifiable hands-on discipline skills.";
+          actions.push({
+            title: "Launch Practical Labs Catalog",
+            priority: "high",
+            category: "labs",
+            estimatedMinutes: 20,
+            route: "/dashboard/labs",
+          });
+        }
         break;
       }
 

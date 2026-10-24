@@ -27,6 +27,7 @@ const PlaylistsPage = lazy(() => import("./modules/edutube/pages/PlaylistsPage")
 const PlaylistDetailPage = lazy(() => import("./modules/edutube/pages/PlaylistDetailPage"));
 const CodingAssessmentPage = lazy(() => import("./modules/coding/CodingAssessmentPage"));
 const AssessmentCenterPage = lazy(() => import("./pages/AssessmentCenterPage"));
+const PracticalLabsPage = lazy(() => import("./pages/PracticalLabsPage"));
 const GitHubIntelligencePage = lazy(() => import("./modules/github/GitHubIntelligencePage"));
 const Resumes = lazy(() => import("./modules/resume/Resumes"));
 const Projects = lazy(() => import("./modules/resume/Projects"));
@@ -104,6 +105,7 @@ const App = () => (
                       <Route path="edutube/playlists/:playlistId" element={<PlaylistDetailPage />} />
                       <Route path="coding" element={<CodingAssessmentPage />} />
                       <Route path="assessments" element={<AssessmentCenterPage />} />
+                      <Route path="labs" element={<PracticalLabsPage />} />
                       <Route path="github" element={<GitHubIntelligencePage />} />
                       <Route path="resumes" element={<Resumes />} />
                       <Route path="projects" element={<Projects />} />

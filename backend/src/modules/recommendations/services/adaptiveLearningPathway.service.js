@@ -6,6 +6,7 @@ import { LearningActivityRecord } from "../../skills/models/learningActivityReco
 import { SpacedRevisionSchedule } from "../../skills/models/spacedRevisionSchedule.models.js";
 import { ASSESSMENTS_CATALOG } from "../../academic/constants/assessmentCatalog.js";
 import { INITIAL_PROJECT_TEMPLATES } from "../../academic/constants/projectTemplatesCatalog.js";
+import { PRACTICAL_LAB_CATALOG } from "../../academic/constants/practicalLabCatalog.js";
 import { VERIFIED_CODING_TASKS } from "../catalog/taskMappings.js";
 import { AUTHORITATIVE_DOCS } from "../catalog/documentationCatalog.js";
 import { ApiError } from "../../../core/errors/ApiError.js";
@@ -336,6 +337,35 @@ export class AdaptiveLearningPathwayService {
           priority: "medium",
           estimatedMinutes: 30,
           isCompleted: completedActionIds.has(actionIdCoding),
+        });
+      }
+
+      // Check for Branch-Aware Practical Lab (Phase 46)
+      const matchingLab = PRACTICAL_LAB_CATALOG.find((lab) =>
+        lab.status === "published" &&
+        (lab.relevantSkills || []).some((s) => s.toLowerCase() === skill.toLowerCase() || s.toLowerCase().includes(skill.toLowerCase()))
+      );
+
+      if (matchingLab) {
+        const actionIdLab = `act_lab_${matchingLab.labId}`;
+        actions.push({
+          actionId: actionIdLab,
+          skill,
+          actionType: "practical_lab",
+          title: `Practical Lab: ${matchingLab.title}`,
+          whyRecommended: `Interactive discipline-specific practice lab to work through concrete calculations and design problems for ${skill}.`,
+          supportingEvidence: {
+            sourceType: "practical_lab",
+            labId: matchingLab.labId,
+            difficulty: matchingLab.difficulty,
+          },
+          intendedOutcome: `Solve interactive scenario problems and attain verified lab evidence for ${skill}.`,
+          destination: `/dashboard/labs?labId=${matchingLab.labId}`,
+          actionLabel: "Launch Practical Lab",
+          category: "practice",
+          priority: hasDemonstratedWeakness ? "high" : "medium",
+          estimatedMinutes: matchingLab.estimatedMinutes || 20,
+          isCompleted: completedActionIds.has(actionIdLab),
         });
       }
     }

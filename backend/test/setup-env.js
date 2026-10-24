@@ -15,3 +15,4 @@ process.env.SUPABASE_STORAGE_BUCKET = "resumes-test";
 process.env.GROQ_API_KEY = "groq-api-key";
 process.env.GROQ_MODEL = "openai/gpt-oss-120b";
 process.env.LATEX_BIN_DIR = "";
+process.env.CODING_EXECUTION_ENABLED = "false";

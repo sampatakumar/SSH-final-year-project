@@ -20,6 +20,7 @@ import { normalizeAcademicProfile } from "../../academic/services/academicNormal
 import { getBranchCapabilities } from "../../academic/services/branchCapabilityRegistry.service.js";
 import { StudentProject } from "../../academic/models/studentProject.models.js";
 import { AssessmentAttempt } from "../../academic/models/assessmentAttempt.models.js";
+import { PracticalLabAttempt } from "../../academic/models/practicalLabAttempt.models.js";
 
 // 10-minute in-memory context cache
 const CONTEXT_CACHE = new Map();
@@ -96,6 +97,7 @@ export class SmartMentorContextService {
       userBadges,
       studentProjects,
       assessmentAttempts,
+      practicalLabAttempts,
     ] = await Promise.all([
       (isDbConnected || User.findById?.mock) ? User.findById(ownerId).lean().catch(() => null) : Promise.resolve(null),
       (isDbConnected || UserSettings.findOne?.mock) ? UserSettings.findOne({ owner: ownerId }).lean().catch(() => null) : Promise.resolve(null),
@@ -125,6 +127,9 @@ export class SmartMentorContextService {
         : Promise.resolve([]),
       (isDbConnected || AssessmentAttempt.find?.mock)
         ? AssessmentAttempt.find({ owner: ownerId }).sort({ createdAt: -1 }).limit(10).lean().catch(() => [])
+        : Promise.resolve([]),
+      (isDbConnected || PracticalLabAttempt.find?.mock)
+        ? PracticalLabAttempt.find({ owner: ownerId }).sort({ submittedAt: -1 }).limit(10).lean().catch(() => [])
         : Promise.resolve([]),
     ]);
 
@@ -333,6 +338,35 @@ export class SmartMentorContextService {
         submittedAt: a.submittedAt || a.createdAt,
       })),
       retryRecommended: failedAssessments.length > 0 ? failedAssessments[0].assessmentId : null,
+    };
+
+    // 8b. Practical Labs (Phase 46)
+    const submittedLabAttempts = practicalLabAttempts.filter((l) => l.status === "submitted");
+    const passedLabAttempts = submittedLabAttempts.filter((l) => l.isPassing || l.percentage >= 70);
+    const failedLabAttempts = submittedLabAttempts.filter((l) => !l.isPassing && l.percentage < 70);
+
+    const practicalLabs = {
+      totalAttempts: practicalLabAttempts.length,
+      submittedCount: submittedLabAttempts.length,
+      passedCount: passedLabAttempts.length,
+      failedCount: failedLabAttempts.length,
+      averageScore: submittedLabAttempts.length > 0
+        ? Math.round(submittedLabAttempts.reduce((sum, l) => sum + (l.percentage || 0), 0) / submittedLabAttempts.length)
+        : 0,
+      recentAttempts: submittedLabAttempts.slice(0, 3).map((l) => ({
+        attemptId: l._id,
+        labId: l.labId,
+        disciplineCategory: l.disciplineCategory,
+        serverScore: l.serverScore,
+        maxScore: l.maxScore,
+        percentage: l.percentage,
+        isPassing: l.isPassing,
+        skillsEvaluated: l.skillsEvaluated || [],
+        feedbackSummary: l.evaluationFeedback?.summary || "",
+        nextRecommendations: l.nextActionRecommendations || [],
+        submittedAt: l.submittedAt || l.createdAt,
+      })),
+      retryRecommended: failedLabAttempts.length > 0 ? failedLabAttempts[0].labId : null,
     };
 
     // 9. Resume Signals
@@ -585,8 +619,35 @@ export class SmartMentorContextService {
       });
     }
 
+    // Priority 5b: Practical Lab Remediation / Practice (Phase 46)
+    if (failedLabAttempts.length > 0) {
+      const topFailedLab = failedLabAttempts[0];
+      unifiedNextActions.push({
+        id: "action_practical_lab_retry",
+        title: `Remediate Practical Lab: ${topFailedLab.labId}`,
+        type: "practical_lab_retry",
+        targetSkill: (topFailedLab.skillsEvaluated && topFailedLab.skillsEvaluated[0]) || topFailedLab.disciplineCategory,
+        actionUrl: `/dashboard/labs?labId=${topFailedLab.labId}`,
+        estimatedMinutes: 20,
+        priority: "high",
+        reason: `Previous lab attempt scored ${topFailedLab.percentage}%. Re-attempt to demonstrate practical competency.`,
+        evidenceTier: "PRACTICAL_LAB",
+        module: "labs",
+      });
+    }
+
     // 15. Proactive Insights (Grounding across all modules)
     const insights = [];
+
+    if (practicalLabs.passedCount > 0) {
+      insights.push(
+        `🔬 Practical Labs: Completed ${practicalLabs.passedCount} hands-on practical lab(s) (Avg: ${practicalLabs.averageScore}%).`
+      );
+    } else if (practicalLabs.failedCount > 0) {
+      insights.push(
+        `⚠️ Practical Labs: Recent practical lab attempt scored below 70%. Review calculations and try again.`
+      );
+    }
 
     if (assessmentCenter.passedCount > 0) {
       insights.push(
@@ -678,6 +739,7 @@ export class SmartMentorContextService {
       projects: userProjects,
       projectStudio,
       assessmentCenter,
+      practicalLabs,
       resume,
       coding,
       competencyMatrix,
