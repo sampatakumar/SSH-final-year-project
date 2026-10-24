@@ -23,6 +23,7 @@ export const DISCIPLINE_PREREQUISITE_GRAPH = {
   // Civil Engineering
   "Structural Analysis": { prerequisites: ["Engineering Mechanics", "Strength of Materials"], difficulty: "Intermediate" },
   "Reinforced Concrete": { prerequisites: ["Structural Analysis", "Construction Materials"], difficulty: "Advanced" },
+  "Reinforced Concrete Design": { prerequisites: ["Structural Analysis", "Construction Materials"], difficulty: "Advanced" },
   "AutoCAD": { prerequisites: ["Engineering Drawing"], difficulty: "Beginner" },
 
   // Chemical Engineering
@@ -39,6 +40,7 @@ export const DISCIPLINE_PREREQUISITE_GRAPH = {
   "Business Strategy": { prerequisites: ["Microeconomics", "Business Fundamentals"], difficulty: "Intermediate" },
   "Financial Modeling": { prerequisites: ["Corporate Accounting", "Excel Basics"], difficulty: "Intermediate" },
   "Valuation": { prerequisites: ["Financial Modeling", "Corporate Finance"], difficulty: "Advanced" },
+  "DCF Valuation": { prerequisites: ["Financial Modeling", "Corporate Finance"], difficulty: "Advanced" },
   "Accounting": { prerequisites: ["Business Math"], difficulty: "Beginner" },
 
   // Arts & Humanities
@@ -275,6 +277,7 @@ export class SkillGapDiagnosisService {
         latestScore,
         previousScore: evidence?.previousScore ?? null,
         scoreDelta: evidence?.scoreDelta ?? null,
+        gapScore,
         hasEvidence,
         isPassing,
         daysSinceLastEvaluation: daysSinceLast,

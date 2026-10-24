@@ -157,6 +157,7 @@ export const PRACTICAL_LAB_CATALOG = [
     difficulty: "Intermediate",
     estimatedMinutes: 25,
     labType: "numerical_calculation",
+    safetySensitive: true,
     scenario: {
       context: "A cylindrical suspension tie-rod fabricated from cold-drawn AISI 1045 steel is subjected to an axial tensile force P = 45 kN. The rod has an initial diameter d = 20 mm, length L = 800 mm, yield strength Sy = 310 MPa, and Young's modulus E = 200 GPa.",
       assumptions: "Pure uniaxial tension; Saint-Venant's principle applies away from grips; uniform cross-section; linear elastic regime.",
@@ -279,6 +280,7 @@ export const PRACTICAL_LAB_CATALOG = [
     difficulty: "Intermediate",
     estimatedMinutes: 25,
     labType: "numerical_calculation",
+    safetySensitive: true,
     scenario: {
       context: "A DC sensor bridge network has a 24V independent DC voltage source connected across two parallel branches. Branch 1 contains R1 = 6 ohms in series with R2 = 12 ohms. Branch 2 contains R3 = 4 ohms in series with R4 = 8 ohms. The output terminals A and B are tapped between the resistor pairs.",
       assumptions: "Ideal DC voltage source with zero internal resistance; linear temperature-independent resistors.",
@@ -398,6 +400,7 @@ export const PRACTICAL_LAB_CATALOG = [
     difficulty: "Intermediate",
     estimatedMinutes: 25,
     labType: "numerical_calculation",
+    safetySensitive: true,
     scenario: {
       context: "A reinforced concrete floor girder has a clear span L = 6.0 m simply supported at both ends. It carries a uniformly distributed dead load w = 12.0 kN/m along its entire length and a central concentrated mechanical equipment load P = 20.0 kN at midspan.",
       assumptions: "Euler-Bernoulli linear beam theory; statically determinate supports; self-weight included in distributed load w.",
@@ -454,6 +457,7 @@ export const PRACTICAL_LAB_CATALOG = [
     difficulty: "Beginner",
     estimatedMinutes: 20,
     labType: "numerical_calculation",
+    safetySensitive: true,
     scenario: {
       context: "A structural foundation requires M25 grade concrete (characteristic compressive strength fck = 25 MPa). Based on site quality control records, the standard deviation is s = 4.0 MPa. The risk factor tolerance coefficient is k = 1.65 (corresponding to 95% confidence).",
       assumptions: "Normal Gaussian distribution of cube compressive test results.",
@@ -466,7 +470,7 @@ export const PRACTICAL_LAB_CATALOG = [
     tasks: [
       {
         taskId: "civ-cm-1",
-        prompt: "Calculate the target mean compressive strength f'ck (in MPa): f'ck = fck + 1.65 * s.",
+        prompt: "Calculate the target mean compressive strength f'ck (in MPa) using characteristic formula (IS 10262 / IS 456): f'ck = fck + 1.65 * s.",
         type: "numerical",
         acceptedAnswer: 31.6,
         tolerance: 0.02,
@@ -574,6 +578,7 @@ export const PRACTICAL_LAB_CATALOG = [
     difficulty: "Advanced",
     estimatedMinutes: 25,
     labType: "numerical_calculation",
+    safetySensitive: true,
     scenario: {
       context: "A liquid-phase irreversible first-order reaction A -> B takes place in an isothermal CSTR. Reaction rate constant k = 0.15 min^-1. Target fractional conversion XA = 75% (0.75). The plant feed stream operates at a volumetric flow rate v0 = 40 L/min.",
       assumptions: "Ideal continuous stirred tank (perfect micromixing, constant temperature, uniform fluid density).",
@@ -589,7 +594,7 @@ export const PRACTICAL_LAB_CATALOG = [
         prompt: "Calculate the required space time tau (in minutes): tau = XA / (k * (1 - XA)).",
         type: "numerical",
         acceptedAnswer: 20.0,
-        tolerance: 0.02,
+        tolerance: 0.01,
         unit: "minutes",
         roundingDecimals: 1,
         points: 50,
@@ -601,7 +606,7 @@ export const PRACTICAL_LAB_CATALOG = [
         prompt: "Calculate the required reactor liquid volume V (in Liters): V = v0 * tau.",
         type: "numerical",
         acceptedAnswer: 800.0,
-        tolerance: 0.02,
+        tolerance: 0.01,
         unit: "Liters",
         roundingDecimals: 1,
         points: 50,
