@@ -1110,6 +1110,7 @@ export const PRACTICAL_LAB_CATALOG = [
     difficulty: "Beginner",
     estimatedMinutes: 20,
     labType: "scenario_decision",
+    safetySensitive: true,
     scenario: {
       context: "A registered nurse cares for a 67-year-old post-operative patient 18 hours after total hip arthroplasty. The patient suddenly develops acute shortness of breath and pleuritic chest pain. Vital signs: SpO2 = 88% on room air, respiratory rate = 28 breaths/min, heart rate = 114 bpm, blood pressure = 138/84 mmHg.",
       assumptions: "Educational nursing simulation scenario. Real clinical emergencies require immediate bedside intervention and local hospital rapid response protocols.",
@@ -1167,6 +1168,7 @@ export const PRACTICAL_LAB_CATALOG = [
     difficulty: "Intermediate",
     estimatedMinutes: 20,
     labType: "numerical_calculation",
+    safetySensitive: true,
     scenario: {
       context: "A pediatric nurse prepares an oral antibiotic for a 6-year-old child weighing 20.0 kg diagnosed with acute otitis media. The physician orders Amoxicillin 45.0 mg/kg/day divided into 2 equal doses every 12 hours. The pharmacy delivers an oral suspension with concentration 250.0 mg / 5.0 mL.",
       assumptions: "Precise oral dosing syringe used; accurate verified scale weight.",

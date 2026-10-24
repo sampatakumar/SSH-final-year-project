@@ -17,6 +17,31 @@ ASSESSMENTS_CATALOG.forEach((a) => {
   }
 });
 
+/**
+ * Deterministic Heuristic Evidence-Strength Weights (0.0 to 1.0)
+ *
+ * IMPORTANT METHODOLOGICAL DEFINITION:
+ * These values represent deterministic heuristic ranking weights characterizing
+ * the verification rigor and objective evaluation veracity of different evidence sources.
+ * They are NOT statistically calibrated Bayesian or frequentist probabilities.
+ *
+ * Veracity Tiers:
+ * - 0.95: Objective automated grading (Assessment Center, Docker sandbox execution)
+ * - 0.90: Authoritative server-evaluated interactive calculations (Practical Labs, Historical verified records)
+ * - 0.85: Structured rubric-based milestone evaluation (Project Studio Deliverables)
+ * - 0.80: Formative checkpoint quiz evaluations (EduTube Checkpoints)
+ * - 0.75: Spaced retrieval practice recall repetitions (Spaced Revision)
+ */
+export const DETERMINISTIC_EVIDENCE_STRENGTH_WEIGHTS = Object.freeze({
+  ASSESSMENT_CENTER: 0.95,
+  CODING_SANDBOX: 0.95,
+  PRACTICAL_LAB: 0.90,
+  HISTORICAL_ASSESSMENT: 0.90,
+  PROJECT_STUDIO_RUBRIC: 0.85,
+  QUIZ_CHECKPOINT: 0.80,
+  SPACED_REVISION: 0.75,
+});
+
 export class EvidenceNormalizationService {
   /**
    * Safe DB query helper ensuring non-connected Mongoose calls in offline tests do not hang
@@ -63,26 +88,38 @@ export class EvidenceNormalizationService {
     ]);
 
     const timeline = [];
+    const seenEvidenceIds = new Set();
+
+    // Helper to safely append deduplicated evidence items
+    const appendEvidence = (item) => {
+      if (!item || !item.evidenceId || seenEvidenceIds.has(item.evidenceId)) {
+        return;
+      }
+      seenEvidenceIds.add(item.evidenceId);
+      timeline.push(item);
+    };
 
     // 1. Normalize Assessment Center attempts (Phase 44)
     for (const attempt of assessmentAttempts) {
       const percentage = attempt.percentage ?? (attempt.maxScore ? Math.round((attempt.score / attempt.maxScore) * 100) : 0);
       const isPass = attempt.isPassing ?? percentage >= 70;
-      const skills = ASSESSMENT_SKILLS_MAP.get(attempt.assessmentId) || [attempt.assessmentId];
+      const rawSkills = ASSESSMENT_SKILLS_MAP.get(attempt.assessmentId) || [attempt.assessmentId];
+      const uniqueSkills = [...new Set(rawSkills.map((s) => normalizeSkill(s) || s))];
 
-      for (const rawSkill of skills) {
-        const canonical = normalizeSkill(rawSkill) || rawSkill;
-        timeline.push({
+      for (const canonical of uniqueSkills) {
+        appendEvidence({
           evidenceId: `ev_assess_${attempt._id}_${canonical.toLowerCase().replace(/[^a-z0-9]/g, "_")}`,
           canonicalSkill: canonical,
           sourceType: "assessment_attempt",
-          status: isPass ? "demonstrated_knowledge" : "demonstrated_knowledge", // Still demonstrated performance, even if below passing
+          status: "demonstrated_knowledge", // Veracity tier: objectively tested by assessment
           isPassing: isPass,
           score: attempt.score ?? 0,
           maxScore: attempt.maxScore ?? 100,
           percentage,
           timestamp: attempt.submittedAt || attempt.createdAt || new Date().toISOString(),
-          confidence: 0.95, // Objective server-side graded
+          confidence: DETERMINISTIC_EVIDENCE_STRENGTH_WEIGHTS.ASSESSMENT_CENTER,
+          confidenceWeight: DETERMINISTIC_EVIDENCE_STRENGTH_WEIGHTS.ASSESSMENT_CENTER,
+          confidenceType: "deterministic_heuristic_strength",
           version: attempt.version || 1,
           assessmentId: attempt.assessmentId,
           topicPerformance: attempt.topicPerformance || [],
@@ -99,17 +136,19 @@ export class EvidenceNormalizationService {
     for (const sub of codingSubmissions) {
       const percentage = sub.score !== undefined ? Math.round((sub.score / 10) * 100) : sub.status === "passed" ? 100 : 0;
       const canonical = normalizeSkill(sub.skill || sub.taskId) || "Software Development";
-      timeline.push({
+      appendEvidence({
         evidenceId: `ev_code_${sub._id}`,
         canonicalSkill: canonical,
         sourceType: "coding_submission",
-        status: sub.status === "passed" ? "demonstrated_knowledge" : "demonstrated_knowledge",
+        status: "demonstrated_knowledge", // Veracity tier: automated container execution
         isPassing: sub.status === "passed" || percentage >= 70,
         score: sub.score ?? 0,
         maxScore: 10,
         percentage,
         timestamp: sub.submittedAt || sub.createdAt || new Date().toISOString(),
-        confidence: 0.95, // Verified Docker sandbox evaluation
+        confidence: DETERMINISTIC_EVIDENCE_STRENGTH_WEIGHTS.CODING_SANDBOX,
+        confidenceWeight: DETERMINISTIC_EVIDENCE_STRENGTH_WEIGHTS.CODING_SANDBOX,
+        confidenceType: "deterministic_heuristic_strength",
         taskId: sub.taskId,
         metadata: {
           testCasesPassed: sub.testCasesPassed,
@@ -125,10 +164,11 @@ export class EvidenceNormalizationService {
       const percentage = evaluation.overallScore ?? (proj.status === "completed" ? 85 : 50);
       const isPass = percentage >= 70;
 
-      const skills = proj.relevantSkills || [proj.disciplineCategory || "Applied Project"];
-      for (const rawSkill of skills) {
-        const canonical = normalizeSkill(rawSkill) || rawSkill;
-        timeline.push({
+      const rawSkills = proj.relevantSkills || [proj.disciplineCategory || "Applied Project"];
+      const uniqueSkills = [...new Set(rawSkills.map((s) => normalizeSkill(s) || s))];
+
+      for (const canonical of uniqueSkills) {
+        appendEvidence({
           evidenceId: `ev_proj_${proj._id}_${canonical.toLowerCase().replace(/[^a-z0-9]/g, "_")}`,
           canonicalSkill: canonical,
           sourceType: "project_deliverable",
@@ -138,7 +178,9 @@ export class EvidenceNormalizationService {
           maxScore: 100,
           percentage,
           timestamp: proj.evaluatedAt || proj.updatedAt || new Date().toISOString(),
-          confidence: 0.85, // Rubric evaluated
+          confidence: DETERMINISTIC_EVIDENCE_STRENGTH_WEIGHTS.PROJECT_STUDIO_RUBRIC,
+          confidenceWeight: DETERMINISTIC_EVIDENCE_STRENGTH_WEIGHTS.PROJECT_STUDIO_RUBRIC,
+          confidenceType: "deterministic_heuristic_strength",
           templateId: proj.templateId,
           metadata: {
             status: proj.status,
@@ -154,7 +196,7 @@ export class EvidenceNormalizationService {
       if (rev.lastReviewedDate) {
         const percentage = rev.lastScore ?? (rev.status === "completed" ? 80 : 50);
         const canonical = normalizeSkill(rev.canonicalName || rev.skill) || rev.skill;
-        timeline.push({
+        appendEvidence({
           evidenceId: `ev_rev_${rev._id}`,
           canonicalSkill: canonical,
           sourceType: "spaced_revision",
@@ -164,7 +206,9 @@ export class EvidenceNormalizationService {
           maxScore: 100,
           percentage,
           timestamp: rev.lastReviewedDate,
-          confidence: 0.75,
+          confidence: DETERMINISTIC_EVIDENCE_STRENGTH_WEIGHTS.SPACED_REVISION,
+          confidenceWeight: DETERMINISTIC_EVIDENCE_STRENGTH_WEIGHTS.SPACED_REVISION,
+          confidenceType: "deterministic_heuristic_strength",
           metadata: {
             retrievalInterval: rev.currentIntervalDays,
             consecutiveSuccesses: rev.consecutiveSuccesses,
@@ -176,17 +220,19 @@ export class EvidenceNormalizationService {
     // 5. Normalize Checkpoint Quiz Attempts
     for (const cp of checkpointAttempts) {
       const canonical = normalizeSkill(cp.skill || "General Knowledge") || "General Knowledge";
-      timeline.push({
+      appendEvidence({
         evidenceId: `ev_cp_${cp._id}`,
         canonicalSkill: canonical,
         sourceType: "quiz_checkpoint",
-        status: cp.isCorrect ? "demonstrated_knowledge" : "demonstrated_knowledge",
+        status: "demonstrated_knowledge",
         isPassing: Boolean(cp.isCorrect),
         score: cp.isCorrect ? 100 : 0,
         maxScore: 100,
         percentage: cp.isCorrect ? 100 : 0,
         timestamp: cp.attemptedAt || new Date().toISOString(),
-        confidence: 0.80,
+        confidence: DETERMINISTIC_EVIDENCE_STRENGTH_WEIGHTS.QUIZ_CHECKPOINT,
+        confidenceWeight: DETERMINISTIC_EVIDENCE_STRENGTH_WEIGHTS.QUIZ_CHECKPOINT,
+        confidenceType: "deterministic_heuristic_strength",
         metadata: {
           videoId: cp.videoId,
           questionId: cp.questionId,
@@ -197,7 +243,7 @@ export class EvidenceNormalizationService {
     // 6. Normalize Historical Assessment records (LearnerSkillAssessmentHistory)
     for (const hist of historyRecords) {
       const canonical = normalizeSkill(hist.canonicalName || hist.skill) || hist.skill;
-      timeline.push({
+      appendEvidence({
         evidenceId: `ev_hist_${hist._id}`,
         canonicalSkill: canonical,
         sourceType: "skill_history",
@@ -207,7 +253,9 @@ export class EvidenceNormalizationService {
         maxScore: 100,
         percentage: hist.score,
         timestamp: hist.assessmentDate || hist.createdAt || new Date().toISOString(),
-        confidence: 0.90,
+        confidence: DETERMINISTIC_EVIDENCE_STRENGTH_WEIGHTS.HISTORICAL_ASSESSMENT,
+        confidenceWeight: DETERMINISTIC_EVIDENCE_STRENGTH_WEIGHTS.HISTORICAL_ASSESSMENT,
+        confidenceType: "deterministic_heuristic_strength",
         metadata: {
           scoreDelta: hist.scoreDelta,
           previousScore: hist.previousScore,
@@ -220,13 +268,13 @@ export class EvidenceNormalizationService {
     for (const labAttempt of practicalLabAttempts) {
       const percentage = labAttempt.percentage ?? (labAttempt.maxScore ? Math.round((labAttempt.serverScore / labAttempt.maxScore) * 100) : 0);
       const isPass = labAttempt.isPassing ?? percentage >= 70;
-      const skills = (labAttempt.skillsEvaluated && labAttempt.skillsEvaluated.length > 0)
+      const rawSkills = (labAttempt.skillsEvaluated && labAttempt.skillsEvaluated.length > 0)
         ? labAttempt.skillsEvaluated
         : [labAttempt.disciplineCategory || "Practical Skills"];
+      const uniqueSkills = [...new Set(rawSkills.map((s) => normalizeSkill(s) || s))];
 
-      for (const rawSkill of skills) {
-        const canonical = normalizeSkill(rawSkill) || rawSkill;
-        timeline.push({
+      for (const canonical of uniqueSkills) {
+        appendEvidence({
           evidenceId: `ev_lab_${labAttempt._id}_${canonical.toLowerCase().replace(/[^a-z0-9]/g, "_")}`,
           canonicalSkill: canonical,
           sourceType: "practical_lab",
@@ -236,7 +284,9 @@ export class EvidenceNormalizationService {
           maxScore: labAttempt.maxScore ?? 100,
           percentage,
           timestamp: labAttempt.submittedAt || labAttempt.createdAt || new Date().toISOString(),
-          confidence: 0.90, // Server-evaluated interactive problem solving
+          confidence: DETERMINISTIC_EVIDENCE_STRENGTH_WEIGHTS.PRACTICAL_LAB,
+          confidenceWeight: DETERMINISTIC_EVIDENCE_STRENGTH_WEIGHTS.PRACTICAL_LAB,
+          confidenceType: "deterministic_heuristic_strength",
           labId: labAttempt.labId,
           version: labAttempt.labVersion || 1,
           metadata: {

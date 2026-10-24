@@ -160,6 +160,8 @@ export const SKILL_ALIASES = {
   "scada": "SCADA",
 
   // Mechanical & CAD & Robotics
+  "engineering mechanics": "Engineering Mechanics",
+  "strength of materials": "Strength of Materials",
   "solidworks": "SolidWorks",
   "solid works": "SolidWorks",
   "autocad": "AutoCAD",

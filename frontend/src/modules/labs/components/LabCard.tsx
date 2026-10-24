@@ -30,6 +30,11 @@ export const LabCard: React.FC<LabCardProps> = ({ lab, onSelect }) => {
             {lab.disciplineCategory}
           </span>
           <div className="flex items-center gap-2">
+            {lab.safetySensitive && (
+              <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                Safety-Sensitive
+              </span>
+            )}
             <span
               className={`rounded-md border px-2 py-0.5 text-xs font-medium ${getDifficultyBadge(
                 lab.difficulty
