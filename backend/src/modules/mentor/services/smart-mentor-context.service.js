@@ -19,6 +19,7 @@ import { getUserBadges } from "../../skills/services/badgeIssuance.service.js";
 import { normalizeAcademicProfile } from "../../academic/services/academicNormalization.service.js";
 import { getBranchCapabilities } from "../../academic/services/branchCapabilityRegistry.service.js";
 import { StudentProject } from "../../academic/models/studentProject.models.js";
+import { AssessmentAttempt } from "../../academic/models/assessmentAttempt.models.js";
 
 // 10-minute in-memory context cache
 const CONTEXT_CACHE = new Map();
@@ -94,6 +95,7 @@ export class SmartMentorContextService {
       competencyMatrixResult,
       userBadges,
       studentProjects,
+      assessmentAttempts,
     ] = await Promise.all([
       (isDbConnected || User.findById?.mock) ? User.findById(ownerId).lean().catch(() => null) : Promise.resolve(null),
       (isDbConnected || UserSettings.findOne?.mock) ? UserSettings.findOne({ owner: ownerId }).lean().catch(() => null) : Promise.resolve(null),
@@ -120,6 +122,9 @@ export class SmartMentorContextService {
         : Promise.resolve([]),
       (isDbConnected || StudentProject.find?.mock)
         ? StudentProject.find({ owner: ownerId }).sort({ updatedAt: -1 }).limit(10).lean().catch(() => [])
+        : Promise.resolve([]),
+      (isDbConnected || AssessmentAttempt.find?.mock)
+        ? AssessmentAttempt.find({ owner: ownerId }).sort({ createdAt: -1 }).limit(10).lean().catch(() => [])
         : Promise.resolve([]),
     ]);
 
@@ -303,7 +308,34 @@ export class SmartMentorContextService {
       })),
     };
 
-    // 8. Resume Signals
+    // 8. Assessment Center (Phase 44)
+    const submittedAttempts = assessmentAttempts.filter((a) => a.status === "submitted");
+    const passedAssessments = submittedAttempts.filter((a) => a.isPassing || a.percentage >= 70);
+    const failedAssessments = submittedAttempts.filter((a) => !a.isPassing && a.percentage < 70);
+
+    const assessmentCenter = {
+      totalAttempts: assessmentAttempts.length,
+      submittedCount: submittedAttempts.length,
+      passedCount: passedAssessments.length,
+      failedCount: failedAssessments.length,
+      averageScore: submittedAttempts.length > 0
+        ? Math.round(submittedAttempts.reduce((sum, a) => sum + (a.percentage || 0), 0) / submittedAttempts.length)
+        : 0,
+      recentAttempts: submittedAttempts.slice(0, 3).map((a) => ({
+        attemptId: a._id,
+        assessmentId: a.assessmentId,
+        score: a.score,
+        maxScore: a.maxScore,
+        percentage: a.percentage,
+        isPassing: a.isPassing,
+        strengths: a.strengths || [],
+        areasForImprovement: a.areasForImprovement || [],
+        submittedAt: a.submittedAt || a.createdAt,
+      })),
+      retryRecommended: failedAssessments.length > 0 ? failedAssessments[0].assessmentId : null,
+    };
+
+    // 9. Resume Signals
     const latestResume = resumes[0] || null;
     const resume = {
       resumeCount: resumes.length,
@@ -513,7 +545,7 @@ export class SmartMentorContextService {
       });
     }
 
-    // Priority 4: Project Studio Milestone / Revision
+      // Priority 4: Project Studio Milestone / Revision
     if (activeStudentProjects.length > 0) {
       const topActive = activeStudentProjects[0];
       const isChangesRequested = topActive.status === "changes_requested";
@@ -535,8 +567,36 @@ export class SmartMentorContextService {
       });
     }
 
+    // Priority 5: Assessment Center Remediation / Retake (Phase 44)
+    if (failedAssessments.length > 0) {
+      const topFailed = failedAssessments[0];
+      const weakTopic = (topFailed.areasForImprovement && topFailed.areasForImprovement[0]) || "core topics";
+      unifiedNextActions.push({
+        id: "action_assessment_center_retry",
+        title: `Remediate ${weakTopic}: Retry Assessment`,
+        type: "assessment_retry",
+        targetSkill: weakTopic,
+        actionUrl: `/dashboard/assessments`,
+        estimatedMinutes: 20,
+        priority: "high",
+        reason: `Previous attempt scored ${topFailed.percentage}%. Review ${weakTopic} to achieve the 70% passing threshold.`,
+        evidenceTier: "ASSESSMENT_CENTER",
+        module: "assessments",
+      });
+    }
+
     // 15. Proactive Insights (Grounding across all modules)
     const insights = [];
+
+    if (assessmentCenter.passedCount > 0) {
+      insights.push(
+        `📝 Assessment Center: Demonstrated passing proficiency in ${assessmentCenter.passedCount} discipline assessment(s) (Avg: ${assessmentCenter.averageScore}%).`
+      );
+    } else if (assessmentCenter.failedCount > 0) {
+      insights.push(
+        `⚠️ Assessment Center: Recent assessment scored below 70%. Targeted topic remediation is recommended.`
+      );
+    }
 
     if (projectStudio.completedCount > 0) {
       insights.push(
@@ -600,8 +660,10 @@ export class SmartMentorContextService {
 
     let adaptivePlan = null;
     try {
-      const { adaptiveLearningPlanService } = await import("../../recommendations/services/adaptiveLearningPlan.service.js");
-      adaptivePlan = await adaptiveLearningPlanService.generateAdaptivePlan(ownerId, targetRole);
+      if (isDbConnected) {
+        const { adaptiveLearningPlanService } = await import("../../recommendations/services/adaptiveLearningPlan.service.js");
+        adaptivePlan = await adaptiveLearningPlanService.generateAdaptivePlan(ownerId, targetRole);
+      }
     } catch {
       // Non-blocking fallback
     }
@@ -615,6 +677,7 @@ export class SmartMentorContextService {
       learning,
       projects: userProjects,
       projectStudio,
+      assessmentCenter,
       resume,
       coding,
       competencyMatrix,

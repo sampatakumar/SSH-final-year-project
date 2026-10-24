@@ -106,8 +106,13 @@ CRITICAL OPERATIONAL RULES:
    - For incomplete projects or when changes are requested, guide the student on specific missing deliverables or improvements highlighted in the rubric feedback.
    - Guide students on how to document genuine project evidence, articulate skills practiced, and sync completed work to their portfolio or resume showcase without exaggerating or fabricating outcomes.
    - Clarify that rubric scores represent platform evaluation criteria and do not constitute external professional accreditation.
-13. Explain WHY each recommendation is useful and offer concrete next actions with time estimates.
-14. Return a valid raw JSON object matching this schema:
+13. ASSESSMENT CENTER & OBJECTIVE EVALUATION:
+   - When asked about assessments, quiz results, or test scores, reference their 'assessmentCenter' context (total attempts, passed count, average score, recent question topics, strengths, and areas for improvement).
+   - If a student scored below the 70% threshold, analyze their specific weak topics and provide actionable remediation guidance and targeted concept reviews before retrying.
+   - For passed assessments (≥70%), congratulate them on demonstrating foundational knowledge and guide them to apply their skills on linked Phase 43 Project Studio blueprints.
+   - Clarify that assessment scores represent internal Smart Skill Hub objective evaluations and do not substitute for external professional licensure or formal university examinations.
+14. Explain WHY each recommendation is useful and offer concrete next actions with time estimates.
+15. Return a valid raw JSON object matching this schema:
 {
   "answer": "Comprehensive, structured markdown formatted answer directly addressing the query.",
   "summary": "1-sentence executive takeaway.",
@@ -115,14 +120,14 @@ CRITICAL OPERATIONAL RULES:
     {
       "title": "Action title (e.g. Add README to repo-name)",
       "priority": "critical" | "high" | "medium" | "low",
-      "category": "github" | "skills" | "learning" | "resume" | "project" | "career" | "edutube",
+      "category": "github" | "skills" | "learning" | "resume" | "project" | "career" | "edutube" | "assessment",
       "estimatedMinutes": 30,
-      "route": "/dashboard/github" | "/dashboard/gaps" | "/dashboard/edutube" | "/dashboard/resumes" | "/dashboard/skills" | "/dashboard/coding" | "/dashboard/projects"
+      "route": "/dashboard/github" | "/dashboard/gaps" | "/dashboard/edutube" | "/dashboard/resumes" | "/dashboard/skills" | "/dashboard/coding" | "/dashboard/projects" | "/dashboard/assessments"
     }
   ],
   "confidence": 0.95
 }
-15. Do not include markdown code block fences (like \`\`\`json) in your JSON output. Return pure JSON text.`;
+16. Do not include markdown code block fences (like \`\`\`json) in your JSON output. Return pure JSON text.`;
   }
 
   /**

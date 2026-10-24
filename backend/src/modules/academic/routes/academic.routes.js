@@ -15,11 +15,15 @@ import {
 } from "../controllers/academic.controller.js";
 import { ensureAdmin } from "../../../core/middleware/admin.middleware.js";
 import projectStudioRouter from "./projectStudio.routes.js";
+import assessmentCenterRouter from "./assessmentCenter.routes.js";
 
 const router = Router();
 
 // Project Studio sub-router
 router.use("/projects", projectStudioRouter);
+
+// Assessment Center sub-router
+router.use("/assessments", assessmentCenterRouter);
 
 // Student / Public read endpoints
 router.get("/options", getAcademicOptionsController);

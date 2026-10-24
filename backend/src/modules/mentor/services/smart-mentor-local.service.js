@@ -69,6 +69,11 @@ export class SmartMentorLocalService {
       return "project_studio_guidance";
     }
 
+    // Assessment Center & Objective Evaluation queries (Phase 44)
+    if (/assessment center|assessment|assessments|quiz score|test score|assessment result|exam score|objective evaluation|question topic|remediation/i.test(text)) {
+      return "assessment_center_guidance";
+    }
+
     // 3. GitHub and project queries
     if (/github|repo|repositories|commit|push|pull request/i.test(text)) {
       if (/readme/i.test(text)) return "github_readme";
@@ -1040,6 +1045,67 @@ Each project template includes:
             category: "project",
             estimatedMinutes: 15,
             route: "/dashboard/projects",
+          });
+        }
+        break;
+      }
+
+      case "assessment_center_guidance": {
+        const assessmentContext = context.assessmentCenter || {};
+        const recentAttempts = assessmentContext.recentAttempts || [];
+        const avgScore = assessmentContext.averageScore || 0;
+
+        if (recentAttempts.length > 0) {
+          const latest = recentAttempts[0];
+          const isPass = latest.isPassing || latest.percentage >= 70;
+          const weakTopics = latest.areasForImprovement || [];
+          const strengthTopics = latest.strengths || [];
+
+          answer = `### Assessment Center: Recent Performance Overview
+You have completed **${assessmentContext.totalAttempts || recentAttempts.length}** assessment attempt(s) with an average score of **${avgScore}%**.
+
+- **Latest Assessment**: \`${latest.assessmentId}\`
+- **Score**: **${latest.percentage}%** (${latest.score} / ${latest.maxScore} points) — ${isPass ? "✅ **PASSED (≥70%)**" : "⚠️ **CHANGES/RETAKE RECOMMENDED (<70%)**"}
+- **Identified Strengths**: ${strengthTopics.join(", ") || "Solid baseline performance"}
+- **Areas for Improvement**: ${weakTopics.join(", ") || "No major weak areas flagged"}
+
+### Guidance & Next Steps:
+${!isPass
+  ? `> **Remediation Recommended**: Your latest attempt scored ${latest.percentage}%. Focus your revision on **${weakTopics.slice(0, 2).join(" & ") || "core topics"}** before retaking this assessment to meet the 70% threshold.`
+  : `> **Knowledge Demonstrated**: Great job meeting the 70% threshold! You have demonstrated foundational mastery in ${latest.assessmentId}. Consider applying this knowledge on linked Project Studio blueprints.`
+}
+
+1. **Review Detailed Question Feedback**: Inspect question-by-question explanations in the Assessment Center.
+2. **Targeted Remediation**: Deepen conceptual understanding of flagged weak topics using recommended course resources.
+3. **Bridge into Practice**: Once foundational assessments are passed, apply what you learned on guided studio projects.`;
+
+          summary = `Latest assessment scored ${latest.percentage}% (${isPass ? "Passed" : "Retake recommended"}).`;
+          actions.push({
+            title: isPass ? "Explore Next Assessment or Project" : `Retry ${latest.assessmentId}`,
+            priority: isPass ? "medium" : "high",
+            category: "assessment",
+            estimatedMinutes: 20,
+            route: "/dashboard/assessments",
+          });
+        } else {
+          answer = `### Welcome to the Assessment Center
+The Assessment Center provides discipline-specific, objectively graded assessments to evaluate your technical and conceptual knowledge.
+
+### Features of the Assessment Center:
+1. **Discipline-Specific Collections**: Tailored to Mechanical, Electrical, Civil, Chemical, Biotech, Business, Finance, Arts, Healthcare, and Computing.
+2. **Transparent Scoring**: Evaluates Single-Choice, Multiple-Select (with partial credit), Numeric answers (with tolerances and units), and Case Studies.
+3. **Topic-Level Analytics**: Pinpoints specific areas of strength and topics requiring remediation.
+4. **Skill Evidence Integration**: Passing outcomes are recorded into your formal skill assessment history.
+
+Explore available assessments tailored to your degree and target career role (${targetRole}) in the Assessment Center.`;
+
+          summary = "Assessment Center is ready to evaluate your knowledge across disciplines.";
+          actions.push({
+            title: "Discover Assessments in Assessment Center",
+            priority: "high",
+            category: "assessment",
+            estimatedMinutes: 20,
+            route: "/dashboard/assessments",
           });
         }
         break;

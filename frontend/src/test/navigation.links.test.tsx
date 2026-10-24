@@ -23,6 +23,13 @@ describe("Phase 8 Navigation & Re-Export Suite", () => {
     expect(portfolioLink?.label).toBe("Portfolios");
   });
 
+  it("includes /dashboard/assessments with ClipboardCheck icon in dashboardLinks", () => {
+    const assessmentLink = dashboardLinks.find((l) => l.to === "/dashboard/assessments");
+    expect(assessmentLink).toBeDefined();
+    expect(assessmentLink?.label).toBe("Assessment Center");
+    expect(assessmentLink?.icon).toBeDefined();
+  });
+
   it("renders Projects and Portfolios links in DashboardSidebar", () => {
     const mockAuthContext: any = {
       firebaseUser: { email: "student@example.com" },
