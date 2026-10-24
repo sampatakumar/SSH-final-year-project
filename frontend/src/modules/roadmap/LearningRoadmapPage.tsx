@@ -15,24 +15,40 @@ import {
   ArrowRight,
   ShieldCheck,
   CheckSquare,
+  Route,
+  Compass,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SmartSkillApi, RecommendationItem } from "@/lib/api";
+import { AdaptivePathwayResponse } from "./types/adaptivePathway.types";
+import { AdaptivePathwayView } from "./components/AdaptivePathwayView";
 import { toast } from "sonner";
 
 export const LearningRoadmapPage = () => {
+  const [activeTab, setActiveTab] = useState<"pathway" | "milestones">("pathway");
+  const [pathway, setPathway] = useState<AdaptivePathwayResponse | null>(null);
   const [recommendations, setRecommendations] = useState<RecommendationItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedRole, setSelectedRole] = useState("Full Stack Developer");
   const [updatingIds, setUpdatingIds] = useState<Record<string, boolean>>({});
 
-  const fetchRecommendations = async () => {
+  const fetchData = async () => {
     try {
       setIsLoading(true);
-      const recs = await SmartSkillApi.getRecommendations();
-      setRecommendations(recs);
+      const [pathwayData, recs] = await Promise.all([
+        SmartSkillApi.getAdaptiveLearningPathway().catch((e) => {
+          console.warn("Could not load adaptive pathway:", e);
+          return null;
+        }),
+        SmartSkillApi.getRecommendations().catch((e) => {
+          console.warn("Could not load legacy recommendations:", e);
+          return [];
+        }),
+      ]);
+      setPathway(pathwayData);
+      setRecommendations(recs || []);
     } catch (err: any) {
-      console.error("Failed to load recommendations:", err);
+      console.error("Failed to load learning roadmap data:", err);
       toast.error(err.message || "Failed to load learning roadmap");
     } finally {
       setIsLoading(false);
@@ -40,7 +56,7 @@ export const LearningRoadmapPage = () => {
   };
 
   useEffect(() => {
-    fetchRecommendations();
+    fetchData();
   }, []);
 
   const toggleMilestone = async (rec: RecommendationItem) => {
@@ -94,42 +110,90 @@ export const LearningRoadmapPage = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/30 pb-5">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-foreground flex items-center gap-2">
-            <MapPin className="h-5 w-5 text-primary" /> Actionable Learning Roadmap
+            <Compass className="h-6 w-6 text-primary" /> Adaptive Learning Pathway
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Personalized milestones and practical coding practice mapped directly to your detected skill gaps.
+            Evidence-to-mastery engine connecting your diagnostic assessment results to targeted learning, practice, and measurable progression.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          {recommendations.length > 0 && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-background border border-border/40 text-xs shadow-neo-raised-sm">
-              <ShieldCheck className="h-4 w-4 text-primary" />
-              <span className="font-semibold text-foreground">
-                Progress: {completedCount}/{recommendations.length} completed ({progressPct}%)
-              </span>
-            </div>
-          )}
-
           <Button
             variant="outline"
             size="sm"
-            onClick={fetchRecommendations}
+            onClick={fetchData}
             disabled={isLoading}
             className="shadow-neo-raised-sm bg-background border-border/40 gap-2 h-9 text-xs font-semibold"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin text-primary" : ""}`} />
-            Refresh Roadmap
+            Refresh Pathway
           </Button>
         </div>
       </div>
 
-      {/* Recommendations Timeline List */}
+      {/* Tabs navigation */}
+      <div className="flex items-center gap-2 border-b border-border/30 pb-1">
+        <button
+          type="button"
+          onClick={() => setActiveTab("pathway")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-t-xl text-xs font-bold transition-all border-b-2 -mb-[5px] ${
+            activeTab === "pathway"
+              ? "border-primary text-primary bg-primary/5"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Compass className="h-4 w-4" />
+          Adaptive Pathway & Mastery Engine
+          {pathway && (
+            <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-primary/20 text-primary">
+              {pathway.activeActionsCount} active
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("milestones")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-t-xl text-xs font-bold transition-all border-b-2 -mb-[5px] ${
+            activeTab === "milestones"
+              ? "border-primary text-primary bg-primary/5"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Route className="h-4 w-4" />
+          Milestone Checklist
+          {recommendations.length > 0 && (
+            <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-muted text-muted-foreground">
+              {completedCount}/{recommendations.length}
+            </span>
+          )}
+        </button>
+      </div>
+
       {isLoading ? (
         <div className="py-16 text-center text-sm text-muted-foreground space-y-2">
           <RefreshCw className="h-6 w-6 animate-spin mx-auto text-primary" />
-          <p>Generating personalized learning roadmap...</p>
+          <p>Evaluating learning evidence and generating adaptive pathway...</p>
         </div>
+      ) : activeTab === "pathway" ? (
+        pathway ? (
+          <AdaptivePathwayView pathway={pathway} onRefresh={fetchData} />
+        ) : (
+          <div className="py-16 text-center border border-border/40 bg-surface rounded-2xl p-8 space-y-3">
+            <CheckCircle2 className="h-8 w-8 text-primary mx-auto" />
+            <h3 className="text-base font-bold text-foreground">Initial Assessment Required</h3>
+            <p className="text-xs text-muted-foreground max-w-md mx-auto">
+              Take an academic assessment in Assessment Center to establish your baseline evidence and generate a personalized pathway.
+            </p>
+            <div className="pt-2">
+              <Link to="/dashboard/assessments">
+                <Button size="sm" className="gap-2 text-xs font-semibold">
+                  Go to Assessment Center <ArrowRight className="h-3.5 w-3.5" />
+                </Button>
+              </Link>
+            </div>
+          </div>
+        )
       ) : recommendations.length === 0 ? (
         <div className="py-16 text-center border border-border/40 bg-surface rounded-2xl p-8 space-y-3">
           <CheckCircle2 className="h-8 w-8 text-success mx-auto" />
@@ -139,6 +203,7 @@ export const LearningRoadmapPage = () => {
           </p>
         </div>
       ) : (
+        /* Legacy Milestone Timeline */
         <div className="space-y-4">
           {recommendations.map((rec, index) => {
             const recKey = rec.recommendationId || `${rec.skill}-${index}`;

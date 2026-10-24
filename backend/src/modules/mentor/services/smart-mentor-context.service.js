@@ -694,6 +694,14 @@ export class SmartMentorContextService {
             pendingActionsCount: adaptivePlan.pendingActionsCount,
           }
         : null,
+      learningPathway: {
+        cycleStage: (assessmentCenter.totalAttempts === 0 && (userProjects || []).length === 0)
+          ? "ASSESS"
+          : (assessmentCenter.failedCount > 0 ? "LEARN_REMEDIATE" : "PRACTICE_APPLY"),
+        priorityGapsCount: (skillGaps || []).length,
+        masteredCount: competencyMatrix?.competencyCounts?.advanced || 0,
+        primaryNextStep: unifiedNextActions[0] || null,
+      },
       insights: insights.slice(0, 5),
       updatedAt: new Date().toISOString(),
     };

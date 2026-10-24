@@ -848,6 +848,7 @@ export const ROLE_REQUIREMENTS = {
 
 // Seamless Canonical Aliases for Multi-Branch Roles
 ROLE_REQUIREMENTS["CAD Engineer"] = ROLE_REQUIREMENTS["CAD/CAM Engineer"];
+ROLE_REQUIREMENTS["Mechanical Design Engineer"] = ROLE_REQUIREMENTS["CAD/CAM Engineer"];
 ROLE_REQUIREMENTS["Structural Engineer"] = ROLE_REQUIREMENTS["Structural Design Engineer"];
 ROLE_REQUIREMENTS["BIM Engineer"] = ROLE_REQUIREMENTS["BIM Specialist"];
 ROLE_REQUIREMENTS["Embedded Systems & IoT Engineer"] = ROLE_REQUIREMENTS["Embedded Systems Engineer"];

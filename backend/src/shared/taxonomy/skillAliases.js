@@ -30,6 +30,7 @@ export const SKILL_ALIASES = {
   // Frontend
   "html": "HTML5",
   "html5": "HTML5",
+  "html/css": "HTML/CSS",
   "css": "CSS3",
   "css3": "CSS3",
   "react": "React",

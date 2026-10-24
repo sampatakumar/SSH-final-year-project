@@ -1,4 +1,5 @@
 import { generateUserRecommendations, generateRecommendations } from "../services/recommendation.service.js";
+import { adaptiveLearningPathwayService } from "../services/adaptiveLearningPathway.service.js";
 import { normalizeSkill } from "../../../shared/taxonomy/skillTaxonomy.service.js";
 import { RecommendationError } from "../../../core/errors/ApiError.js";
 import { ApiResponse } from "../../../utils/ApiResponse.js";
@@ -236,3 +237,60 @@ export const updateRecommendationStatus = asyncHandler(async (req, res) => {
     )
   );
 });
+
+/**
+ * GET /api/v1/recommendations/pathway
+ * Retrieve normalized evidence, skill-gap diagnosis, and personalized learning action plan.
+ */
+export const getAdaptiveLearningPathwayController = asyncHandler(async (req, res) => {
+  if (!req.user?._id) {
+    throw new RecommendationError(401, "Authentication required to access adaptive learning pathway.");
+  }
+
+  const roleOverride = req.query?.role || null;
+  const pathway = await adaptiveLearningPathwayService.generateLearningPathway(req.user._id, roleOverride);
+
+  return res.status(200).json(
+    new ApiResponse(200, pathway, "Adaptive learning pathway generated successfully")
+  );
+});
+
+/**
+ * GET /api/v1/recommendations/pathway/progression
+ * Retrieve verified assessment-to-assessment mastery progression metrics.
+ */
+export const getPathwayProgressionController = asyncHandler(async (req, res) => {
+  if (!req.user?._id) {
+    throw new RecommendationError(401, "Authentication required to access progression history.");
+  }
+
+  const pathway = await adaptiveLearningPathwayService.generateLearningPathway(req.user._id);
+
+  return res.status(200).json(
+    new ApiResponse(200, pathway.progression, "Learning mastery progression retrieved successfully")
+  );
+});
+
+/**
+ * POST /api/v1/recommendations/pathway/action/:actionId/complete
+ * Record verified completion of a specific pathway learning or practice action.
+ */
+export const completePathwayActionController = asyncHandler(async (req, res) => {
+  if (!req.user?._id) {
+    throw new RecommendationError(401, "Authentication required to record action completion.");
+  }
+
+  const { actionId } = req.params;
+  const { skill, title, activityType } = req.body || {};
+
+  const result = await adaptiveLearningPathwayService.recordActionCompletion(
+    req.user._id,
+    actionId,
+    { skill, title, activityType }
+  );
+
+  return res.status(200).json(
+    new ApiResponse(200, result, "Pathway action marked as completed")
+  );
+});
+

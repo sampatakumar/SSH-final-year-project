@@ -74,6 +74,11 @@ export class SmartMentorLocalService {
       return "assessment_center_guidance";
     }
 
+    // Adaptive Learning Pathway & Mastery Progression queries (Phase 45)
+    if (/learning pathway|adaptive pathway|study plan|how to improve|learning cycle|mastery progression|score delta|learning priority|reassessment progress/i.test(text)) {
+      return "learning_pathway_guidance";
+    }
+
     // 3. GitHub and project queries
     if (/github|repo|repositories|commit|push|pull request/i.test(text)) {
       if (/readme/i.test(text)) return "github_readme";
@@ -1108,6 +1113,47 @@ Explore available assessments tailored to your degree and target career role (${
             route: "/dashboard/assessments",
           });
         }
+        break;
+      }
+
+      case "learning_pathway_guidance": {
+        const pathway = context.learningPathway || {};
+        const cycleStage = pathway.cycleStage || "ASSESS";
+        const primaryStep = pathway.primaryNextStep || null;
+        const totalGaps = pathway.priorityGapsCount || 0;
+        const mastered = pathway.masteredCount || 0;
+
+        answer = `### Adaptive Learning Pathway & Mastery Engine
+Smart Skill Hub guides your learning through the continuous improvement loop:
+$$\\text{ASSESS} \\longrightarrow \\text{DIAGNOSE} \\longrightarrow \\text{PLAN} \\longrightarrow \\text{LEARN} \\longrightarrow \\text{PRACTICE} \\longrightarrow \\text{REASSESS} \\longrightarrow \\text{MEASURE IMPROVEMENT}$$
+
+- **Current Cycle Stage**: \`${cycleStage}\`
+- **Diagnosed Priority Gaps**: **${totalGaps}**
+- **Verified Mastered Skills**: **${mastered}**
+
+${primaryStep
+  ? `### Recommended Immediate Next Action:
+> **${primaryStep.title}**  
+> *Why:* ${primaryStep.whyRecommended}  
+> *Target Outcome:* ${primaryStep.intendedOutcome}  
+> *Estimated Effort:* ~${primaryStep.estimatedMinutes || 25} minutes`
+  : `### Pathway Status:
+> You are on track! All primary diagnostic milestones for **${targetRole}** have verified evidence. Explore advanced Project Studio blueprints or try new discipline assessments to broaden your capabilities.`
+}
+
+### Pathway Principles:
+1. **Evidence-Based Progression**: Gaps are diagnosed from real assessment attempts, not arbitrary guesses.
+2. **Prerequisites First**: Conceptual foundations are addressed before dependent advanced topics.
+3. **Verified Reassessment**: Score improvements are measured empirically when you retake comparable assessments.`;
+
+        summary = `Adaptive learning pathway is in stage ${cycleStage} with ${totalGaps} priority gap(s).`;
+        actions.push({
+          title: primaryStep ? primaryStep.title : "Explore Adaptive Learning Pathway",
+          priority: "high",
+          category: "learning",
+          estimatedMinutes: primaryStep?.estimatedMinutes || 25,
+          route: "/dashboard/roadmap",
+        });
         break;
       }
 

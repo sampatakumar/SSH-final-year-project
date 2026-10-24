@@ -642,6 +642,28 @@ export const SmartSkillApi = {
       `/recommendations/roadmap${role ? `?role=${encodeURIComponent(role)}` : ""}`
     )).data.roadmap,
 
+  getAdaptiveLearningPathway: async (role?: string) =>
+    (await apiRequest<any>(
+      `/recommendations/pathway${role ? `?role=${encodeURIComponent(role)}` : ""}`
+    )).data,
+
+  getPathwayProgression: async () =>
+    (await apiRequest<any>("/recommendations/pathway/progression")).data,
+
+  completePathwayAction: async (
+    actionId: string,
+    metadata?: { skill?: string; title?: string; activityType?: string }
+  ) =>
+    (
+      await apiRequest<any>(
+        `/recommendations/pathway/action/${encodeURIComponent(actionId)}/complete`,
+        {
+          method: "POST",
+          body: metadata || {},
+        }
+      )
+    ).data,
+
   updateRoadmapMilestoneStatus: async (
     recommendationId: string,
     status: "completed" | "pending" | "in_progress",
