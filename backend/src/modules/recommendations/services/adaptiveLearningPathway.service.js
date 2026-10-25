@@ -174,6 +174,7 @@ export const SPECIALIZED_STUDIO_MAPPINGS = [
   },
   {
     toolId: "nursing-dosage",
+    canonicalToolId: "nursing-study",
     title: "Nursing & Allied Health Dosage Studio",
     route: "/dashboard/tools/nursing-study",
     discipline: "health",

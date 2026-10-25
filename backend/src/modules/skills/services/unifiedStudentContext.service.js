@@ -83,12 +83,16 @@ export class UnifiedStudentContextService {
    * 5. How does that action support the student's chosen career pathway?
    *
    * @param {string|mongoose.Types.ObjectId} ownerId - Authenticated student ID
-   * @param {object} [options] - Options { forceRefresh, targetRoleOverride }
+   * @param {object} [options] - Options { forceRefresh, targetRoleOverride, requestingUserId }
    * @returns {Promise<object>} Complete, privacy-scoped, evidence-grounded student context
    */
-  async getUnifiedStudentContext(ownerId, { forceRefresh = false, targetRoleOverride = null } = {}) {
+  async getUnifiedStudentContext(ownerId, { forceRefresh = false, targetRoleOverride = null, requestingUserId = null } = {}) {
     if (!ownerId) {
       throw new ApiError(401, "Authentication required to access student context.");
+    }
+
+    if (requestingUserId && requestingUserId.toString() !== ownerId.toString()) {
+      throw new ApiError(403, "Unauthorized: You cannot access another student's private workspace or intelligence context.");
     }
 
     const ownerIdStr = ownerId.toString();
@@ -377,6 +381,16 @@ export class UnifiedStudentContextService {
 
     this.setCachedContext(ownerId, context);
     return context;
+  }
+
+  /**
+   * Alias for assembling unified context with explicit authorization check
+   * @param {string|mongoose.Types.ObjectId} ownerId
+   * @param {string|mongoose.Types.ObjectId} [requestingUserId]
+   * @param {object} [options]
+   */
+  async assembleUnifiedContext(ownerId, requestingUserId = null, options = {}) {
+    return this.getUnifiedStudentContext(ownerId, { ...options, requestingUserId });
   }
 }
 

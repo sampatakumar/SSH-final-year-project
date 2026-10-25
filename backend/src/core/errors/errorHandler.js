@@ -7,7 +7,11 @@ export const notFoundHandler = (req, _res, next) => {
 
 export const globalErrorHandler = (error, _req, res, _next) => {
   const statusCode = error.statusCode || 500;
-  const message = error.message || "Internal server error";
+  const isApiError = error instanceof ApiError;
+  const message =
+    statusCode === 500 && env.NODE_ENV === "production" && !isApiError
+      ? "Internal server error"
+      : error.message || "Internal server error";
 
   if (env.NODE_ENV !== "production") {
     console.error(error);

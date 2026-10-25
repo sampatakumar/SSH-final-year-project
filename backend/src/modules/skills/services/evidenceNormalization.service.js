@@ -142,6 +142,14 @@ export class EvidenceNormalizationService {
       if (!item || !item.evidenceId || seenEvidenceIds.has(item.evidenceId)) {
         return;
       }
+      // Sanitize score and percentage bounds against NaN, Infinity, negative, and out-of-range values
+      const rawPct = Number(item.percentage);
+      item.percentage = Number.isFinite(rawPct) ? Math.max(0, Math.min(100, Math.round(rawPct))) : 0;
+      const rawScore = Number(item.score);
+      item.score = Number.isFinite(rawScore) ? Math.max(0, rawScore) : 0;
+      const rawMax = Number(item.maxScore);
+      item.maxScore = Number.isFinite(rawMax) && rawMax > 0 ? rawMax : 100;
+
       seenEvidenceIds.add(item.evidenceId);
       if (item.sourceRecordId) {
         seenSourceRecordIds.add(item.sourceRecordId);
@@ -583,6 +591,9 @@ export class EvidenceNormalizationService {
           hasPassed: false,
           hasDemonstratedEvidence: false,
           hasVerifiedDeterministicProof: false,
+          hasConflictingEvidence: false,
+          conflictSummary: null,
+          isStale: false,
         };
       }
 
@@ -598,6 +609,7 @@ export class EvidenceNormalizationService {
         skillData.hasPassed = items.some((i) => i.isPassing);
         skillData.hasDemonstratedEvidence = items.some((i) => i.status === "demonstrated_knowledge");
         skillData.hasVerifiedDeterministicProof = items.some((i) => i.verificationStatus === "VERIFIED_DETERMINISTIC");
+        skillData.isStale = Boolean(items[0].freshness?.isStale);
 
         // Find highest score
         let highest = items[0];
@@ -614,6 +626,22 @@ export class EvidenceNormalizationService {
           skillData.previousEvidence = previousComparable;
           skillData.previousScore = previousComparable.percentage;
           skillData.scoreDelta = items[0].percentage - previousComparable.percentage;
+        }
+
+        // Detect conflicting evidence (passing vs failing attempts, or high divergence >= 35% between tested records)
+        const evaluatedItems = items.filter(
+          (i) => i.status === "demonstrated_knowledge" || i.status === "inferred_proficiency"
+        );
+        if (evaluatedItems.length >= 2) {
+          const hasPass = evaluatedItems.some((i) => i.isPassing);
+          const hasFail = evaluatedItems.some((i) => !i.isPassing);
+          const scores = evaluatedItems.map((i) => i.percentage);
+          const minScore = Math.min(...scores);
+          const maxScore = Math.max(...scores);
+          if ((hasPass && hasFail) || maxScore - minScore >= 35) {
+            skillData.hasConflictingEvidence = true;
+            skillData.conflictSummary = `Conflicting performance detected for ${key} across attempts (${minScore}% vs ${maxScore}%). Formative practice or re-assessment recommended.`;
+          }
         }
 
         // Determine overall status based on highest confidence evidence

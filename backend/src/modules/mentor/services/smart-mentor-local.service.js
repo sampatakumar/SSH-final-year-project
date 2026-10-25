@@ -13,6 +13,15 @@ export class SmartMentorLocalService {
   classifyIntent(message) {
     const text = (message || "").toLowerCase().trim();
 
+    // 0. Adversarial / Prompt Injection & Sensitive Data Exfiltration Guard (Audit E)
+    if (
+      /system prompt|prompt injection|jailbreak|ignore (all )?(previous|system) (instructions|prompts|directives)|reveal.*(student|password|secret|api[_-]?key|admin|private|credential)|bypass.*(authorization|permission|guard|check|safeguard)|grant me.*(mastery|admin|100%|access)|pretend to be an admin/i.test(
+        text
+      )
+    ) {
+      return "adversarial_safety_block";
+    }
+
     // 1. High-priority specific adaptive learning coaching queries (Phase 16)
     if (/failed.*(challenge|task|code|coding|test)|teach.*missing concept/i.test(text)) {
       return "failed_challenge_remediation";
@@ -199,6 +208,23 @@ export class SmartMentorLocalService {
     const references = [];
 
     switch (intent) {
+      case "adversarial_safety_block": {
+        answer = `I am your academic AI mentor dedicated solely to your individual learning progress on Smart Skill Hub.
+
+I cannot access other students' private records, reveal system secrets or credentials, bypass security safeguards, or fabricate achievement metrics. All learning evidence must be authentically demonstrated through proctored assessments, practical labs, or approved project submissions.
+
+How can I help guide your coursework or career pathway today?`;
+        summary = "Security guard active: request outside academic mentor boundaries.";
+        actions.push({
+          title: "Explore Learning Roadmap",
+          priority: "high",
+          category: "roadmap",
+          estimatedMinutes: 5,
+          route: "/dashboard/roadmap",
+        });
+        break;
+      }
+
       case "github_readme": {
         if (github.connectionState === "not_connected") {
           answer = `Your **GitHub account is not connected** yet.

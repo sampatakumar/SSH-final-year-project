@@ -71,13 +71,13 @@ describe("Step 6: Gap Analysis Module Verification Suite", () => {
       expect(result.metSkills.some((s) => s.canonicalName === "Python")).toBe(true);
     });
 
-    it("2c. accurately evaluates catalog role without detailed rubric (e.g. Chemical Process Engineer) with benchmark_pending status", () => {
+    it("2c. accurately evaluates catalog role without detailed rubric (e.g. Laboratory Analyst) with benchmark_pending status", () => {
       const evaluatedSkills = [
-        { canonicalName: "Thermodynamics", score: 80, level: "Proficient" },
+        { canonicalName: "Sample Preparation", score: 80, level: "Proficient" },
       ];
-      const result = analyzeSkillGaps(evaluatedSkills, "Chemical Process Engineer");
+      const result = analyzeSkillGaps(evaluatedSkills, "Laboratory Analyst");
       expect(result).toBeDefined();
-      expect(result.targetRole).toBe("Chemical Process Engineer");
+      expect(result.targetRole).toBe("Laboratory Analyst");
       expect(result.benchmarkPending).toBe(true);
       expect(result.benchmarkStatus).toBe("benchmark_pending");
       expect(result.benchmarkNotice).toContain("Detailed proficiency rubric is currently pending");

@@ -901,6 +901,30 @@ export const ROLE_REQUIREMENTS = {
     ],
   },
 
+  // 37b. Bioinformatics Analyst
+  "Bioinformatics Analyst": {
+    roleName: "Bioinformatics Analyst",
+    category: "Science & Biotechnology",
+    description: "Analyzes genomic sequencing data, biological molecular modeling, and protein structure algorithms using computational pipelines.",
+    coreSkills: [
+      { skill: "Bioinformatics", importance: "critical", minProficiency: "Proficient", evidenceType: ["lab", "project"] },
+      { skill: "Molecular Biology", importance: "high", minProficiency: "Competent", evidenceType: ["assessment", "lab"] },
+      { skill: "Python", importance: "critical", minProficiency: "Proficient", evidenceType: ["coding", "project"] },
+      { skill: "Algorithms", importance: "high", minProficiency: "Competent", evidenceType: ["assessment", "coding"] },
+      { skill: "Genomic Data Analysis", importance: "high", minProficiency: "Competent", evidenceType: ["lab", "project"] },
+    ],
+    recommendedSkills: [
+      { skill: "R Programming", importance: "high", minProficiency: "Competent" },
+      { skill: "Linux CLI", importance: "high", minProficiency: "Competent" },
+      { skill: "BioPython / BLAST", importance: "medium", minProficiency: "Competent" },
+    ],
+    prerequisites: ["Molecular Genetics Fundamentals", "Basic Programming"],
+    observableEvidence: [
+      "Reproducible Python bioinformatics workflow analyzing FASTA/FASTQ sequence alignment",
+      "Variant calling summary report with mutation consequence annotations",
+    ],
+  },
+
   // 38. Business Analyst
   "Business Analyst": {
     roleName: "Business Analyst",
@@ -1029,8 +1053,8 @@ ROLE_REQUIREMENTS["Clinical Research Coordinator"] = ROLE_REQUIREMENTS["Clinical
 ROLE_REQUIREMENTS["Staff Nurse"] = ROLE_REQUIREMENTS["Registered Nurse"];
 ROLE_REQUIREMENTS["Staff Nurse / Clinical Nurse"] = ROLE_REQUIREMENTS["Registered Nurse"];
 ROLE_REQUIREMENTS["Content Strategist & Technical Writer"] = ROLE_REQUIREMENTS["Content Strategist"];
-ROLE_REQUIREMENTS["Corporate Communications Specialist"] = ROLE_REQUIREMENTS["Content Strategist"];
-ROLE_REQUIREMENTS["Operations Analyst"] = ROLE_REQUIREMENTS["Business Analyst"];
+ROLE_REQUIREMENTS["Corporate Communications Specialist"] = { ...ROLE_REQUIREMENTS["Content Strategist"], roleName: "Corporate Communications Specialist" };
+ROLE_REQUIREMENTS["Operations Analyst"] = { ...ROLE_REQUIREMENTS["Business Analyst"], roleName: "Operations Analyst" };
 ROLE_REQUIREMENTS["Associate Product Manager"] = ROLE_REQUIREMENTS["Business Analyst"];
 
 
