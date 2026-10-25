@@ -1,19 +1,30 @@
 import React, { useState } from "react";
 import { toolsApi } from "../services/tools.api";
-import { Dna, ShieldCheck, CheckCircle2, AlertTriangle, Layers, BookOpen } from "lucide-react";
+import { Dna, ShieldCheck, CheckCircle2, AlertTriangle, Sparkles, FileText, GitCompare, HelpCircle } from "lucide-react";
+import { SharedEngineeringReportBuilder } from "./SharedEngineeringReportBuilder";
 
 export const BiotechResearchWorkspace: React.FC = () => {
   const [analysisType, setAnalysisType] = useState<string>("dna_gc_melting");
+  const [problemStatement, setProblemStatement] = useState<string>(
+    "Design forward and reverse primers for PCR amplification of recombinant green fluorescent protein (GFP)."
+  );
+  const [enableAiInterpretation, setEnableAiInterpretation] = useState<boolean>(true);
+
   const [inputs, setInputs] = useState<Record<string, any>>({
     sequenceString: "ATGCGATCGATCGATCGATCG",
     researchQuestion: "Does enzyme overexpression increase secondary metabolite production?",
     independentVariable: "Enzyme Promoter Strength / Induction Level",
     dependentVariable: "Metabolite Concentration (mg/L)",
+    paperText: "Abstract: In this investigation, we studied CRISPR-Cas9 editing efficiency in Pichia pastoris. Methodology: Recombinant yeast strains were transformed via electroporation. Findings: We observed a 78% gene disruption rate with 12% off-target indels. Limitations: High cell lethality occurred during electroporation pulse. Conclusions: Cas9 facilitates rapid metabolic pathway engineering.",
+    paperSourceA: "Paper A: Smith et al. (2024) reported 85% yield enhancement using pAOX1 promoter under methanol induction in fed-batch culture.",
+    paperSourceB: "Paper B: Chen et al. (2025) found only 45% yield with constitutive GAP promoter in continuous chemostat culture.",
   });
 
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any | null>(null);
+  const [activityRecordId, setActivityRecordId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isSaved, setIsSaved] = useState(false);
 
   const handleInputChange = (field: string, val: any) => {
     setInputs((prev) => ({ ...prev, [field]: val }));
@@ -26,13 +37,34 @@ export const BiotechResearchWorkspace: React.FC = () => {
     try {
       const data = await toolsApi.executeTool("biotech-research", {
         analysisType,
+        problemStatement,
+        enableAiInterpretation,
         ...inputs,
       });
       setResult(data.resultData);
+      setActivityRecordId(data.activityRecordId || null);
+      setIsSaved(false);
     } catch (err: any) {
       setError(err.message || "Failed to execute biotechnology analysis.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTogglePortfolio = async () => {
+    if (!activityRecordId) return;
+    try {
+      const res = await toolsApi.togglePortfolioSave(activityRecordId, {
+        headline: result?.reportDraft?.title || "Biotechnology Research Study Artifact",
+        summary:
+          result?.reportDraft?.engineeringDiscussion?.slice(0, 200) ||
+          "Biotechnology sequence analysis and experimental design verification.",
+        tags: ["Biotechnology", "Bioinformatics", analysisType],
+        isSaved: !isSaved,
+      });
+      setIsSaved(res.isSavedToPortfolio);
+    } catch (err) {
+      console.warn("Failed to toggle portfolio save:", err);
     }
   };
 
@@ -41,7 +73,9 @@ export const BiotechResearchWorkspace: React.FC = () => {
       <div className="flex flex-wrap gap-2 p-1.5 rounded-xl bg-muted/40 border border-border/60">
         {[
           { id: "dna_gc_melting", label: "Oligonucleotide GC% & Melting Temp (Tm)" },
-          { id: "research_hypothesis_organizer", label: "Research Hypothesis & Control Organizer" },
+          { id: "hypothesis_experiment_planning", label: "Hypothesis & Experiment Planning" },
+          { id: "paper_analysis", label: "Research Paper Analysis" },
+          { id: "literature_comparison", label: "Literature & Study Comparison" },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -65,33 +99,57 @@ export const BiotechResearchWorkspace: React.FC = () => {
         <div className="lg:col-span-5 rounded-xl border border-border/60 bg-card/60 p-5 backdrop-blur-md space-y-4">
           <div className="flex items-center gap-2 pb-3 border-b border-border/40">
             <Dna className="w-4 h-4 text-emerald-400" />
-            <h3 className="text-sm font-semibold text-foreground">Biotech Inputs</h3>
+            <h3 className="text-sm font-semibold text-foreground">Biotech Inputs & Research Parameters</h3>
           </div>
 
           <form onSubmit={handleRunAnalysis} className="space-y-4">
-            {analysisType === "dna_gc_melting" && (
-              <>
-                <div>
-                  <label className="text-xs font-medium text-foreground block mb-1">
-                    DNA Nucleotide Sequence (A, C, G, T) *
-                  </label>
-                  <textarea
-                    rows={4}
-                    value={inputs.sequenceString}
-                    onChange={(e) => handleInputChange("sequenceString", e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary outline-none font-mono uppercase"
-                    placeholder="e.g. ATGCGATCGATCGATCGATCG"
-                    required
+            {/* Problem Statement & AI Studio Toggle */}
+            <div className="p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                  Investigation Objective / Context
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={enableAiInterpretation}
+                    onChange={(e) => setEnableAiInterpretation(e.target.checked)}
+                    className="rounded border-border text-emerald-500 focus:ring-emerald-500 w-3.5 h-3.5"
                   />
-                  <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
-                    <span>Cleaned sequence length: {inputs.sequenceString.replace(/[^a-zA-Z]/g, "").length} nt</span>
-                    <span>Supports DNA / RNA primers</span>
-                  </div>
+                  <span>AI Studio Reasoning</span>
+                </label>
+              </div>
+              <textarea
+                rows={2}
+                value={problemStatement}
+                onChange={(e) => setProblemStatement(e.target.value)}
+                placeholder="e.g. Design primers for PCR amplification of GFP..."
+                className="w-full px-2.5 py-1.5 rounded-md bg-background border border-border text-xs focus:ring-1 focus:ring-emerald-500 outline-none leading-relaxed"
+              />
+            </div>
+
+            {analysisType === "dna_gc_melting" && (
+              <div>
+                <label className="text-xs font-medium text-foreground block mb-1">
+                  DNA Nucleotide Sequence (A, C, G, T) *
+                </label>
+                <textarea
+                  rows={4}
+                  value={inputs.sequenceString}
+                  onChange={(e) => handleInputChange("sequenceString", e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary outline-none font-mono uppercase"
+                  placeholder="e.g. ATGCGATCGATCGATCGATCG"
+                  required
+                />
+                <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
+                  <span>Cleaned sequence length: {inputs.sequenceString.replace(/[^a-zA-Z]/g, "").length} nt</span>
+                  <span>Supports DNA primers (10-100 nt)</span>
                 </div>
-              </>
+              </div>
             )}
 
-            {analysisType === "research_hypothesis_organizer" && (
+            {(analysisType === "hypothesis_experiment_planning" || analysisType === "research_hypothesis_organizer") && (
               <>
                 <div>
                   <label className="text-xs font-medium text-foreground block mb-1">
@@ -102,7 +160,7 @@ export const BiotechResearchWorkspace: React.FC = () => {
                     value={inputs.researchQuestion}
                     onChange={(e) => handleInputChange("researchQuestion", e.target.value)}
                     className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary outline-none"
-                    placeholder="e.g. Does CRISPR knockout of gene X reduce drug resistance?"
+                    placeholder="e.g. Does enzyme overexpression increase secondary metabolite production?"
                     required
                   />
                 </div>
@@ -116,7 +174,7 @@ export const BiotechResearchWorkspace: React.FC = () => {
                     value={inputs.independentVariable}
                     onChange={(e) => handleInputChange("independentVariable", e.target.value)}
                     className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary outline-none"
-                    placeholder="e.g. Gene X knockout status"
+                    placeholder="e.g. Enzyme Promoter Strength / Induction Level"
                     required
                   />
                 </div>
@@ -130,11 +188,58 @@ export const BiotechResearchWorkspace: React.FC = () => {
                     value={inputs.dependentVariable}
                     onChange={(e) => handleInputChange("dependentVariable", e.target.value)}
                     className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary outline-none"
-                    placeholder="e.g. IC50 drug sensitivity (μM)"
+                    placeholder="e.g. Metabolite Concentration (mg/L)"
                     required
                   />
                 </div>
               </>
+            )}
+
+            {analysisType === "paper_analysis" && (
+              <div>
+                <label className="text-xs font-medium text-foreground block mb-1">
+                  Research Paper Text / Abstract / Methods *
+                </label>
+                <textarea
+                  rows={6}
+                  value={inputs.paperText}
+                  onChange={(e) => handleInputChange("paperText", e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary outline-none"
+                  placeholder="Paste research paper abstract, methodology, and reported findings..."
+                  required
+                />
+              </div>
+            )}
+
+            {analysisType === "literature_comparison" && (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-medium text-foreground block mb-1">
+                    Study A Text / Citation *
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={inputs.paperSourceA}
+                    onChange={(e) => handleInputChange("paperSourceA", e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs font-mono"
+                    placeholder="Study A methodology and outcomes..."
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-foreground block mb-1">
+                    Study B Text / Citation *
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={inputs.paperSourceB}
+                    onChange={(e) => handleInputChange("paperSourceB", e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs font-mono"
+                    placeholder="Study B methodology and outcomes..."
+                    required
+                  />
+                </div>
+              </div>
             )}
 
             {error && (
@@ -157,7 +262,7 @@ export const BiotechResearchWorkspace: React.FC = () => {
               ) : (
                 <>
                   <Dna className="w-4 h-4" />
-                  <span>Execute Biotech Analysis</span>
+                  <span>Analyze Sequence & Hypothesis</span>
                 </>
               )}
             </button>
@@ -173,7 +278,7 @@ export const BiotechResearchWorkspace: React.FC = () => {
                 <p className="font-semibold text-foreground">Awaiting Sequence or Research Inputs</p>
                 <p className="text-[11px] text-muted-foreground/80 mt-1 max-w-sm">
                   Enter an oligonucleotide sequence to calculate melting temperatures and molecular weight,
-                  or structure formal research hypotheses.
+                  structure formal research hypotheses, or analyze peer-reviewed literature.
                 </p>
               </div>
             </div>
@@ -184,7 +289,7 @@ export const BiotechResearchWorkspace: React.FC = () => {
               {result.formulaUsed && (
                 <div className="p-3 rounded-lg bg-muted/40 border border-border/60">
                   <div className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground mb-1">
-                    Biophysical Formula
+                    Biophysical Formula / Protocol Standard
                   </div>
                   <code className="text-xs font-mono text-emerald-400 font-semibold">
                     {result.formulaUsed}
@@ -199,7 +304,7 @@ export const BiotechResearchWorkspace: React.FC = () => {
                     <span>Oligonucleotide Properties</span>
                     <span className="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
                       <CheckCircle2 className="w-3 h-3" />
-                      Sequence Checked
+                      Sequence Checked & Verified
                     </span>
                   </div>
 
@@ -260,7 +365,7 @@ export const BiotechResearchWorkspace: React.FC = () => {
                       Experimental Controls & Replicates
                     </div>
                     <div className="space-y-1.5">
-                      {result.results.recommendedExperimentalControls.map((ctrl: string, idx: number) => (
+                      {result.results.recommendedExperimentalControls?.map((ctrl: string, idx: number) => (
                         <div
                           key={idx}
                           className="p-2.5 rounded-lg border border-border/40 bg-muted/20 text-xs text-foreground/80 flex items-start gap-2"
@@ -271,10 +376,37 @@ export const BiotechResearchWorkspace: React.FC = () => {
                       ))}
                     </div>
                   </div>
+                </div>
+              )}
 
-                  <div className="p-3 rounded-lg bg-background/80 border border-border/50 text-xs text-muted-foreground">
-                    <strong className="text-foreground">Statistical Recommendation:</strong>{" "}
-                    {result.results.statisticalTestingRecommendation}
+              {/* Paper Analysis Results */}
+              {result.results?.researchQuestion && result.results?.methodology && (
+                <div className="space-y-2.5">
+                  <div className="p-3 rounded-lg bg-background/80 border border-border/50">
+                    <div className="text-[10px] uppercase font-semibold text-muted-foreground">Extracted Research Question</div>
+                    <div className="text-xs text-foreground mt-1 font-medium">{result.results.researchQuestion}</div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-background/80 border border-border/50">
+                    <div className="text-[10px] uppercase font-semibold text-muted-foreground">Methodology Overview</div>
+                    <div className="text-xs text-foreground mt-1">{result.results.methodology}</div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                    <div className="text-[10px] uppercase font-semibold text-emerald-400">Reported Findings</div>
+                    <div className="text-xs text-foreground mt-1">{result.results.majorFindings}</div>
+                  </div>
+                </div>
+              )}
+
+              {/* Literature Comparison Results */}
+              {result.results?.agreements && (
+                <div className="space-y-2.5">
+                  <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                    <div className="text-[10px] uppercase font-semibold text-emerald-400">Literature Agreements</div>
+                    <div className="text-xs text-foreground mt-1">{result.results.agreements}</div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                    <div className="text-[10px] uppercase font-semibold text-amber-400">Methodological Differences</div>
+                    <div className="text-xs text-foreground mt-1">{result.results.methodologicalDifferences}</div>
                   </div>
                 </div>
               )}
@@ -285,6 +417,29 @@ export const BiotechResearchWorkspace: React.FC = () => {
                   <span>{result.safetyNotice}</span>
                 </div>
               )}
+
+              {/* Shared Engineering Report Builder */}
+              {result.reportDraft && (
+                <div className="pt-2">
+                  <SharedEngineeringReportBuilder
+                    reportDraft={result.reportDraft}
+                    activityRecordId={activityRecordId}
+                    isSavedToPortfolio={isSaved}
+                    onSaveToPortfolio={handleTogglePortfolio}
+                    onUpdateDraft={(updated) => {
+                      setResult((prev: any) => ({ ...prev, reportDraft: updated }));
+                    }}
+                    sectionTitles={{
+                      objectiveTitle: "Biotechnology Research Objective",
+                      formulasTitle: "Analytical & Biophysical Methods",
+                      resultsTitle: "Laboratory Findings & Sequence Metrics",
+                      discussionTitle: "Biotechnology Discussion & Evidence Appraisal",
+                      missingInputsTitle: "Experimental Controls & Protocol Gaps",
+                      troubleshootingTitle: "Methodological Recommendations",
+                    }}
+                  />
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -292,3 +447,5 @@ export const BiotechResearchWorkspace: React.FC = () => {
     </div>
   );
 };
+
+export default BiotechResearchWorkspace;

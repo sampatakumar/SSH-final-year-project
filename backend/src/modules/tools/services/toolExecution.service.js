@@ -16,6 +16,11 @@
 
 import { CANONICAL_TOOL_REGISTRY, TOOL_REGISTRY_MAP } from "../constants/toolRegistry.js";
 import { AIOrchestratorService } from "../../../core/ai/aiOrchestrator.service.js";
+import { executeBiotechStudio } from "./biotechStudio.service.js";
+import { executeBusinessStudio } from "./businessStudio.service.js";
+import { executeFinanceStudio } from "./financeStudio.service.js";
+import { executeArtsWritingStudio } from "./artsWritingStudio.service.js";
+import { executeHealthcareStudio } from "./healthcareStudio.service.js";
 
 const aiOrchestrator = new AIOrchestratorService();
 
@@ -2178,19 +2183,19 @@ export async function executeTool(toolId, inputs = {}, user = null) {
       break;
     }
     case "biotech-research":
-      resultData = executeBiotechResearch(inputs);
+      resultData = await executeBiotechStudio(inputs, user);
       break;
     case "business-kpi":
-      resultData = executeBusinessKpi(inputs);
+      resultData = await executeBusinessStudio(inputs, user);
       break;
     case "finance-accounting":
-      resultData = executeFinanceAccounting(inputs);
+      resultData = await executeFinanceStudio(inputs, user);
       break;
     case "arts-writing":
-      resultData = executeArtsWriting(inputs);
+      resultData = await executeArtsWritingStudio(inputs, user);
       break;
     case "nursing-study":
-      resultData = executeNursingStudy(inputs);
+      resultData = await executeHealthcareStudio(inputs, user);
       break;
     case "report-reviewer":
       resultData = await executeSharedReportReview(inputs, user);

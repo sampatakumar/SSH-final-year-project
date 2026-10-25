@@ -25,6 +25,14 @@ interface SharedEngineeringReportBuilderProps {
   onUpdateDraft?: (updated: EngineeringReportDraft) => void;
   onSaveToPortfolio?: () => void;
   isSavedToPortfolio?: boolean;
+  sectionTitles?: {
+    objectiveTitle?: string;
+    formulasTitle?: string;
+    resultsTitle?: string;
+    discussionTitle?: string;
+    missingInputsTitle?: string;
+    troubleshootingTitle?: string;
+  };
 }
 
 export const SharedEngineeringReportBuilder: React.FC<SharedEngineeringReportBuilderProps> = ({
@@ -33,11 +41,20 @@ export const SharedEngineeringReportBuilder: React.FC<SharedEngineeringReportBui
   onUpdateDraft,
   onSaveToPortfolio,
   isSavedToPortfolio = false,
+  sectionTitles,
 }) => {
   const [activeTab, setActiveTab] = useState<"view" | "edit">("view");
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Discipline-configurable section titles with backwards-compatible defaults
+  const objHeading = sectionTitles?.objectiveTitle || "1. Study Objective & Problem Statement";
+  const formulasHeading = sectionTitles?.formulasTitle || "2. Governing Equations";
+  const resultsHeading = sectionTitles?.resultsTitle || "3. Verified Calculation Results";
+  const discussionHeading = sectionTitles?.discussionTitle || "5. Engineering Interpretation & Discussion";
+  const missingInputsHeading = sectionTitles?.missingInputsTitle || "Missing Inputs & Sensitivity Checklist";
+  const troubleshootingHeading = sectionTitles?.troubleshootingTitle || "Discrepancy Troubleshooting & Physical Deviations";
 
   // Editable form state
   const [editableTitle, setEditableTitle] = useState(reportDraft.title || "");
@@ -263,7 +280,7 @@ export const SharedEngineeringReportBuilder: React.FC<SharedEngineeringReportBui
             {/* Objective & Problem Statement */}
             <div className="space-y-2">
               <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                1. Study Objective & Problem Statement
+                {objHeading}
               </h4>
               <div className="p-3.5 rounded-lg border border-border/60 bg-muted/20 text-xs text-foreground leading-relaxed">
                 {editableObjective}
@@ -273,7 +290,7 @@ export const SharedEngineeringReportBuilder: React.FC<SharedEngineeringReportBui
             {/* Governing Formula */}
             <div className="space-y-2">
               <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                2. Governing Equations
+                {formulasHeading}
               </h4>
               <div className="p-3 rounded-lg border border-border/60 bg-muted/40 font-mono text-xs text-primary font-medium">
                 {reportDraft.governingEquations}
@@ -284,11 +301,11 @@ export const SharedEngineeringReportBuilder: React.FC<SharedEngineeringReportBui
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  3. Verified Calculation Results
+                  {resultsHeading}
                 </h4>
                 <span className="text-[11px] text-emerald-400 font-medium flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3" />
-                  Exact Algebraic Precision
+                  Exact Precision
                 </span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
@@ -315,10 +332,10 @@ export const SharedEngineeringReportBuilder: React.FC<SharedEngineeringReportBui
               </div>
             )}
 
-            {/* Engineering Discussion & AI Interpretation */}
+            {/* Discussion & AI Interpretation */}
             <div className="space-y-2">
               <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                5. Engineering Interpretation & Discussion
+                {discussionHeading}
               </h4>
               <div className="p-4 rounded-lg border border-border/60 bg-card/50 text-xs text-foreground/95 leading-relaxed space-y-2">
                 <p>{editableDiscussion}</p>
@@ -369,7 +386,7 @@ export const SharedEngineeringReportBuilder: React.FC<SharedEngineeringReportBui
               <div className="space-y-2">
                 <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                   <HelpCircle className="w-3.5 h-3.5 text-primary" />
-                  On-Site / Detailed Design Verification Checklist
+                  {missingInputsHeading}
                 </h4>
                 <div className="space-y-1.5">
                   {reportDraft.missingInputsChecklist.map((item, idx) => (
@@ -402,7 +419,7 @@ export const SharedEngineeringReportBuilder: React.FC<SharedEngineeringReportBui
             {reportDraft.troubleshootingAdvice && reportDraft.troubleshootingAdvice.length > 0 && (
               <div className="space-y-2">
                 <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Laboratory Troubleshooting & Real vs Ideal Discrepancies
+                  {troubleshootingHeading}
                 </h4>
                 <div className="p-3.5 rounded-lg border border-border/50 bg-muted/15 space-y-1.5 text-xs text-foreground/85">
                   {reportDraft.troubleshootingAdvice.map((adv, idx) => (
