@@ -303,30 +303,46 @@ export class AdaptiveLearningPathwayService {
       const skill = gap.skill;
       const evidence = evidenceMap[skill];
       const hasDemonstratedWeakness = gap.currentStatus === "needs_remediation";
+      const isInvalidEvidence = gap.currentStatus === "invalid_evidence";
       const isPrereqMissing = gap.currentStatus === "prerequisite_missing" || (gap.missingPrerequisites && gap.missingPrerequisites.length > 0);
       const prereqNotice = isPrereqMissing
         ? `Foundational prerequisite concepts (${(gap.missingPrerequisites || []).join(", ") || "fundamental topics"}) required before advanced testing.`
         : null;
 
-      // 1. Remediation Review Action (if failed/low-scoring Phase 44 assessment or missing prerequisite)
-      if (hasDemonstratedWeakness || isPrereqMissing) {
+      // 1. Remediation Review Action (if failed/low-scoring Phase 44 assessment, invalid data, or missing prerequisite)
+      if (hasDemonstratedWeakness || isInvalidEvidence || isPrereqMissing) {
         const actionId = `act_review_${skill.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
         const assessmentId = gap.assessmentId || evidence?.latestEvidence?.assessmentId || "discipline-assessment";
         const weakTopics = evidence?.latestEvidence?.metadata?.areasForImprovement || gap.missingPrerequisites || [];
+
+        let title = `Remediate ${skill}: Review Core Concepts`;
+        let whyRecommended = `Your latest assessment score in ${skill} was ${gap.latestScore}% (passing mark is 70%).`;
+        let sourceType = "assessment_attempt";
+
+        if (isPrereqMissing) {
+          title = `Foundational Review: ${skill} Prerequisites`;
+          whyRecommended = `Prerequisites for ${skill} must be reviewed before attempting full certification.`;
+          sourceType = "prerequisite_diagnosis";
+        } else if (isInvalidEvidence) {
+          title = `Re-assess ${skill}: Data Validation Needed`;
+          whyRecommended = `Prior evidence record for ${skill} was malformed or corrupted. Taking a verified assessment will record valid proficiency.`;
+          sourceType = "data_validation_reassessment";
+        } else if (gap.latestScore === 0) {
+          title = `Remediate ${skill}: Foundational Review`;
+          whyRecommended = `Your latest assessment score in ${skill} was 0%. Foundational review is recommended before retaking.`;
+        }
 
         actions.push({
           actionId,
           skill,
           actionType: "review_objective",
-          title: isPrereqMissing ? `Foundational Review: ${skill} Prerequisites` : `Remediate ${skill}: Review Core Concepts`,
-          whyRecommended: isPrereqMissing
-            ? `Prerequisites for ${skill} must be reviewed before attempting full certification.`
-            : `Your latest assessment score in ${skill} was ${gap.latestScore}% (passing mark is 70%).`,
+          title,
+          whyRecommended,
           supportingEvidence: {
-            sourceType: isPrereqMissing ? "prerequisite_diagnosis" : "assessment_attempt",
+            sourceType,
             assessmentId,
             score: gap.latestScore || 0,
-            status: isPrereqMissing ? "prerequisite_gap" : "demonstrated_knowledge",
+            status: isPrereqMissing ? "prerequisite_gap" : isInvalidEvidence ? "invalid_data_gap" : "demonstrated_knowledge",
             weakTopics,
             prerequisiteWarning: prereqNotice,
           },

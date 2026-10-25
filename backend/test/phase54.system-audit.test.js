@@ -100,7 +100,7 @@ describe("Phase 54: System-Wide Reliability, Security, Educational Quality & Rel
   // AUDIT B — Evidence Integrity, Provenance & Scoring
   // ==========================================================================
   describe("Audit B: Evidence Integrity, Provenance & Scoring", () => {
-    it("B.1 Safely bounds and sanitizes invalid, negative, non-finite, and >100 scores in evidence ledger", async () => {
+    it("B.1 Safely flags and excludes invalid, negative, non-finite, and >100 scores while preserving valid 0%", async () => {
       const studentId = "student_audit_scores";
 
       vi.spyOn(evidenceNormalizationService, "safeFind").mockImplementation(async (model) => {
@@ -111,10 +111,10 @@ describe("Phase 54: System-Wide Reliability, Security, Educational Quality & Rel
               owner: studentId,
               assessmentId: "mech-assessment-01",
               skillsCovered: ["Statics"],
-              score: 150, // Out of bounds > 100
+              score: 0, // Genuine assessed score of zero
               maxScore: 100,
-              percentage: 150,
-              isPassing: true,
+              percentage: 0,
+              isPassing: false,
               submittedAt: new Date().toISOString(),
             },
             {
@@ -122,7 +122,7 @@ describe("Phase 54: System-Wide Reliability, Security, Educational Quality & Rel
               owner: studentId,
               assessmentId: "mech-assessment-02",
               skillsCovered: ["Dynamics"],
-              score: -20, // Negative score
+              score: -20, // Negative score (invalid)
               maxScore: 100,
               percentage: -20,
               isPassing: false,
@@ -133,7 +133,7 @@ describe("Phase 54: System-Wide Reliability, Security, Educational Quality & Rel
               owner: studentId,
               assessmentId: "mech-assessment-03",
               skillsCovered: ["Thermodynamics"],
-              score: NaN, // Non-finite NaN
+              score: NaN, // Non-finite NaN (invalid)
               maxScore: 100,
               percentage: NaN,
               isPassing: false,
@@ -146,9 +146,20 @@ describe("Phase 54: System-Wide Reliability, Security, Educational Quality & Rel
 
       const result = await evidenceNormalizationService.getNormalizedStudentEvidence(studentId);
 
-      expect(result.normalizedBySkill["Statics"].latestScore).toBe(100); // Capped at 100
-      expect(result.normalizedBySkill["Dynamics"].latestScore).toBe(0); // Floor at 0
-      expect(result.normalizedBySkill["Thermodynamics"].latestScore).toBe(0); // Sanitized from NaN
+      // Valid assessed zero is preserved
+      expect(result.normalizedBySkill["Statics"].latestScore).toBe(0);
+      expect(result.normalizedBySkill["Statics"].validAssessedZero).toBe(true);
+      expect(result.normalizedBySkill["Statics"].evaluationState).toBe("valid_assessed_zero");
+
+      // Invalid/negative score is excluded from valid scoring and not turned into a fake 0
+      expect(result.normalizedBySkill["Dynamics"].latestScore).toBeNull();
+      expect(result.normalizedBySkill["Dynamics"].hasValidEvidence).toBe(false);
+      expect(result.normalizedBySkill["Dynamics"].evaluationState).toBe("invalid_or_malformed");
+
+      // Non-finite NaN is excluded from valid scoring
+      expect(result.normalizedBySkill["Thermodynamics"].latestScore).toBeNull();
+      expect(result.normalizedBySkill["Thermodynamics"].hasValidEvidence).toBe(false);
+      expect(result.normalizedBySkill["Thermodynamics"].evaluationState).toBe("invalid_or_malformed");
     });
 
     it("B.2 Surfaces conflicting evidence when student records diverge significantly across attempts", async () => {

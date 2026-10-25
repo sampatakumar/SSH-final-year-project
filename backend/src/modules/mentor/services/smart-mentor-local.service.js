@@ -13,13 +13,31 @@ export class SmartMentorLocalService {
   classifyIntent(message) {
     const text = (message || "").toLowerCase().trim();
 
-    // 0. Adversarial / Prompt Injection & Sensitive Data Exfiltration Guard (Audit E)
-    if (
-      /system prompt|prompt injection|jailbreak|ignore (all )?(previous|system) (instructions|prompts|directives)|reveal.*(student|password|secret|api[_-]?key|admin|private|credential)|bypass.*(authorization|permission|guard|check|safeguard)|grant me.*(mastery|admin|100%|access)|pretend to be an admin/i.test(
+    // 0. Input size guard (DoS / context blowout protection)
+    if (text.length > 4000) {
+      return "oversized_input_guard";
+    }
+
+    // Check if the query is an educational question discussing security concepts
+    const isEducationalSecurityQuery =
+      /^(what is|explain|how (do i|to|does one) (prevent|mitigate|stop|defend against)|difference between).*(injection|xss|csrf|security|vulnerability|override)/i.test(
         text
-      )
-    ) {
-      return "adversarial_safety_block";
+      ) && !/reveal|ignore.*instruction|bypass|password|api[_-]?key|credential/i.test(text);
+
+    // 1. Adversarial / Prompt Injection & Sensitive Data Exfiltration Guard (Audit E & Phase 55)
+    if (!isEducationalSecurityQuery) {
+      const isAdversarial =
+        /(ignore\s+(all\s+)?(previous|prior|system)\s+(instructions|prompts|directives|rules))/i.test(text) ||
+        /(system\s+prompt\s+(override|leak|reveal|show|dump))/i.test(text) ||
+        /(\b(jailbreak|dan\s+mode)\b)/i.test(text) ||
+        /(reveal|show|expose|give\s+me|dump|leak|steal).*(all\s+)?(other\s+students?|passwords?|secrets?|api[_-]?keys?|admin\s+credentials?|database\s+credentials?|private\s+records?)/i.test(text) ||
+        /(bypass\s+(authorization|auth\s+guard|permissions?|access\s+controls?|security\s+checks?))/i.test(text) ||
+        /(grant\s+me\s+(admin|root|superuser|mastery|100%\s+score|unearned)|fabricate\s+(score|competency|badge))/i.test(text) ||
+        /(pretend\s+to\s+be\s+an?\s+(admin|database\s+administrator|system\s+root))/i.test(text);
+
+      if (isAdversarial) {
+        return "adversarial_safety_block";
+      }
     }
 
     // 1. High-priority specific adaptive learning coaching queries (Phase 16)
@@ -208,6 +226,21 @@ export class SmartMentorLocalService {
     const references = [];
 
     switch (intent) {
+      case "oversized_input_guard": {
+        answer = `Your query exceeds the maximum allowed length (4,000 characters).
+
+To ensure responsive and accurate guidance, please ask a focused question summarizing your specific learning goal or problem.`;
+        summary = "Query exceeds 4,000 characters limit.";
+        actions.push({
+          title: "Explore Learning Roadmap",
+          priority: "medium",
+          category: "roadmap",
+          estimatedMinutes: 5,
+          route: "/dashboard/roadmap",
+        });
+        break;
+      }
+
       case "adversarial_safety_block": {
         answer = `I am your academic AI mentor dedicated solely to your individual learning progress on Smart Skill Hub.
 

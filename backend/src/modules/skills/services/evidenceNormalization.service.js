@@ -137,18 +137,79 @@ export class EvidenceNormalizationService {
       };
     };
 
-    // Helper to safely append deduplicated evidence items
+    // Helper to safely append deduplicated evidence items with explicit semantic validation
     const appendEvidence = (item) => {
       if (!item || !item.evidenceId || seenEvidenceIds.has(item.evidenceId)) {
         return;
       }
-      // Sanitize score and percentage bounds against NaN, Infinity, negative, and out-of-range values
-      const rawPct = Number(item.percentage);
-      item.percentage = Number.isFinite(rawPct) ? Math.max(0, Math.min(100, Math.round(rawPct))) : 0;
-      const rawScore = Number(item.score);
-      item.score = Number.isFinite(rawScore) ? Math.max(0, rawScore) : 0;
-      const rawMax = Number(item.maxScore);
-      item.maxScore = Number.isFinite(rawMax) && rawMax > 0 ? rawMax : 100;
+
+      // Explicit evidence validation semantics (Phase 55)
+      let isValid = true;
+      let evaluationState = "valid_assessed_positive";
+      let exclusionReason = null;
+      const rawPct = item.percentage;
+      const rawScore = item.score;
+      const rawMax = item.maxScore;
+
+      // 1. Missing evidence check
+      if (rawPct === undefined && rawScore === undefined) {
+        isValid = false;
+        evaluationState = "missing_evidence";
+        exclusionReason = "Evidence record lacks both score and percentage.";
+      } else {
+        const numPct = Number(rawPct);
+        const numScore = Number(rawScore);
+        const numMax = Number(rawMax);
+
+        // 2. Malformed / Non-finite check (NaN, Infinity, malformed string)
+        if (rawPct !== undefined && (!Number.isFinite(numPct) || Number.isNaN(numPct))) {
+          isValid = false;
+          evaluationState = "invalid_or_malformed";
+          exclusionReason = `Non-finite or NaN percentage value: ${rawPct}`;
+        } else if (rawScore !== undefined && (!Number.isFinite(numScore) || Number.isNaN(numScore))) {
+          isValid = false;
+          evaluationState = "invalid_or_malformed";
+          exclusionReason = `Non-finite or NaN score value: ${rawScore}`;
+        } else if (rawPct !== undefined && (numPct < 0 || numPct > 100)) {
+          // 3. Out-of-bounds percentage (<0 or >100)
+          isValid = false;
+          evaluationState = "invalid_or_malformed";
+          exclusionReason = `Percentage value ${numPct} is out of valid bounds [0, 100].`;
+        } else if (rawScore !== undefined && numScore < 0) {
+          // 4. Negative raw score
+          isValid = false;
+          evaluationState = "invalid_or_malformed";
+          exclusionReason = `Score value ${numScore} cannot be negative.`;
+        } else {
+          // Genuine valid observed assessment
+          const validPct = rawPct !== undefined ? Math.round(numPct) : (numMax > 0 ? Math.round((numScore / numMax) * 100) : 0);
+          item.percentage = validPct;
+          item.score = numScore;
+          item.maxScore = Number.isFinite(numMax) && numMax > 0 ? numMax : 100;
+
+          if (validPct === 0) {
+            evaluationState = "valid_assessed_zero";
+          } else {
+            evaluationState = "valid_assessed_positive";
+          }
+        }
+      }
+
+      // 5. Source availability check
+      if (item.sourceUnavailable || item.sourceStatus === "unavailable" || item.sourceStatus === "deleted") {
+        isValid = false;
+        evaluationState = "unavailable_source";
+        exclusionReason = exclusionReason || "Referenced source entity or assessment is unavailable.";
+      }
+
+      // 6. Stale evidence designation
+      if (isValid && item.freshness?.isStale) {
+        evaluationState = "stale_evidence";
+      }
+
+      item.isValid = isValid;
+      item.evaluationState = evaluationState;
+      item.exclusionReason = exclusionReason;
 
       seenEvidenceIds.add(item.evidenceId);
       if (item.sourceRecordId) {
@@ -581,13 +642,18 @@ export class EvidenceNormalizationService {
         normalizedBySkill[key] = {
           canonicalSkill: key,
           history: [],
+          validHistory: [],
+          invalidHistory: [],
           latestEvidence: null,
           previousEvidence: null,
           highestEvidence: null,
+          evaluationState: "missing_evidence",
           overallStatus: "insufficient_evidence",
-          latestScore: 0,
-          previousScore: null,
-          scoreDelta: null,
+          latestScore: null,
+          validAssessedZero: false,
+          hasValidEvidence: false,
+          hasInvalidEvidence: false,
+          invalidEvidenceCount: 0,
           hasPassed: false,
           hasDemonstratedEvidence: false,
           hasVerifiedDeterministicProof: false,
@@ -598,38 +664,59 @@ export class EvidenceNormalizationService {
       }
 
       normalizedBySkill[key].history.push(item);
+      if (item.isValid) {
+        normalizedBySkill[key].validHistory.push(item);
+      } else {
+        normalizedBySkill[key].invalidHistory.push(item);
+      }
     }
 
     // Compute skill aggregates and progression deltas
     for (const [key, skillData] of Object.entries(normalizedBySkill)) {
-      const items = skillData.history;
-      if (items.length > 0) {
-        skillData.latestEvidence = items[0];
-        skillData.latestScore = items[0].percentage;
-        skillData.hasPassed = items.some((i) => i.isPassing);
-        skillData.hasDemonstratedEvidence = items.some((i) => i.status === "demonstrated_knowledge");
-        skillData.hasVerifiedDeterministicProof = items.some((i) => i.verificationStatus === "VERIFIED_DETERMINISTIC");
-        skillData.isStale = Boolean(items[0].freshness?.isStale);
+      const validItems = skillData.validHistory;
+      const invalidItems = skillData.invalidHistory;
 
-        // Find highest score
-        let highest = items[0];
-        for (const it of items) {
+      skillData.hasInvalidEvidence = invalidItems.length > 0;
+      skillData.invalidEvidenceCount = invalidItems.length;
+
+      if (validItems.length > 0) {
+        skillData.hasValidEvidence = true;
+        const latest = validItems[0];
+        skillData.latestEvidence = latest;
+        skillData.latestScore = latest.percentage;
+        skillData.hasPassed = validItems.some((i) => i.isPassing);
+        skillData.hasDemonstratedEvidence = validItems.some((i) => i.status === "demonstrated_knowledge");
+        skillData.hasVerifiedDeterministicProof = validItems.some((i) => i.verificationStatus === "VERIFIED_DETERMINISTIC");
+        skillData.isStale = Boolean(latest.freshness?.isStale);
+
+        if (latest.percentage === 0) {
+          skillData.validAssessedZero = true;
+          skillData.evaluationState = "valid_assessed_zero";
+        } else if (skillData.isStale) {
+          skillData.evaluationState = "stale_evidence";
+        } else {
+          skillData.evaluationState = "valid_assessed_positive";
+        }
+
+        // Find highest score among VALID items
+        let highest = validItems[0];
+        for (const it of validItems) {
           if (it.percentage > highest.percentage) {
             highest = it;
           }
         }
         skillData.highestEvidence = highest;
 
-        // If there's an earlier comparable evidence item (from the same source type)
-        const previousComparable = items.slice(1).find((it) => it.sourceType === items[0].sourceType);
+        // If there's an earlier comparable evidence item (from the same source type) among VALID items
+        const previousComparable = validItems.slice(1).find((it) => it.sourceType === latest.sourceType);
         if (previousComparable) {
           skillData.previousEvidence = previousComparable;
           skillData.previousScore = previousComparable.percentage;
-          skillData.scoreDelta = items[0].percentage - previousComparable.percentage;
+          skillData.scoreDelta = latest.percentage - previousComparable.percentage;
         }
 
-        // Detect conflicting evidence (passing vs failing attempts, or high divergence >= 35% between tested records)
-        const evaluatedItems = items.filter(
+        // Detect conflicting evidence among VALID evaluated items
+        const evaluatedItems = validItems.filter(
           (i) => i.status === "demonstrated_knowledge" || i.status === "inferred_proficiency"
         );
         if (evaluatedItems.length >= 2) {
@@ -640,13 +727,14 @@ export class EvidenceNormalizationService {
           const maxScore = Math.max(...scores);
           if ((hasPass && hasFail) || maxScore - minScore >= 35) {
             skillData.hasConflictingEvidence = true;
+            skillData.evaluationState = "conflicting_evidence";
             skillData.conflictSummary = `Conflicting performance detected for ${key} across attempts (${minScore}% vs ${maxScore}%). Formative practice or re-assessment recommended.`;
           }
         }
 
-        // Determine overall status based on highest confidence evidence
-        const hasDemonstrated = items.some((i) => i.status === "demonstrated_knowledge");
-        const hasInferred = items.some((i) => i.status === "inferred_proficiency");
+        // Determine overall status based on highest confidence valid evidence
+        const hasDemonstrated = validItems.some((i) => i.status === "demonstrated_knowledge");
+        const hasInferred = validItems.some((i) => i.status === "inferred_proficiency");
 
         if (hasDemonstrated) {
           skillData.overallStatus = "demonstrated_knowledge";
@@ -655,6 +743,21 @@ export class EvidenceNormalizationService {
         } else {
           skillData.overallStatus = "self_reported";
         }
+      } else if (invalidItems.length > 0) {
+        // Only invalid/malformed or unavailable evidence exists: do NOT convert to 0!
+        skillData.hasValidEvidence = false;
+        skillData.latestEvidence = invalidItems[0];
+        skillData.latestScore = null;
+        skillData.validAssessedZero = false;
+        const hasUnavailable = invalidItems.some((i) => i.evaluationState === "unavailable_source");
+        skillData.evaluationState = hasUnavailable ? "unavailable_source" : "invalid_or_malformed";
+        skillData.overallStatus = "unassessed_due_to_invalid_data";
+        skillData.dataValidationNotice = `Evidence records (${invalidItems.length}) for ${key} were malformed or invalid and excluded from competency scoring.`;
+      } else {
+        // Completely unassessed
+        skillData.evaluationState = "missing_evidence";
+        skillData.overallStatus = "insufficient_evidence";
+        skillData.latestScore = null;
       }
     }
 

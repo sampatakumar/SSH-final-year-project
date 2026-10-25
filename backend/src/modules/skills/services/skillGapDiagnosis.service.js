@@ -189,19 +189,33 @@ export class SkillGapDiagnosisService {
     // 2. Perform deterministic evaluation for each skill
     for (const [canonicalSkill, config] of skillExpectations.entries()) {
       const evidence = evidenceBySkill[canonicalSkill];
-      const hasEvidence = Boolean(evidence && evidence.latestEvidence);
-      const latestScore = hasEvidence ? evidence.latestScore : null;
-      const isPassing = hasEvidence ? Boolean(evidence.hasPassed) : false;
+      const hasValidEvidence = Boolean(
+        evidence &&
+        evidence.latestEvidence &&
+        evidence.latestScore !== null &&
+        evidence.hasValidEvidence !== false &&
+        evidence.evaluationState !== "invalid_or_malformed"
+      );
+      const isInvalidEvidence = Boolean(
+        evidence &&
+        (evidence.hasInvalidEvidence || evidence.evaluationState === "invalid_or_malformed") &&
+        !hasValidEvidence
+      );
+      const latestScore = hasValidEvidence ? evidence.latestScore : null;
+      const isPassing = hasValidEvidence ? Boolean(evidence.hasPassed) : false;
+      const evaluationState = evidence?.evaluationState || "missing_evidence";
 
       // Prerequisite check
       const prereqCheck = this.checkPrerequisites(canonicalSkill, evidenceBySkill);
 
       // Determine current status based on verified evidence
       let currentStatus = "unassessed";
-      if (hasEvidence) {
+      if (hasValidEvidence) {
         if (latestScore >= 80) currentStatus = "demonstrated_mastery";
         else if (latestScore >= 70) currentStatus = "competent";
         else currentStatus = "needs_remediation";
+      } else if (isInvalidEvidence) {
+        currentStatus = "invalid_evidence";
       } else if (!prereqCheck.isReady) {
         currentStatus = "prerequisite_missing";
       } else {
@@ -211,7 +225,7 @@ export class SkillGapDiagnosisService {
       // Recency evaluation
       let recencyScore = 50; // default for unassessed
       let daysSinceLast = null;
-      if (hasEvidence && evidence.latestEvidence?.timestamp) {
+      if (hasValidEvidence && evidence.latestEvidence?.timestamp) {
         const lastDate = new Date(evidence.latestEvidence.timestamp);
         const now = new Date();
         daysSinceLast = Math.max(0, Math.round((now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24)));
@@ -228,13 +242,15 @@ export class SkillGapDiagnosisService {
 
       // Gap magnitude score S_gap in [0, 100]
       let gapScore = 50; // default neutral priority for unassessed (avoids treating missing as failure)
-      if (hasEvidence) {
+      if (hasValidEvidence) {
         gapScore = Math.max(0, 100 - latestScore);
+      } else if (isInvalidEvidence) {
+        gapScore = 60; // Needs data validation/reassessment
       }
 
       // Prerequisite priority influence S_prereq
       let prereqFactor = 50;
-      if (!hasEvidence && !prereqCheck.isReady) {
+      if (!hasValidEvidence && !prereqCheck.isReady) {
         prereqFactor = 25; // lower unassessed dependent skill priority until prerequisites are completed
       } else if (prereqCheck.hasPrerequisites && prereqCheck.isReady) {
         prereqFactor = 75; // primed to learn
@@ -255,7 +271,14 @@ export class SkillGapDiagnosisService {
 
       if (currentStatus === "needs_remediation") {
         recommendedActionCategory = "reassessment";
-        actionRationale = `Score was ${latestScore}%. Conceptual review and targeted reassessment recommended to attain the 70% mastery mark.`;
+        if (latestScore === 0) {
+          actionRationale = `Observed assessment score was 0%. Conceptual foundational review and reassessment recommended.`;
+        } else {
+          actionRationale = `Score was ${latestScore}%. Conceptual review and targeted reassessment recommended to attain the 70% mastery mark.`;
+        }
+      } else if (currentStatus === "invalid_evidence") {
+        recommendedActionCategory = "reassessment";
+        actionRationale = `Evidence record for ${canonicalSkill} was malformed or invalid and excluded from scoring. Re-taking this verified assessment is required.`;
       } else if (currentStatus === "prerequisite_missing") {
         recommendedActionCategory = "prerequisite_remediation";
         actionRationale = `Prerequisite foundation needed: complete ${prereqCheck.missingPrerequisites.join(", ")} before advancing.`;
@@ -273,12 +296,17 @@ export class SkillGapDiagnosisService {
         roleWeight: config.roleWeight,
         targetScore: config.targetScore,
         currentStatus,
+        evaluationState,
         evidenceStatus: evidence?.overallStatus || "insufficient_evidence",
         latestScore,
+        validAssessedZero: Boolean(evidence?.validAssessedZero),
+        hasValidEvidence,
+        hasInvalidEvidence: Boolean(evidence?.hasInvalidEvidence),
+        invalidEvidenceCount: evidence?.invalidEvidenceCount || 0,
         previousScore: evidence?.previousScore ?? null,
         scoreDelta: evidence?.scoreDelta ?? null,
         gapScore,
-        hasEvidence,
+        hasEvidence: hasValidEvidence,
         isPassing,
         daysSinceLastEvaluation: daysSinceLast,
         prerequisites: prereqCheck,

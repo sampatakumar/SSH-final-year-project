@@ -223,17 +223,37 @@ export class CareerPathwayService {
       }
 
       const evidence = evidenceBySkill[canonical];
+      const hasValid = Boolean(
+        evidence &&
+        evidence.latestEvidence &&
+        evidence.latestScore !== null &&
+        evidence.hasValidEvidence !== false &&
+        evidence.evaluationState !== "invalid_or_malformed"
+      );
 
-      if (!evidence || !evidence.latestEvidence) {
-        // Unassessed skill: NO evidence recorded yet. Do NOT score as 0!
-        unassessedSkills.push({
-          skill: canonical,
-          importance: core.importance,
-          targetScore: core.targetScore,
-          status: "unassessed",
-          prerequisitesMet: prereqCheck.isReady,
-          reason: "No objective evaluation recorded on platform yet. Does not imply lack of competence.",
-        });
+      if (!hasValid) {
+        if (evidence && (evidence.hasInvalidEvidence || evidence.evaluationState === "invalid_or_malformed")) {
+          unassessedSkills.push({
+            skill: canonical,
+            importance: core.importance,
+            targetScore: core.targetScore,
+            status: "invalid_evidence",
+            evaluationState: evidence.evaluationState || "invalid_or_malformed",
+            prerequisitesMet: prereqCheck.isReady,
+            reason: "Evidence recorded for this skill was malformed or corrupted and excluded from scoring.",
+          });
+        } else {
+          // Unassessed skill: NO evidence recorded yet. Do NOT score as 0!
+          unassessedSkills.push({
+            skill: canonical,
+            importance: core.importance,
+            targetScore: core.targetScore,
+            status: "unassessed",
+            evaluationState: "missing_evidence",
+            prerequisitesMet: prereqCheck.isReady,
+            reason: "No objective evaluation recorded on platform yet. Does not imply lack of competence.",
+          });
+        }
         continue;
       }
 

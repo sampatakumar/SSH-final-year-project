@@ -19,7 +19,15 @@ export const getDashboardIntelligenceController = asyncHandler(async (req, res) 
 });
 
 export const getUnifiedWorkspaceController = asyncHandler(async (req, res) => {
-  const result = await dashboardIntelligenceService.getUnifiedWorkspace(req.user._id);
+  const requestingUserId = req.user._id;
+  const targetStudentId = req.query.studentId || req.params.studentId || requestingUserId;
+
+  // Non-admin/non-instructor cannot access another student's private workspace
+  if (targetStudentId.toString() !== requestingUserId.toString() && req.user.role !== "admin" && req.user.role !== "instructor") {
+    throw new ApiError(403, "Access denied: You are not authorized to view another student's private workspace.");
+  }
+
+  const result = await dashboardIntelligenceService.getUnifiedWorkspace(targetStudentId, requestingUserId);
   return res.status(200).json(
     new ApiResponse(200, result, "Unified student workspace retrieved successfully")
   );

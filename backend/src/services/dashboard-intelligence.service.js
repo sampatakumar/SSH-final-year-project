@@ -545,11 +545,11 @@ export class DashboardIntelligenceService {
   }
 
   /**
-   * Directly get the unified student workspace context.
+   * Directly get the unified student workspace context with explicit caller authorization.
    */
-  async getUnifiedWorkspace(ownerId) {
+  async getUnifiedWorkspace(ownerId, requestingUserId = null) {
     const { unifiedStudentContextService } = await import("../modules/skills/services/unifiedStudentContext.service.js");
-    return unifiedStudentContextService.getUnifiedStudentContext(ownerId);
+    return unifiedStudentContextService.getUnifiedStudentContext(ownerId, { requestingUserId: requestingUserId || ownerId });
   }
 }
 
