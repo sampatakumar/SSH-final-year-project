@@ -5,21 +5,27 @@ import {
   ArrowRight,
   Award,
   BookOpen,
+  Briefcase,
   Calendar,
   CheckCircle2,
   Clock,
   Code2,
+  Compass,
   FileText,
   Flame,
   GitBranch,
   Info,
+  Layers,
+  Lock,
   Play,
   RefreshCw,
+  Share2,
   ShieldCheck,
   Sparkles,
   Target,
   TrendingUp,
   Video,
+  Wrench,
   Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,6 +34,7 @@ import {
   SmartSkillApi,
   SkillProfileData,
   DashboardIntelligenceData,
+  UnifiedWorkspaceData,
   normalizeSkillGaps,
   type SkillGapViewModel,
 } from "@/lib/api";
@@ -38,10 +45,12 @@ const DashboardHome = () => {
   const { backendUser, firebaseUser } = useAuth();
   const [profile, setProfile] = useState<SkillProfileData | null>(null);
   const [intelligence, setIntelligence] = useState<DashboardIntelligenceData | null>(null);
+  const [workspace, setWorkspace] = useState<UnifiedWorkspaceData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [showReadinessModal, setShowReadinessModal] = useState(false);
   const [showMasteryModal, setShowMasteryModal] = useState(false);
+  const [showQuestionsModal, setShowQuestionsModal] = useState(false);
   const [activeSkillTab, setActiveSkillTab] = useState<"all" | "strong" | "gaps">("all");
   const [completedMissions, setCompletedMissions] = useState<Record<string, boolean>>({});
 
@@ -62,6 +71,17 @@ const DashboardHome = () => {
 
       if (intelData) {
         setIntelligence(intelData);
+        if (intelData.unifiedWorkspace) {
+          setWorkspace(intelData.unifiedWorkspace);
+        }
+      }
+
+      if (!intelData?.unifiedWorkspace) {
+        SmartSkillApi.getUnifiedWorkspace()
+          .then((ws) => {
+            if (ws) setWorkspace(ws);
+          })
+          .catch(() => null);
       }
     } catch (err: any) {
       console.warn("Dashboard data initialization error:", err.message);
@@ -83,7 +103,19 @@ const DashboardHome = () => {
         SmartSkillApi.getDashboardIntelligence().catch(() => null),
       ]);
       setProfile(evalResult.profile);
-      if (intelData) setIntelligence(intelData);
+      if (intelData) {
+        setIntelligence(intelData);
+        if (intelData.unifiedWorkspace) {
+          setWorkspace(intelData.unifiedWorkspace);
+        }
+      }
+      if (!intelData?.unifiedWorkspace) {
+        SmartSkillApi.getUnifiedWorkspace()
+          .then((ws) => {
+            if (ws) setWorkspace(ws);
+          })
+          .catch(() => null);
+      }
       toast.success("Skill Profile & Intelligence updated successfully!");
     } catch (err: any) {
       toast.error(err.message || "Failed to evaluate skills");
@@ -148,10 +180,17 @@ const DashboardHome = () => {
   };
 
   const targetRole =
+    workspace?.learningOverview?.targetCareerRole ||
     intelligence?.overview?.targetRole ||
     profile?.targetRole ||
     backendUser?.targetRole ||
     "Full Stack Developer";
+
+  const discipline =
+    workspace?.learningOverview?.academicDiscipline ||
+    intelligence?.overview?.academic?.branchName ||
+    backendUser?.academic?.branchName ||
+    "Engineering & Technology";
 
   const readinessScore = intelligence?.overview?.readinessEstimate?.score ?? profile?.overallReadinessScore ?? 0;
   const empiricalMastery = intelligence?.overview?.empiricalMastery;
@@ -178,13 +217,16 @@ const DashboardHome = () => {
       {/* Top Header Banner */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/30 pb-5">
         <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground flex items-center gap-2.5">
+          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground flex items-center gap-2.5 flex-wrap">
             <span>
               Welcome back,{" "}
               {backendUser?.displayName || backendUser?.name || firebaseUser?.displayName || "Developer"}
             </span>
             <span className="text-sm font-medium px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
               {targetRole}
+            </span>
+            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-secondary text-secondary-foreground border border-border/40 flex items-center gap-1">
+              <Briefcase className="h-3 w-3 text-muted-foreground" /> {discipline}
             </span>
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -284,6 +326,286 @@ const DashboardHome = () => {
           </div>
         </div>
       )}
+
+      {/* Phase 53: Unified Student Workspace & Cross-Module Intelligence */}
+      <div className="bg-surface border border-primary/30 rounded-2xl p-5 shadow-neo-raised space-y-5">
+        {/* Workspace Header: Five Core Questions Overview */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-border/30 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-primary/15 text-primary border border-primary/30 shrink-0">
+              <Compass className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-base font-extrabold tracking-tight text-foreground">
+                  Personalized Student Workspace
+                </h2>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30 uppercase">
+                  {workspace?.learningOverview?.activeLearningStage || "ADAPTIVE INTELLIGENCE"}
+                </span>
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground border border-border/40">
+                  {discipline}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Evidence-grounded learning guidance answering what to learn, empirical evidence on record, remaining gaps, and career readiness.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowQuestionsModal(true)}
+              className="text-xs font-semibold gap-1.5 h-8 bg-background border-border/40 hover:border-primary/40 text-muted-foreground hover:text-foreground"
+            >
+              <Info className="h-3.5 w-3.5 text-primary" />
+              <span>5 Core Questions</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* 2-Column Core Guidance Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          {/* Col 1 & 2: Primary Next-Best Learning Action & Skill Evidence Ledger */}
+          <div className="lg:col-span-2 space-y-4">
+            {/* Primary Next Action Card */}
+            {workspace?.nextBestAction?.primaryAction ? (
+              <div className="p-4 rounded-xl border border-primary/40 bg-primary/5 shadow-neo-raised-sm space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-primary text-primary-foreground uppercase tracking-wider">
+                      Primary Next Action
+                    </span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-surface border border-border/40 text-foreground capitalize">
+                      {workspace.nextBestAction.primaryAction.category}
+                    </span>
+                    <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded uppercase border text-warning bg-warning/10 border-warning/30">
+                      {workspace.nextBestAction.primaryAction.priority} Priority
+                    </span>
+                  </div>
+                  <span className="text-xs text-muted-foreground flex items-center gap-1 font-medium">
+                    <Clock className="h-3.5 w-3.5" /> ~{workspace.nextBestAction.primaryAction.estimatedMinutes} mins
+                  </span>
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-bold text-foreground">
+                    {workspace.nextBestAction.primaryAction.title}
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    <span className="font-semibold text-foreground">Why this action: </span>
+                    {workspace.nextBestAction.primaryAction.whyRecommended}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    <span className="font-semibold text-foreground">Intended outcome: </span>
+                    {workspace.nextBestAction.primaryAction.intendedOutcome}
+                  </p>
+                  {(workspace.nextBestAction.primaryAction.supportingEvidence?.prerequisiteWarning || workspace.nextBestAction.primaryAction.prerequisiteWarning) && (
+                    <div className="mt-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-400 flex items-center gap-1.5">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                      <span>{workspace.nextBestAction.primaryAction.supportingEvidence?.prerequisiteWarning || workspace.nextBestAction.primaryAction.prerequisiteWarning}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-border/20">
+                  <span className="text-xs text-muted-foreground">
+                    Directly advances competence in <span className="font-bold text-foreground">{workspace.nextBestAction.primaryAction.skill}</span>
+                  </span>
+                  <Link
+                    to={workspace.nextBestAction.primaryAction.destination}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-sm"
+                  >
+                    <span>{workspace.nextBestAction.primaryAction.actionLabel || "Launch Activity"}</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 rounded-xl border border-border/30 bg-background/50 text-center py-6 text-xs text-muted-foreground">
+                All primary milestones completed! Explore Practical Labs or Project Studio to build advanced deliverables.
+              </div>
+            )}
+
+            {/* Secondary Actions Pills */}
+            {workspace?.nextBestAction?.secondaryActions && workspace.nextBestAction.secondaryActions.length > 0 && (
+              <div className="space-y-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Secondary Learning Actions
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {workspace.nextBestAction.secondaryActions.slice(0, 4).map((sec) => (
+                    <Link
+                      key={sec.actionId}
+                      to={sec.destination}
+                      className="p-3 rounded-xl border border-border/30 bg-background/60 hover:border-primary/40 hover:bg-background transition-all flex items-center justify-between gap-2 group shadow-neo-raised-sm"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground">
+                            {sec.category}
+                          </span>
+                          <span className="text-xs font-bold text-foreground truncate group-hover:text-primary transition-colors">
+                            {sec.title}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground truncate mt-0.5">
+                          {sec.whyRecommended}
+                        </p>
+                      </div>
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary shrink-0 transition-colors" />
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Skill Evidence Ledger Summary Breakdown */}
+            <div className="p-3.5 rounded-xl border border-border/30 bg-background/50 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <ShieldCheck className="h-4 w-4 text-emerald-400" /> Evidence Ledger Breakdown
+                </span>
+                <Link to="/dashboard/skills" className="text-xs text-primary font-semibold hover:underline">
+                  View Ledger ({workspace?.evidenceLedger?.summary?.totalRecords || evaluatedSkills.length} records)
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+                <div className="p-2 rounded-lg bg-surface border border-border/30">
+                  <span className="text-[10px] text-muted-foreground uppercase font-bold block">Verified Proof</span>
+                  <span className="text-sm font-extrabold text-emerald-400 font-mono">
+                    {workspace?.evidenceLedger?.summary?.verifiedCount ?? (hasCodingEvidence ? 1 : 0)}
+                  </span>
+                </div>
+                <div className="p-2 rounded-lg bg-surface border border-border/30">
+                  <span className="text-[10px] text-muted-foreground uppercase font-bold block">Rubric Scored</span>
+                  <span className="text-sm font-extrabold text-primary font-mono">
+                    {workspace?.evidenceLedger?.summary?.rubricScoredCount ?? 0}
+                  </span>
+                </div>
+                <div className="p-2 rounded-lg bg-surface border border-border/30">
+                  <span className="text-[10px] text-muted-foreground uppercase font-bold block">Formative Practice</span>
+                  <span className="text-sm font-extrabold text-foreground font-mono">
+                    {workspace?.evidenceLedger?.summary?.formativePracticeCount ?? 0}
+                  </span>
+                </div>
+                <div className="p-2 rounded-lg bg-surface border border-border/30">
+                  <span className="text-[10px] text-muted-foreground uppercase font-bold block">Self Reported</span>
+                  <span className="text-sm font-extrabold text-muted-foreground font-mono">
+                    {workspace?.evidenceLedger?.summary?.selfReportedCount ?? (hasResumeEvidence ? 1 : 0)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Col 3: Projects, Portfolio Privacy, and Recent Activity */}
+          <div className="space-y-4">
+            {/* Active Projects & Deliverables */}
+            <div className="p-4 rounded-xl border border-border/30 bg-background/50 space-y-3">
+              <div className="flex items-center justify-between border-b border-border/20 pb-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                  <Layers className="h-4 w-4 text-primary" /> Active Projects
+                </span>
+                <Link to="/dashboard/projects" className="text-xs text-primary font-semibold hover:underline">
+                  Project Studio
+                </Link>
+              </div>
+
+              {workspace?.activeProjects && workspace.activeProjects.length > 0 ? (
+                <div className="space-y-2">
+                  {workspace.activeProjects.slice(0, 2).map((proj) => (
+                    <div key={proj.projectId} className="p-2.5 rounded-lg border border-border/30 bg-surface flex flex-col gap-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-foreground truncate">{proj.title}</span>
+                        <span className="text-[10px] font-mono text-primary font-bold">{proj.progressPercentage}%</span>
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                        <span>{proj.disciplineCategory}</span>
+                        <span>{proj.deliverablesCount} deliverables</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground text-center py-2">
+                  No active project blueprints. Launch a template in Project Studio.
+                </p>
+              )}
+            </div>
+
+            {/* Shared Portfolio Artifacts (Privacy Scoped) */}
+            <div className="p-4 rounded-xl border border-border/30 bg-background/50 space-y-3">
+              <div className="flex items-center justify-between border-b border-border/20 pb-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                  <Share2 className="h-4 w-4 text-emerald-400" /> Portfolio Artifacts
+                </span>
+                <Link to="/dashboard/portfolio" className="text-xs text-primary font-semibold hover:underline">
+                  Portfolio
+                </Link>
+              </div>
+
+              {workspace?.portfolioArtifacts && workspace.portfolioArtifacts.length > 0 ? (
+                <div className="space-y-2">
+                  {workspace.portfolioArtifacts.slice(0, 3).map((art) => (
+                    <div key={art.artifactId} className="p-2 rounded-lg border border-border/30 bg-surface flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold text-foreground truncate block">{art.title}</span>
+                        <span className="text-[10px] text-muted-foreground capitalize">{art.artifactType} • {art.discipline}</span>
+                      </div>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 shrink-0 flex items-center gap-1">
+                        <Share2 className="h-2.5 w-2.5" /> Shared
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-2 text-xs text-muted-foreground space-y-1">
+                  <p className="text-[11px]">No artifacts shared to portfolio yet.</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    Only records where you have explicitly enabled Portfolio Sharing will appear publicly.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Cross-Module Recent Activity */}
+            {workspace?.recentActivity && workspace.recentActivity.length > 0 && (
+              <div className="p-4 rounded-xl border border-border/30 bg-background/50 space-y-3">
+                <div className="flex items-center justify-between border-b border-border/20 pb-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                    <Clock className="h-4 w-4 text-primary" /> Cross-Module Activity
+                  </span>
+                  <span className="text-[10px] text-muted-foreground font-mono">Live</span>
+                </div>
+
+                <div className="space-y-2">
+                  {workspace.recentActivity.slice(0, 3).map((act, idx) => (
+                    <Link
+                      key={act.activityId || act.id || `act-${idx}`}
+                      to={act.route}
+                      className="p-2 rounded-lg border border-border/30 bg-surface hover:border-primary/40 transition-colors flex items-center justify-between gap-2 block group"
+                    >
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold text-foreground truncate group-hover:text-primary transition-colors block">
+                          {act.title}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground truncate block">
+                          {act.outcomeSummary}
+                        </span>
+                      </div>
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary shrink-0 transition-colors" />
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Hero Overview Grid: 4 Defined Intelligence Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1022,6 +1344,50 @@ const DashboardHome = () => {
               </p>
             </div>
             <Button size="sm" onClick={() => setShowMasteryModal(false)} className="w-full">
+              Close
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Explanatory Modal: Five Core Intelligence Questions */}
+      {showQuestionsModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+          <div className="bg-surface border border-border/40 rounded-2xl max-w-lg w-full p-6 shadow-neo-raised-lg space-y-4">
+            <div className="flex items-center justify-between border-b border-border/30 pb-3">
+              <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                <Compass className="h-4 w-4 text-primary" /> Five Core Questions Answered
+              </h3>
+              <button
+                onClick={() => setShowQuestionsModal(false)}
+                className="text-muted-foreground hover:text-foreground text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="space-y-3 text-xs text-muted-foreground">
+              <div className="p-2.5 rounded-xl bg-background border border-border/30">
+                <span className="font-bold text-foreground block">1. What is this student trying to achieve?</span>
+                <span className="text-muted-foreground mt-0.5 block">{workspace?.questionsAnswered?.targetObjective || `Target career goal: ${targetRole} (${discipline})`}</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-background border border-border/30">
+                <span className="font-bold text-foreground block">2. What evidence do we actually have about their skills?</span>
+                <span className="text-muted-foreground mt-0.5 block">{workspace?.questionsAnswered?.evidenceSummary || "Verified assessment scores, practical labs, and formative tool records on ledger."}</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-background border border-border/30">
+                <span className="font-bold text-foreground block">3. Which important gaps remain?</span>
+                <span className="text-muted-foreground mt-0.5 block">{workspace?.questionsAnswered?.remainingGaps || "Diagnosed gaps prioritized by role requirements and prerequisite sequence."}</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-background border border-border/30">
+                <span className="font-bold text-foreground block">4. What is the most useful next learning action?</span>
+                <span className="text-muted-foreground mt-0.5 block">{workspace?.questionsAnswered?.nextLearningAction || (workspace?.nextBestAction?.primaryAction?.title || "Complete recommended learning milestone.")}</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-background border border-border/30">
+                <span className="font-bold text-foreground block">5. How does that action support the student's career pathway?</span>
+                <span className="text-muted-foreground mt-0.5 block">{workspace?.questionsAnswered?.careerPathwayAlignment || `Directly develops competencies required for ${targetRole}.`}</span>
+              </div>
+            </div>
+            <Button size="sm" onClick={() => setShowQuestionsModal(false)} className="w-full">
               Close
             </Button>
           </div>

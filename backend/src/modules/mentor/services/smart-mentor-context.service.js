@@ -764,6 +764,14 @@ export class SmartMentorContextService {
       // Non-blocking fallback
     }
 
+    let unifiedStudentContext = null;
+    try {
+      const { unifiedStudentContextService } = await import("../../skills/services/unifiedStudentContext.service.js");
+      unifiedStudentContext = await unifiedStudentContextService.getUnifiedStudentContext(ownerId);
+    } catch {
+      // Non-blocking fallback
+    }
+
     const context = {
       career,
       skills,
@@ -783,6 +791,8 @@ export class SmartMentorContextService {
       knowledgeCheckpoints,
       evidenceTiers,
       unifiedNextActions: unifiedNextActions.slice(0, 3),
+      unifiedStudentContext,
+      unifiedEvidence: unifiedStudentContext?.evidenceLedger || null,
       adaptivePlan: adaptivePlan
         ? {
             currentObjective: adaptivePlan.currentObjective,
@@ -797,7 +807,7 @@ export class SmartMentorContextService {
           : (assessmentCenter.failedCount > 0 ? "LEARN_REMEDIATE" : "PRACTICE_APPLY"),
         priorityGapsCount: (skillGaps || []).length,
         masteredCount: competencyMatrix?.competencyCounts?.advanced || 0,
-        primaryNextStep: unifiedNextActions[0] || null,
+        primaryNextStep: unifiedStudentContext?.nextBestAction?.primaryAction || unifiedNextActions[0] || null,
       },
       careerPathway: careerPathwayContext,
       insights: insights.slice(0, 5),

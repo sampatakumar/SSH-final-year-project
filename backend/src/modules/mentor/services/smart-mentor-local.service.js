@@ -84,6 +84,27 @@ export class SmartMentorLocalService {
       return "learning_pathway_guidance";
     }
 
+    // Unified Student Intelligence & Traceable Evidence queries (Phase 53)
+    if (/strongest.*evidence|which skills have.*evidence|highest.*evidence|best.*evidence|verified skills|strongest supporting evidence/i.test(text)) {
+      return "strongest_evidence_skills";
+    }
+
+    if (/unassessed.*skills|skills.*remain unassessed|unvalidated skills|skills without evidence|not yet assessed|which.*skills.*unassessed/i.test(text)) {
+      return "unassessed_skills";
+    }
+
+    if (/why is this.*recommended|why.*action.*recommended|reason for.*recommendation|why recommended|why is this learning activity recommended/i.test(text)) {
+      return "why_action_recommended";
+    }
+
+    if (/artifact.*portfolio|existing artifacts.*portfolio|support my portfolio|which.*artifacts.*portfolio|portfolio artifacts/i.test(text)) {
+      return "portfolio_artifacts_guidance";
+    }
+
+    if (/how does my recent work relate|relate to.*career|career alignment|recent work relate to my chosen career/i.test(text)) {
+      return "career_alignment";
+    }
+
     // 3. GitHub and project queries
     if (/github|repo|repositories|commit|push|pull request/i.test(text)) {
       if (/readme/i.test(text)) return "github_readme";
@@ -1217,6 +1238,194 @@ Visit Practical Labs to start your first branch-specific exercise!`;
             category: "labs",
             estimatedMinutes: 20,
             route: "/dashboard/labs",
+          });
+        }
+        break;
+      }
+
+      case "strongest_evidence_skills": {
+        const unified = context.unifiedStudentContext;
+        const verifiedRecords = unified?.evidenceLedger?.records?.filter((r) => r.verificationStatus === "verified" || r.score >= 70) || [];
+        const demonstratedSkills = unified?.careerReadiness?.skillsBreakdown?.demonstrated || [];
+        const topSkills = demonstratedSkills.length > 0
+          ? demonstratedSkills
+          : (context.skills || []).filter((s) => s.score >= 70);
+
+        if (topSkills.length > 0) {
+          const list = topSkills.map((s) => `- **${s.skill || s.name}**: ${(s.currentLevel || s.level || "Proficient")} (${s.demonstratedScore || s.score}%) — Evidence from ${(s.supportingEvidenceSources || s.evidenceSources || ["Assessment"]).join(", ")}`).join("\n");
+          answer = `### Skills with Strongest Supporting Evidence
+Based on your verified platform records, the following skills have the strongest empirical proof:
+
+${list}
+
+Every score above is backed by objectively evaluated assessments, practical labs, or verified sandbox tasks.`;
+          summary = `Identified ${topSkills.length} skill(s) with verified empirical evidence.`;
+        } else {
+          answer = `### Skills Evidence Overview
+You do not have verified skills on record yet.
+
+To build objective evidence:
+1. Complete a branch assessment in the **Assessment Center**.
+2. Solve calculation exercises in **Practical Labs**.
+3. Create deliverable artifacts in **Project Studio**.`;
+          summary = "No verified skills on record yet. Complete an assessment or lab to establish evidence.";
+        }
+
+        actions.push({
+          title: "View Evidence Ledger",
+          priority: "high",
+          category: "skills",
+          estimatedMinutes: 5,
+          route: "/dashboard/skills",
+        });
+        break;
+      }
+
+      case "unassessed_skills": {
+        const unified = context.unifiedStudentContext;
+        const unassessed = unified?.careerReadiness?.skillsBreakdown?.unassessed ||
+          (context.skillGaps || []).filter((g) => g.currentScore === 0);
+
+        if (unassessed.length > 0) {
+          const list = unassessed.slice(0, 5).map((u) => `- **${u.skill}**: Required for ${targetRole} (Status: Unassessed / No evidence on record)`).join("\n");
+          answer = `### Important Unassessed Skills
+The following core skills required for **${targetRole}** currently have **no empirical evidence on record**:
+
+${list}
+
+> **Note on Academic Integrity**: Having an unassessed skill does **not** mean you lack competence. It simply means Smart Skill Hub has not yet recorded an objective evaluation (assessment, lab, or code submission) for it.
+
+### Recommended Next Step:
+Attempt a diagnostic assessment in the Assessment Center or launch a Practical Lab to establish verified baseline evidence.`;
+          summary = `${unassessed.length} required skill(s) remain unassessed for ${targetRole}.`;
+          actions.push({
+            title: `Assess ${unassessed[0].skill}`,
+            priority: "high",
+            category: "assessment",
+            estimatedMinutes: 20,
+            route: "/dashboard/assessments",
+          });
+        } else {
+          answer = `All required skills for **${targetRole}** currently have recorded evidence or baseline assessments. Check your Skill Gaps page for remediation opportunities.`;
+          summary = "All required skills have baseline evidence.";
+          actions.push({
+            title: "Review Skill Gaps",
+            priority: "medium",
+            category: "skills",
+            estimatedMinutes: 10,
+            route: "/dashboard/gaps",
+          });
+        }
+        break;
+      }
+
+      case "why_action_recommended": {
+        const primary = context.unifiedStudentContext?.nextBestAction?.primaryAction ||
+          context.learningPathway?.primaryNextStep ||
+          context.unifiedNextActions?.[0];
+
+        if (primary) {
+          answer = `### Why This Action is Recommended: "${primary.title}"
+- **Action Type**: \`${primary.actionType || primary.type}\`
+- **Target Skill**: **${primary.skill || primary.targetSkill}**
+- **Trigger**: ${primary.whyRecommended || primary.reason}
+- **Intended Outcome**: ${primary.intendedOutcome || "Strengthen core competence."}
+${primary.supportingEvidence?.prerequisiteWarning ? `\n> ⚠️ **Prerequisite Note**: ${primary.supportingEvidence.prerequisiteWarning}` : ""}
+
+This recommendation is deterministically generated from your actual skill-gap analysis and verified evidence ledger, directly supporting your goal of becoming a **${targetRole}**.`;
+          summary = `Recommendation rationale: ${primary.whyRecommended || primary.reason}`;
+          actions.push({
+            title: primary.actionLabel || primary.title,
+            priority: primary.priority || "high",
+            category: primary.category || "learning",
+            estimatedMinutes: primary.estimatedMinutes || 20,
+            route: primary.destination || primary.actionUrl || "/dashboard",
+          });
+        } else {
+          answer = `You are currently on track with all scheduled milestones. To continue progressing toward **${targetRole}**, explore Project Studio to build end-to-end portfolio deliverables.`;
+          summary = "All current recommendations complete.";
+          actions.push({
+            title: "Explore Project Studio",
+            priority: "medium",
+            category: "project",
+            estimatedMinutes: 30,
+            route: "/dashboard/projects",
+          });
+        }
+        break;
+      }
+
+      case "portfolio_artifacts_guidance": {
+        const unified = context.unifiedStudentContext;
+        const artifacts = unified?.portfolioArtifacts || [];
+        const completedProjects = context.projectStudio?.completedProjects || [];
+
+        if (artifacts.length > 0 || completedProjects.length > 0) {
+          const list = [
+            ...completedProjects.map((p) => `- 📁 **Project Studio**: "${p.title}" (Score: ${p.overallScore ?? "Rubric-assessed"}%)`),
+            ...artifacts.map((a) => `- 🔬 **${a.title}** (${a.artifactType || "Engineering Report"})`),
+          ].join("\n");
+
+          answer = `### Artifacts Supporting Your Portfolio
+The following verified artifacts are available to showcase your competence:
+
+${list}
+
+> **Student Privacy**: Only deliverables and reports where you have explicitly enabled **Portfolio Sharing** will be visible on your public portfolio.`;
+          summary = `Identified ${artifacts.length + completedProjects.length} candidate portfolio artifact(s).`;
+        } else {
+          answer = `### Portfolio Artifact Guidance
+You do not have completed project blueprints or saved tool reports in your portfolio yet.
+
+To generate authentic portfolio artifacts:
+1. Complete a project blueprint in **Project Studio**.
+2. Run calculations and save a report draft in an **Engineering Studio** (e.g. Mech Calc, ECE Circuits, Civil BOQ, Biotech Research).
+3. Review and approve the report draft in the **Shared Report Reviewer** with "Save to Portfolio" checked.`;
+          summary = "No portfolio artifacts saved yet. Complete a project or studio exercise to generate one.";
+        }
+
+        actions.push({
+          title: "Open Project Studio",
+          priority: "high",
+          category: "project",
+          estimatedMinutes: 30,
+          route: "/dashboard/projects",
+        });
+        break;
+      }
+
+      case "career_alignment": {
+        const unified = context.unifiedStudentContext;
+        const readiness = unified?.careerReadiness || context.careerPathway;
+        const primary = unified?.nextBestAction?.primaryAction;
+
+        if (readiness) {
+          answer = `### How Your Work Relates to: ${readiness.roleTitle || targetRole}
+- **Role Family**: ${readiness.roleFamily || "Engineering & Technology"}
+- **Discipline**: ${readiness.disciplineCategory || context.career?.academic?.disciplineFamily || "General"}
+- **Demonstrated Competencies**: ${readiness.counts?.demonstrated || 0} of ${readiness.counts?.totalRequired || 0} required skills
+- **Readiness Band**: **${readiness.readinessBand || "Developing"}** (${readiness.heuristicReadinessIndex || 0}% coverage)
+
+Every assessment, practical lab calculation, and project deliverable you complete feeds directly into your verified evidence ledger for this role.
+
+${primary ? `### Next Milestone:\n${primary.title} (${primary.destination})` : ""}`;
+          summary = `Career alignment overview for ${readiness.roleTitle || targetRole}.`;
+          actions.push({
+            title: "Explore Career Pathway Studio",
+            priority: "high",
+            category: "career",
+            estimatedMinutes: 15,
+            route: "/dashboard/career-pathways",
+          });
+        } else {
+          answer = `Your target career goal is set to **${targetRole}**. Visit **Career Pathway Studio** to explore competency requirements and align your studies.`;
+          summary = `Target role is ${targetRole}.`;
+          actions.push({
+            title: "Open Career Pathways",
+            priority: "medium",
+            category: "career",
+            estimatedMinutes: 10,
+            route: "/dashboard/career-pathways",
           });
         }
         break;

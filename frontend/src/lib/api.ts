@@ -764,6 +764,9 @@ export const SmartSkillApi = {
   getDashboardIntelligence: async () =>
     (await apiRequest<DashboardIntelligenceData>("/dashboard/intelligence")).data,
 
+  getUnifiedWorkspace: async () =>
+    (await apiRequest<UnifiedWorkspaceData>("/dashboard/unified-workspace")).data,
+
   getAdaptiveLoop: async () =>
     (await apiRequest<any>("/skills/adaptive/loop")).data,
 
@@ -1091,7 +1094,147 @@ export interface DashboardIntelligenceData {
     completedItems: number;
   };
   telemetry?: AdaptiveTelemetryData;
+  unifiedWorkspace?: UnifiedWorkspaceData;
   generatedAt: string;
+}
+
+export interface UnifiedWorkspaceData {
+  questionsAnswered: {
+    targetObjective: string;
+    evidenceSummary: string;
+    remainingGaps: string;
+    nextLearningAction: string;
+    careerPathwayAlignment: string;
+  };
+  studentProfile: {
+    studentId: string;
+    displayName: string;
+    canonicalDiscipline: string;
+    branchName: string;
+    degreeName: string;
+    semester: number | null;
+  };
+  learningOverview: {
+    academicDiscipline: string;
+    targetCareerRole: string;
+    activeLearningStage: string;
+    overallReadinessScore: number;
+    studyStreakDays: number;
+    weeklyStudyHours: number;
+  };
+  careerReadiness: {
+    roleId: string;
+    roleTitle: string;
+    roleFamily: string;
+    disciplineCategory: string;
+    heuristicReadinessIndex: number;
+    readinessBand: string;
+    evidenceCoveragePercent: number;
+    counts: {
+      demonstrated: number;
+      unassessed: number;
+      gaps: number;
+      totalRequired: number;
+    };
+    skillsBreakdown: {
+      demonstrated: Array<{ skill: string; currentLevel: string; demonstratedScore: number; supportingEvidenceSources: string[] }>;
+      unassessed: Array<{ skill: string; requiredLevel: string }>;
+      gaps: Array<{ skill: string; latestScore: number; targetScore: number; gapDelta: number }>;
+    };
+    unassessableCompetencies: string[];
+    regulatoryNotes?: string;
+    disclaimer: string;
+  };
+  evidenceLedger: {
+    summary: {
+      totalRecords: number;
+      verifiedCount: number;
+      rubricScoredCount: number;
+      formativePracticeCount: number;
+      selfReportedCount: number;
+      inferredCount: number;
+    };
+    records: Array<{
+      sourceModule: string;
+      sourceRecordId: string;
+      canonicalSkill: string;
+      academicDiscipline: string;
+      evidenceType: string;
+      score: number;
+      verificationStatus: string;
+      provenance: string;
+      freshness: { ageInDays: number; isFresh: boolean; isStale: boolean };
+    }>;
+  };
+  skillGapAnalysis: {
+    totalDiagnosed: number;
+    priorityGapsCount: number;
+    masteredSkillsCount: number;
+    unassessedCount: number;
+    priorityGaps: Array<{ skill: string; currentStatus: string; latestScore: number; missingPrerequisites?: string[] }>;
+    masteredSkills: Array<{ skill: string; latestScore: number }>;
+    unassessedSkills: Array<{ skill: string }>;
+  };
+  nextBestAction: {
+    primaryAction: {
+      actionId: string;
+      skill: string;
+      actionType: string;
+      title: string;
+      whyRecommended: string;
+      supportingEvidence: any;
+      intendedOutcome: string;
+      destination: string;
+      actionLabel: string;
+      category: string;
+      priority: string;
+      estimatedMinutes: number;
+      isCompleted: boolean;
+    } | null;
+    secondaryActions: Array<{
+      actionId: string;
+      skill: string;
+      actionType: string;
+      title: string;
+      whyRecommended: string;
+      destination: string;
+      actionLabel: string;
+      category: string;
+      priority: string;
+      estimatedMinutes: number;
+      isCompleted: boolean;
+    }>;
+  };
+  activeProjects: Array<{
+    projectId: string;
+    templateId: string;
+    title: string;
+    disciplineCategory: string;
+    status: string;
+    progressPercentage: number;
+    completedMilestones: number;
+    totalMilestones: number;
+    deliverablesCount: number;
+    overallScore: number | null;
+  }>;
+  portfolioArtifacts: Array<{
+    artifactId: string;
+    sourceModule: string;
+    title: string;
+    discipline: string;
+    artifactType: string;
+    createdAt: string;
+    isShared: boolean;
+  }>;
+  recentActivity: Array<{
+    activityId: string;
+    sourceModule: string;
+    title: string;
+    discipline: string;
+    outcomeSummary: string;
+    timestamp: string;
+    route: string;
+  }>;
 }
 
 export interface AdaptiveTelemetryData {

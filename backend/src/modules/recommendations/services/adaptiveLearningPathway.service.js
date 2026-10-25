@@ -106,6 +106,90 @@ const DISCIPLINE_RESOURCE_CATALOG = {
   },
 };
 
+// Specialized AI Tool Studio Mappings across all canonical discipline families
+export const SPECIALIZED_STUDIO_MAPPINGS = [
+  {
+    toolId: "mech-calc",
+    title: "Mechanical Engineering Calculations Studio",
+    route: "/dashboard/tools/mech-calc",
+    discipline: "mechanical",
+    skills: ["Engineering Mechanics", "Statics", "Thermodynamics", "Fluid Mechanics", "Machine Design", "Strength of Materials"],
+    description: "Perform beam deflection, stress-strain, thermodynamic cycle, and fluid flow calculations.",
+  },
+  {
+    toolId: "ece-circuits",
+    title: "Electrical & Electronics Circuit Studio",
+    route: "/dashboard/tools/ece-circuits",
+    discipline: "electrical",
+    skills: ["Circuit Analysis", "Digital Electronics", "Analog Electronics", "Ohm's Law", "Filter Design", "RC Circuit Transient Analysis", "Op-Amp Circuitry"],
+    description: "Design and verify Ohm's law, RC filter cutoff frequencies, and op-amp gain configurations.",
+  },
+  {
+    toolId: "civil-boq",
+    title: "Civil Estimator & BOQ Studio",
+    route: "/dashboard/tools/civil-boq",
+    discipline: "civil",
+    skills: ["Structural Analysis", "Quantity Surveying", "Concrete Mix Design", "RCC Beam Design", "BOQ Estimation", "Cost Estimation"],
+    description: "Calculate concrete mix ratios, rebar requirements, and structural Bill of Quantities.",
+  },
+  {
+    toolId: "chem-process",
+    title: "Chemical Mass Balance Studio",
+    route: "/dashboard/tools/chem-process",
+    discipline: "chemical",
+    skills: ["Mass Balance", "Material Balances", "Reactor Design", "Distillation Column Design", "Process Control", "Stoichiometry"],
+    description: "Compute steady-state mass balances, distillation component splits, and conversion yields.",
+  },
+  {
+    toolId: "biotech-research",
+    title: "Biotechnology & Sequence Analysis Studio",
+    route: "/dashboard/tools/biotech-research",
+    discipline: "biotechnology",
+    skills: ["Molecular Biology", "Bioinformatics", "PCR Primer Design", "Enzyme Kinetics", "DNA Sequence Analysis", "Michaelis-Menten"],
+    description: "Verify PCR primer GC content, melting temperatures, and enzyme kinetic rates.",
+  },
+  {
+    toolId: "business-kpi",
+    title: "Business Strategy & KPI Studio",
+    route: "/dashboard/tools/business-kpi",
+    discipline: "management",
+    skills: ["Business Strategy", "Marketing Analytics", "Unit Economics", "Customer Acquisition Cost", "LTV/CAC Analysis", "SWOT Analysis"],
+    description: "Model CAC, customer lifetime value, market sizing, and strategic business metrics.",
+  },
+  {
+    toolId: "finance-accounting",
+    title: "Commerce & Financial Modeling Studio",
+    route: "/dashboard/tools/finance-accounting",
+    discipline: "commerce",
+    skills: ["Financial Modeling", "Accounting", "Corporate Valuation", "DCF Valuation", "Working Capital Analysis", "Ratio Analysis"],
+    description: "Perform discounted cash flow valuation, WACC calculations, and balance sheet ratio checks.",
+  },
+  {
+    toolId: "arts-writing",
+    title: "Arts, Humanities & Source Critique Studio",
+    route: "/dashboard/tools/arts-writing",
+    discipline: "arts",
+    skills: ["Academic Writing", "Source Critique", "Historiographical Analysis", "Content Strategy", "Rhetorical Analysis", "Literature Review"],
+    description: "Evaluate primary sources, citation integrity, and academic rhetorical structure.",
+  },
+  {
+    toolId: "nursing-dosage",
+    title: "Nursing & Allied Health Dosage Studio",
+    route: "/dashboard/tools/nursing-study",
+    discipline: "health",
+    skills: ["Clinical Pharmacology", "Dosage Calculations", "IV Flow Rate Calculations", "Triage Assessment", "Patient Care Planning"],
+    description: "Verify weight-based pediatric dosages, IV drip rates, and safe administration limits.",
+  },
+  {
+    toolId: "report-reviewer",
+    title: "Cross-Disciplinary Engineering & Academic Report Reviewer",
+    route: "/dashboard/tools/report-reviewer",
+    discipline: "general",
+    skills: ["Technical Writing", "Engineering Documentation", "Research Methodology", "Peer Review"],
+    description: "Validate structural integrity, methodology clarity, and technical documentation completeness.",
+  },
+];
+
 export class AdaptiveLearningPathwayService {
   /**
    * Master orchestrator implementing the full cycle:
@@ -115,17 +199,17 @@ export class AdaptiveLearningPathwayService {
    * @param {string} [targetRoleOverride] - Optional role override
    * @returns {Promise<object>} Complete adaptive pathway with diagnosis, actions, and progression
    */
-  async generateLearningPathway(ownerId, targetRoleOverride = null) {
+  async generateLearningPathway(ownerId, targetRoleOverride = null, preloadedUser = null) {
     if (!ownerId) {
       throw new ApiError(401, "Authentication required to generate learning pathway.");
     }
 
     const isDbConnected = Boolean(mongoose.connection && mongoose.connection.readyState === 1);
 
-    // 1. Fetch Student User record
-    const user = (isDbConnected || User.findById?.mock)
+    // 1. Fetch Student User record (or use preloadedUser if already fetched)
+    const user = preloadedUser || ((isDbConnected || User.findById?.mock)
       ? await User.findById(ownerId).lean().catch(() => null)
-      : null;
+      : null);
 
     // 2. Fetch completed activity records for deduplication
     const completedRecords = (isDbConnected || LearningActivityRecord.find?.mock)
@@ -218,25 +302,32 @@ export class AdaptiveLearningPathwayService {
       const skill = gap.skill;
       const evidence = evidenceMap[skill];
       const hasDemonstratedWeakness = gap.currentStatus === "needs_remediation";
+      const isPrereqMissing = gap.currentStatus === "prerequisite_missing" || (gap.missingPrerequisites && gap.missingPrerequisites.length > 0);
+      const prereqNotice = isPrereqMissing
+        ? `Foundational prerequisite concepts (${(gap.missingPrerequisites || []).join(", ") || "fundamental topics"}) required before advanced testing.`
+        : null;
 
-      // 1. Remediation Review Action (if failed/low-scoring Phase 44 assessment)
-      if (hasDemonstratedWeakness) {
+      // 1. Remediation Review Action (if failed/low-scoring Phase 44 assessment or missing prerequisite)
+      if (hasDemonstratedWeakness || isPrereqMissing) {
         const actionId = `act_review_${skill.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
         const assessmentId = gap.assessmentId || evidence?.latestEvidence?.assessmentId || "discipline-assessment";
-        const weakTopics = evidence?.latestEvidence?.metadata?.areasForImprovement || [];
+        const weakTopics = evidence?.latestEvidence?.metadata?.areasForImprovement || gap.missingPrerequisites || [];
 
         actions.push({
           actionId,
           skill,
           actionType: "review_objective",
-          title: `Remediate ${skill}: Review Core Concepts`,
-          whyRecommended: `Your latest assessment score in ${skill} was ${gap.latestScore}% (passing mark is 70%).`,
+          title: isPrereqMissing ? `Foundational Review: ${skill} Prerequisites` : `Remediate ${skill}: Review Core Concepts`,
+          whyRecommended: isPrereqMissing
+            ? `Prerequisites for ${skill} must be reviewed before attempting full certification.`
+            : `Your latest assessment score in ${skill} was ${gap.latestScore}% (passing mark is 70%).`,
           supportingEvidence: {
-            sourceType: "assessment_attempt",
+            sourceType: isPrereqMissing ? "prerequisite_diagnosis" : "assessment_attempt",
             assessmentId,
-            score: gap.latestScore,
-            status: "demonstrated_knowledge",
+            score: gap.latestScore || 0,
+            status: isPrereqMissing ? "prerequisite_gap" : "demonstrated_knowledge",
             weakTopics,
+            prerequisiteWarning: prereqNotice,
           },
           intendedOutcome: `Master fundamental ${skill} principles to succeed on reassessment.`,
           destination: `/dashboard/assessments?id=${assessmentId}`,
@@ -248,7 +339,36 @@ export class AdaptiveLearningPathwayService {
         });
       }
 
-      // 2. EduTube / Educational Course Resource Match
+      // 2. Specialized AI Tool Studio Recommendation (Phase 51-53)
+      const matchingStudio = SPECIALIZED_STUDIO_MAPPINGS.find((st) =>
+        st.skills.some((s) => s.toLowerCase() === skill.toLowerCase() || s.toLowerCase().includes(skill.toLowerCase())) ||
+        (diagnosis.userBranch && st.discipline.toLowerCase() === diagnosis.userBranch.toLowerCase())
+      );
+
+      if (matchingStudio) {
+        const actionIdStudio = `act_tool_${matchingStudio.toolId}_${skill.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
+        actions.push({
+          actionId: actionIdStudio,
+          skill,
+          actionType: "specialized_studio",
+          title: `${matchingStudio.title}: Interactive Practice`,
+          whyRecommended: `Engage with discipline-specific engineering parameters and verified calculations for ${skill}.`,
+          supportingEvidence: {
+            sourceType: "specialized_studio",
+            toolId: matchingStudio.toolId,
+            discipline: matchingStudio.discipline,
+          },
+          intendedOutcome: `Complete verified calculations and generate an evidence-backed study artifact for ${skill}.`,
+          destination: matchingStudio.route,
+          actionLabel: "Launch Engineering Studio",
+          category: "tools",
+          priority: hasDemonstratedWeakness ? "high" : "medium",
+          estimatedMinutes: 20,
+          isCompleted: completedActionIds.has(actionIdStudio),
+        });
+      }
+
+      // 3. EduTube / Educational Course Resource Match
       const resource = DISCIPLINE_RESOURCE_CATALOG[skill] || null;
       if (resource) {
         const actionId = `act_edutube_${skill.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
@@ -274,7 +394,7 @@ export class AdaptiveLearningPathwayService {
         });
       }
 
-      // 3. Spaced Revision / Retrieval Practice
+      // 4. Spaced Revision / Retrieval Practice
       const actionIdRev = `act_spaced_${skill.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
       actions.push({
         actionId: actionIdRev,
@@ -295,8 +415,8 @@ export class AdaptiveLearningPathwayService {
         isCompleted: completedActionIds.has(actionIdRev),
       });
 
-      // 4. Practice or Reassessment Opportunity
-      if (hasDemonstratedWeakness && gap.assessmentId) {
+      // 5. Practice or Reassessment Opportunity
+      if (hasDemonstratedWeakness && gap.assessmentId && !isPrereqMissing) {
         const actionIdReassess = `act_reassess_${skill.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
         actions.push({
           actionId: actionIdReassess,
@@ -309,7 +429,7 @@ export class AdaptiveLearningPathwayService {
             assessmentId: gap.assessmentId,
             previousScore: gap.latestScore,
           },
-          intendedOutcome: `Attain verified score $\\ge 70\\%$ on comparable assessment.`,
+          intendedOutcome: `Attain verified score >= 70% on comparable assessment.`,
           destination: `/dashboard/assessments?id=${gap.assessmentId}`,
           actionLabel: "Take Assessment Now",
           category: "assessment",
@@ -317,7 +437,7 @@ export class AdaptiveLearningPathwayService {
           estimatedMinutes: 25,
           isCompleted: completedActionIds.has(actionIdReassess),
         });
-      } else if (VERIFIED_CODING_TASKS[skill]) {
+      } else if (VERIFIED_CODING_TASKS[skill] && !isPrereqMissing) {
         const codingTask = VERIFIED_CODING_TASKS[skill];
         const actionIdCoding = `act_coding_${skill.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
         actions.push({
@@ -370,7 +490,7 @@ export class AdaptiveLearningPathwayService {
       }
     }
 
-    // 5. Project Studio Advancement (for mastered skills with available blueprints)
+    // 6. Project Studio Advancement (for mastered skills with available blueprints)
     if (diagnosis.masteredSkillsCount > 0) {
       const topMastered = diagnosis.masteredSkills[0];
       const matchingProject = INITIAL_PROJECT_TEMPLATES.find((p) =>

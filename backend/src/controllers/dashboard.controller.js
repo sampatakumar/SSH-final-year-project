@@ -18,6 +18,13 @@ export const getDashboardIntelligenceController = asyncHandler(async (req, res) 
   );
 });
 
+export const getUnifiedWorkspaceController = asyncHandler(async (req, res) => {
+  const result = await dashboardIntelligenceService.getUnifiedWorkspace(req.user._id);
+  return res.status(200).json(
+    new ApiResponse(200, result, "Unified student workspace retrieved successfully")
+  );
+});
+
 export const getDashboardSummary = asyncHandler(async (req, res) => {
   const user = req.user;
 

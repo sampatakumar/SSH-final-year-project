@@ -80,6 +80,7 @@ export class DashboardIntelligenceService {
    * @returns {Promise<object>} Complete dashboard intelligence report
    */
   async getDashboardIntelligence(ownerId) {
+    const isDbConnected = Boolean(mongoose.connection && mongoose.connection.readyState === 1);
     const [
       user,
       skillProfile,
@@ -89,20 +90,19 @@ export class DashboardIntelligenceService {
       watchHistory,
       progressList,
     ] = await Promise.all([
-      User.findById(ownerId).lean().catch(() => null),
-      SkillProfile.findOne({ owner: ownerId }).lean().catch(() => null),
-      CodingSubmission.find({ owner: ownerId }).sort({ submittedAt: -1 }).lean().catch(() => []),
-      LearnerSkillAssessmentHistory.find({ owner: ownerId }).sort({ assessmentDate: -1 }).limit(10).lean().catch(() => []),
-      (mongoose.connection && mongoose.connection.readyState === 1) || SpacedRevisionSchedule.find?.mock
+      isDbConnected || User.findById?.mock ? User.findById(ownerId).lean().catch(() => null) : Promise.resolve(null),
+      isDbConnected || SkillProfile.findOne?.mock ? SkillProfile.findOne({ owner: ownerId }).lean().catch(() => null) : Promise.resolve(null),
+      isDbConnected || CodingSubmission.find?.mock ? CodingSubmission.find({ owner: ownerId }).sort({ submittedAt: -1 }).lean().catch(() => []) : Promise.resolve([]),
+      isDbConnected || LearnerSkillAssessmentHistory.find?.mock ? LearnerSkillAssessmentHistory.find({ owner: ownerId }).sort({ assessmentDate: -1 }).limit(10).lean().catch(() => []) : Promise.resolve([]),
+      isDbConnected || SpacedRevisionSchedule.find?.mock
         ? SpacedRevisionSchedule.find({ owner: ownerId, status: "pending" }).sort({ scheduledDate: 1 }).limit(5).lean().catch(() => [])
         : Promise.resolve([]),
-      EduTubeWatchHistory.find({ owner: ownerId }).sort({ watchedAt: -1 }).lean().catch(() => []),
-      EduTubeProgress.find({ owner: ownerId }).lean().catch(() => []),
+      isDbConnected || EduTubeWatchHistory.find?.mock ? EduTubeWatchHistory.find({ owner: ownerId }).sort({ watchedAt: -1 }).lean().catch(() => []) : Promise.resolve([]),
+      isDbConnected || EduTubeProgress.find?.mock ? EduTubeProgress.find({ owner: ownerId }).lean().catch(() => []) : Promise.resolve([]),
     ]);
 
     let competencyMatrix = { matrix: [], summary: { totalCompetencies: 0, demonstratedCount: 0, evidenceIncompleteCount: 0 } };
     let userBadges = [];
-    const isDbConnected = Boolean(mongoose.connection && mongoose.connection.readyState === 1);
     if (isDbConnected) {
       try {
         const { evaluateStudentCompetencyMatrix } = await import("../modules/skills/services/competencyMatrix.service.js");
@@ -246,10 +246,12 @@ export class DashboardIntelligenceService {
 
     // 5. Adaptive Loop & Daily Learning Plan
     let loopState = null;
-    try {
-      loopState = await adaptiveSkillLoopService.getAdaptiveLoopState(ownerId);
-    } catch {
-      loopState = null;
+    if (isDbConnected || adaptiveSkillLoopService.getAdaptiveLoopState?.mock) {
+      try {
+        loopState = await adaptiveSkillLoopService.getAdaptiveLoopState(ownerId);
+      } catch {
+        loopState = null;
+      }
     }
 
     // Determine focal skill & personalization context from actual student gaps
@@ -271,15 +273,17 @@ export class DashboardIntelligenceService {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
-    const todayMissionRecords = await LearningActivityRecord.find({
-      owner: ownerId,
-      activityType: "daily_mission",
-      status: "completed",
-      recordedAt: { $gte: startOfDay },
-    })
-      .select("entityId status recordedAt")
-      .lean()
-      .catch(() => []);
+    const todayMissionRecords = isDbConnected || LearningActivityRecord.find?.mock
+      ? await LearningActivityRecord.find({
+          owner: ownerId,
+          activityType: "daily_mission",
+          status: "completed",
+          recordedAt: { $gte: startOfDay },
+        })
+          .select("entityId status recordedAt")
+          .lean()
+          .catch(() => [])
+      : [];
 
     const completedMissionSet = new Set(todayMissionRecords.map((r) => r.entityId));
 
@@ -379,21 +383,23 @@ export class DashboardIntelligenceService {
 
     // 7. Top EduTube Recommendations with Grounded Explanations
     let topEduTubeRecommendations = [];
-    try {
-      const feed = await recommendationPipelineService.executePipeline(ownerId);
-      topEduTubeRecommendations = (feed.personalized || []).slice(0, 4).map((vid) => ({
-        videoId: vid.videoId,
-        title: vid.title,
-        channelTitle: vid.channelTitle,
-        thumbnail: vid.thumbnail?.high || vid.thumbnail?.default || "",
-        verifiedDurationSeconds: vid.verifiedDurationSeconds || vid.duration?.seconds || 0,
-        durationFormatted: vid.duration?.formatted || `${Math.round((vid.verifiedDurationSeconds || 0) / 60)}m`,
-        educationalScore: vid.educationalScore || 85,
-        whyRecommended: vid.whyRecommended || ["Recommended based on your target role milestones"],
-        qualityGatePassed: true,
-      }));
-    } catch (err) {
-      console.warn("[dashboard-intel] EduTube recommendations lookup warning:", err.message);
+    if (isDbConnected || recommendationPipelineService.executePipeline?.mock) {
+      try {
+        const feed = await recommendationPipelineService.executePipeline(ownerId);
+        topEduTubeRecommendations = (feed.personalized || []).slice(0, 4).map((vid) => ({
+          videoId: vid.videoId,
+          title: vid.title,
+          channelTitle: vid.channelTitle,
+          thumbnail: vid.thumbnail?.high || vid.thumbnail?.default || "",
+          verifiedDurationSeconds: vid.verifiedDurationSeconds || vid.duration?.seconds || 0,
+          durationFormatted: vid.duration?.formatted || `${Math.round((vid.verifiedDurationSeconds || 0) / 60)}m`,
+          educationalScore: vid.educationalScore || 85,
+          whyRecommended: vid.whyRecommended || ["Recommended based on your target role milestones"],
+          qualityGatePassed: true,
+        }));
+      } catch (err) {
+        console.warn("[dashboard-intel] EduTube recommendations lookup warning:", err.message);
+      }
     }
 
     // 8. Career Goal Progress
@@ -401,11 +407,13 @@ export class DashboardIntelligenceService {
     const metSkillsCount = strongSkills.length + improvingSkills.length;
     const careerGoalProgressPercent = Math.round((metSkillsCount / totalRequiredSkillsCount) * 100);
 
-    const roadmapMilestonesCompleted = await LearningActivityRecord.countDocuments({
-      owner: ownerId,
-      activityType: "roadmap_milestone",
-      status: "completed",
-    }).catch(() => 0);
+    const roadmapMilestonesCompleted = isDbConnected || LearningActivityRecord.countDocuments?.mock
+      ? await LearningActivityRecord.countDocuments({
+          owner: ownerId,
+          activityType: "roadmap_milestone",
+          status: "completed",
+        }).catch(() => 0)
+      : 0;
 
     const codingChallengesAttempted = codingSubs.length;
     const codingChallengesSolved = codingSubs.filter((c) => c.status === "passed" || c.score >= 8).length;
@@ -524,8 +532,24 @@ export class DashboardIntelligenceService {
         completedItems: roadmapMilestonesCompleted,
       },
       telemetry,
+      unifiedWorkspace: await (async () => {
+        try {
+          const { unifiedStudentContextService } = await import("../modules/skills/services/unifiedStudentContext.service.js");
+          return await unifiedStudentContextService.getUnifiedStudentContext(ownerId);
+        } catch {
+          return null;
+        }
+      })(),
       generatedAt: new Date().toISOString(),
     };
+  }
+
+  /**
+   * Directly get the unified student workspace context.
+   */
+  async getUnifiedWorkspace(ownerId) {
+    const { unifiedStudentContextService } = await import("../modules/skills/services/unifiedStudentContext.service.js");
+    return unifiedStudentContextService.getUnifiedStudentContext(ownerId);
   }
 }
 

@@ -101,7 +101,20 @@ export class CareerPathwayService {
     }
 
     const cleanId = roleId.trim().toLowerCase();
-    const role = CAREER_PATHWAY_MAP.get(cleanId);
+    const slugId = cleanId.replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    let role = CAREER_PATHWAY_MAP.get(cleanId) || CAREER_PATHWAY_MAP.get(slugId);
+    if (!role) {
+      for (const r of CAREER_PATHWAY_MAP.values()) {
+        if (
+          r.title.toLowerCase() === cleanId ||
+          r.roleId.toLowerCase() === cleanId ||
+          r.roleId.toLowerCase() === slugId
+        ) {
+          role = r;
+          break;
+        }
+      }
+    }
 
     if (!role) {
       throw new ApiError(404, `Career role '${roleId}' not found in canonical catalog.`);
@@ -219,6 +232,7 @@ export class CareerPathwayService {
           targetScore: core.targetScore,
           status: "unassessed",
           prerequisitesMet: prereqCheck.isReady,
+          reason: "No objective evaluation recorded on platform yet. Does not imply lack of competence.",
         });
         continue;
       }
@@ -315,6 +329,7 @@ export class CareerPathwayService {
       evidenceCoveragePercent,
       counts: {
         totalCoreSkills: totalCoreCount,
+        totalRequired: totalCoreCount,
         demonstrated: demonstratedSkills.length,
         partial: partialSkills.length,
         unassessed: unassessedSkills.length,
