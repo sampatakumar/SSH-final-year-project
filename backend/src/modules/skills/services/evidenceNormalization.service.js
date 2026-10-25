@@ -559,12 +559,24 @@ export class EvidenceNormalizationService {
 
     // 9. Normalize Verified GitHub Intelligence Code Evidence
     for (const gh of githubRecords) {
-      const languages = gh.languages || [];
+      let langEntries = [];
+      if (gh.languages) {
+        if (Array.isArray(gh.languages)) {
+          langEntries = gh.languages.map((l) => [typeof l === "string" ? l : (l.name || "Code"), l]);
+        } else if (gh.languages instanceof Map) {
+          langEntries = Array.from(gh.languages.entries());
+        } else if (typeof gh.languages === "object") {
+          langEntries = Object.entries(gh.languages);
+        }
+      }
       const dateStr = gh.updatedAt || new Date().toISOString();
       const freshness = computeFreshness(dateStr);
 
-      for (const lang of languages) {
-        const canonical = normalizeSkill(lang.name || lang) || lang;
+      for (const [langKey, langData] of langEntries) {
+        if (!langKey) continue;
+        const langName = typeof langKey === "string" ? langKey : (langData?.name || String(langKey));
+        const canonical = normalizeSkill(langName) || langName;
+        const byteCount = typeof langData === "number" ? langData : (langData?.size || langData?.byteCount || 5000);
         appendEvidence({
           evidenceId: `ev_gh_${gh._id}_${canonical.toLowerCase().replace(/[^a-z0-9]/g, "_")}`,
           sourceRecordId: gh._id ? gh._id.toString() : null,
@@ -576,10 +588,10 @@ export class EvidenceNormalizationService {
           evidenceType: "verified_public_code_volume",
           status: "inferred_proficiency",
           verificationStatus: "OBSERVED_PUBLIC_REPOSITORY",
-          isPassing: (lang.byteCount || 0) > 1000,
-          score: Math.min(100, Math.round(((lang.byteCount || 5000) / 10000) * 80)),
+          isPassing: byteCount > 1000,
+          score: Math.min(100, Math.round((byteCount / 10000) * 80)),
           maxScore: 100,
-          percentage: Math.min(100, Math.round(((lang.byteCount || 5000) / 10000) * 80)),
+          percentage: Math.min(100, Math.round((byteCount / 10000) * 80)),
           timestamp: dateStr,
           freshness,
           confidence: DETERMINISTIC_EVIDENCE_STRENGTH_WEIGHTS.GITHUB_VERIFIED_CODE,
@@ -587,8 +599,8 @@ export class EvidenceNormalizationService {
           confidenceType: "deterministic_heuristic_strength",
           provenance: "github_public_repository_analysis",
           metadata: {
-            byteCount: lang.byteCount,
-            repoCount: gh.totalRepos || 1,
+            byteCount,
+            repoCount: gh.profile?.publicRepos || gh.totalRepos || 1,
           },
         });
       }
@@ -596,7 +608,15 @@ export class EvidenceNormalizationService {
 
     // 10. Normalize Resume Claims (Strictly Self-Reported; Never Promoted to Verified)
     for (const resItem of resumeRecords) {
-      const skills = (resItem.skills || []).slice(0, 15);
+      let rawSkills = [];
+      if (Array.isArray(resItem.skills)) {
+        rawSkills = resItem.skills;
+      } else if (Array.isArray(resItem.builderConfig?.skills)) {
+        rawSkills = resItem.builderConfig.skills;
+      } else if (typeof resItem.skills === "string") {
+        rawSkills = resItem.skills.split(/[,;\n]/).map((s) => s.trim()).filter(Boolean);
+      }
+      const skills = rawSkills.slice(0, 15);
       const dateStr = resItem.updatedAt || resItem.createdAt || new Date().toISOString();
       const freshness = computeFreshness(dateStr);
 

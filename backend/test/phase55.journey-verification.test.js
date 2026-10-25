@@ -24,6 +24,7 @@ import { calculateDosageArithmetic, explainMedicalTerminology } from "../src/mod
 // Models for mocking
 import { ToolActivityRecord } from "../src/modules/tools/models/toolActivityRecord.models.js";
 import { AssessmentAttempt } from "../src/modules/academic/models/assessmentAttempt.models.js";
+import { GitHubAnalysis } from "../src/modules/github/models/githubAnalysis.models.js";
 
 describe("Phase 55: Critical Findings Closure & End-to-End Student Journey Verification", () => {
   beforeEach(() => {
@@ -199,6 +200,57 @@ describe("Phase 55: Critical Findings Closure & End-to-End Student Journey Verif
       expect(circuitSkill.hasConflictingEvidence).toBe(true);
       expect(circuitSkill.evaluationState).toBe("conflicting_evidence");
       expect(circuitSkill.conflictSummary).toMatch(/Conflicting performance detected for Circuit Analysis/i);
+    });
+
+    it("1.5 Safely normalizes GitHub evidence when languages is a Map or plain Object without throwing", async () => {
+      const studentId = "student_gh_map";
+
+      // Test with plain object languages (typical from MongoDB lean query)
+      vi.spyOn(evidenceNormalizationService, "safeFind").mockImplementation(async (model) => {
+        if (model === GitHubAnalysis) {
+          return [
+            {
+              _id: new mongoose.Types.ObjectId(),
+              owner: studentId,
+              githubUsername: "sampledev",
+              languages: {
+                JavaScript: { size: 15400, percentage: 65, repoCount: 3 },
+                Python: { size: 8200, percentage: 35, repoCount: 2 },
+              },
+              updatedAt: new Date().toISOString(),
+            },
+          ];
+        }
+        return [];
+      });
+
+      const normalized = await evidenceNormalizationService.getNormalizedStudentEvidence(studentId);
+      expect(normalized.rawCount).toBe(2);
+      expect(normalized.normalizedBySkill["JavaScript"]).toBeDefined();
+      expect(normalized.normalizedBySkill["JavaScript"].latestScore).toBeGreaterThan(0);
+      expect(normalized.normalizedBySkill["Python"]).toBeDefined();
+
+      // Test with Mongoose Map
+      const langMap = new Map();
+      langMap.set("TypeScript", { size: 12000, percentage: 100, repoCount: 1 });
+      vi.spyOn(evidenceNormalizationService, "safeFind").mockImplementation(async (model) => {
+        if (model === GitHubAnalysis) {
+          return [
+            {
+              _id: new mongoose.Types.ObjectId(),
+              owner: studentId,
+              githubUsername: "sampledev",
+              languages: langMap,
+              updatedAt: new Date().toISOString(),
+            },
+          ];
+        }
+        return [];
+      });
+
+      const normalizedMap = await evidenceNormalizationService.getNormalizedStudentEvidence(studentId);
+      expect(normalizedMap.rawCount).toBe(1);
+      expect(normalizedMap.normalizedBySkill["TypeScript"]).toBeDefined();
     });
   });
 

@@ -135,7 +135,7 @@ The remaining 8 test files fail exclusively due to the security safeguard `CODIN
 Test Execution Summary
 ========================================================================================
 1. Phase 55 Journey Verification Suite (backend/test/phase55.journey-verification.test.js):
-   - 21 / 21 tests PASSED (100%)
+   - 22 / 22 tests PASSED (100%)
 
 2. Phase 54 System Audit Suite (backend/test/phase54.system-audit.test.js):
    - 20 / 20 tests PASSED (100%)
@@ -153,10 +153,10 @@ Test Execution Summary
    - Subtotal: 140 / 140 tests PASSED (100%)
 
 5. Combined Cross-Module Regression (Phases 45–55):
-   - 9 test files, 205 / 205 tests PASSED (100%)
+   - 9 test files, 206 / 206 tests PASSED (100%)
 
 6. Full Backend Suite Baseline:
-   - 72 test files PASSED (1,138 passed tests, 19 skipped)
+   - 72 test files PASSED (1,139 passed tests, 19 skipped)
    - 8 test files blocked by `CODING_EXECUTION_ENABLED=false` (27 tests)
 
 7. Full Frontend Test Suite:
@@ -171,6 +171,13 @@ Test Execution Summary
    - Result: 0 errors.
 ========================================================================================
 ```
+
+---
+
+### 8.1 Confirmed Live Runtime Defect & Remediation
+- **Defect**: `TypeError: languages is not iterable` in `EvidenceNormalizationService.getNormalizedStudentEvidence` at line 566 during career pathway evaluation (`GET /api/v1/career/pathways/readiness/manufacturing-engineer`).
+- **Reproduction**: A user account with linked GitHub Intelligence documents triggers normalization. In MongoDB / Mongoose, `GitHubAnalysis.languages` is defined with `type: Map`. When loaded from MongoDB, it is returned as a Mongoose Map or a plain Object (`{ JavaScript: { size: ... } }`). Calling `for (const lang of languages)` threw an unhandled `TypeError` because plain Objects in JavaScript are not iterable with `for...of`.
+- **Remediation**: Updated `evidenceNormalization.service.js` to inspect `gh.languages` and gracefully support Mongoose `Map` (`Array.from(gh.languages.entries())`), plain JavaScript `Object` (`Object.entries(gh.languages)`), and Array formats. Added unit regression test `1.5` in `test/phase55.journey-verification.test.js`.
 
 ---
 
