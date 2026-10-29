@@ -1,4 +1,4 @@
-import { apiRequest } from "@/lib/api";
+import { apiRequest, getApiBaseUrl } from "@/lib/api";
 import { ProjectTemplate, StudentProject } from "../types/projectStudio.types";
 
 export interface TemplateFilters {
@@ -131,7 +131,7 @@ export const projectStudioApi = {
     formData: FormData,
     token: string
   ) {
-    const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
+    const baseUrl = getApiBaseUrl();
     const res = await fetch(`${baseUrl}/academic/projects/my-projects/${projectId}/deliverables/upload`, {
       method: "POST",
       headers: {

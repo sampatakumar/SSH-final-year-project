@@ -13,6 +13,8 @@ test-results/
 .env.*
 !.env.example
 !.env.staging.example
+!.env.production
+!.env.production.example
 
 # Logs
 logs/

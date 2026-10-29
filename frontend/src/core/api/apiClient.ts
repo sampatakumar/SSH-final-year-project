@@ -17,6 +17,11 @@ export const getApiBaseUrl = () => {
       return `https://${backendTunnelHost}/api/v1`;
     }
 
+    // If hosted on Smart Skill Hub Vercel domain, connect directly to production Render backend
+    if (host === "smartskillhub.vercel.app" || host.endsWith(".vercel.app")) {
+      return "https://ssh-final-year-project.onrender.com/api/v1";
+    }
+
     // In production non-localhost environments without explicit VITE_API_URL,
     // fallback to same-origin path to prevent mixed-content or unreachable localhost calls
     if (hostname !== "localhost" && hostname !== "127.0.0.1") {

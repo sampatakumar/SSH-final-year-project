@@ -59,9 +59,11 @@ const isOriginAllowed = (origin) => {
     return true;
   }
 
-  // Allow explicit Vercel frontend deployments, devtunnels, and local dev servers
+  // Allow explicit Vercel frontend deployments, devtunnels, Render domains, and local dev servers
   if (
-    /^https:\/\/[a-z0-9-]+-smart-skill-hub\.vercel\.app$/i.test(normalized) ||
+    normalized === "https://smartskillhub.vercel.app" ||
+    normalized === "https://ssh-final-year-project.onrender.com" ||
+    /^https:\/\/(smartskillhub|[a-z0-9-]+-smart-skill-hub|[a-z0-9-]+)\.vercel\.app$/i.test(normalized) ||
     /^https:\/\/[a-z0-9-.]+\.devtunnels\.ms$/i.test(normalized) ||
     /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(normalized)
   ) {
@@ -81,9 +83,13 @@ app.use(
         ...defaultCspDirectives,
         "frame-ancestors": [
           "'self'",
-          env.FRONTEND_URL || "http://localhost:8081",
+          env.FRONTEND_URL || "https://smartskillhub.vercel.app",
+          "https://smartskillhub.vercel.app",
+          "https://*.vercel.app",
           "https://*.devtunnels.ms",
-          "https://p7vc1nkb-8080.inc1.devtunnels.ms"
+          "https://p7vc1nkb-8080.inc1.devtunnels.ms",
+          "http://localhost:8080",
+          "http://localhost:8081"
         ]
       }
     },
