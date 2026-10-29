@@ -19,7 +19,11 @@ services:
       - key: GROQ_MODEL
         value: openai/gpt-oss-120b
       - key: CORS_ORIGIN
-        sync: false
+        value: https://smartskillhub.vercel.app
+      - key: FRONTEND_URL
+        value: https://smartskillhub.vercel.app
+      - key: BACKEND_URL
+        value: https://ssh-final-year-project.onrender.com
       - key: MONGODB_URI
         sync: false
       - key: FIREBASE_PROJECT_ID

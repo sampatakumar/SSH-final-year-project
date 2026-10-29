@@ -2,8 +2,20 @@ import { firebaseAuth, getAuthToken } from "./firebase";
 
 const DEFAULT_API_BASE_URL = "http://localhost:8000/api/v1";
 
-export const getApiBaseUrl = () =>
-  (import.meta.env.VITE_API_URL || DEFAULT_API_BASE_URL).replace(/\/$/, "");
+export const getApiBaseUrl = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL.replace(/\/$/, "");
+  }
+
+  if (typeof window !== "undefined") {
+    const host = window.location.host;
+    if (host === "smartskillhub.vercel.app" || host.endsWith(".vercel.app")) {
+      return "https://ssh-final-year-project.onrender.com/api/v1";
+    }
+  }
+
+  return DEFAULT_API_BASE_URL.replace(/\/$/, "");
+};
 
 export const getBackendOrigin = () =>
   getApiBaseUrl().replace(/\/api\/v1$/i, "");
