@@ -60,6 +60,7 @@ const DashboardLayout: React.FC = () => {
   };
 
   const isMentorPage = location.pathname.startsWith("/dashboard/mentor");
+  const isCommunityPage = location.pathname.startsWith("/dashboard/community");
 
   const targetRole = backendUser?.targetRole || "Full Stack Developer";
   const isAdmin =
@@ -256,7 +257,12 @@ const DashboardLayout: React.FC = () => {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 h-full min-w-0 overflow-y-auto overflow-x-hidden relative pt-[7.25rem] md:pt-0 flex flex-col">
+      <main
+        className={cn(
+          "flex-1 h-full min-w-0 overflow-x-hidden relative pt-[7.25rem] md:pt-0 flex flex-col",
+          isCommunityPage ? "overflow-y-hidden" : "overflow-y-auto"
+        )}
+      >
         {/* Desktop Header with Sidebar Toggle */}
         <header className="hidden md:flex items-center justify-between px-4 lg:px-6 py-3 border-b border-border/30 bg-background/80 backdrop-blur-md sticky top-0 z-30 shrink-0">
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -291,11 +297,13 @@ const DashboardLayout: React.FC = () => {
           </div>
         </header>
 
-        {/* Content Container - Expands to full width for Smart Mentor */}
+        {/* Content Container - Expands to full width for Smart Mentor and Community */}
         <div
           className={cn(
             "flex-1 flex flex-col w-full min-w-0",
-            isMentorPage
+            isCommunityPage
+              ? "p-0 max-w-none h-full overflow-hidden"
+              : isMentorPage
               ? "p-3 sm:p-4 md:p-5 lg:p-6 max-w-full"
               : "p-4 md:p-6 lg:p-8 max-w-7xl mx-auto min-h-full"
           )}

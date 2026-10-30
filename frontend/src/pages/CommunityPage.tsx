@@ -24,7 +24,11 @@ import {
   Filter,
   UserCheck,
   X,
+  ArrowLeft,
+  Info,
+  Hash,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/core/auth";
 import {
   communityClient,
@@ -86,6 +90,7 @@ const CommunityPage: React.FC = () => {
   // Groups and active selection
   const [groups, setGroups] = useState<CommunityGroup[]>([]);
   const [activeGroup, setActiveGroup] = useState<CommunityGroup | null>(null);
+  const [mobileView, setMobileView] = useState<"groups" | "chat">("chat");
   const [loadingGroups, setLoadingGroups] = useState(true);
   const [groupCategoryFilter, setGroupCategoryFilter] = useState("All");
   const [groupSearch, setGroupSearch] = useState("");
@@ -435,68 +440,72 @@ const CommunityPage: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] max-w-full overflow-hidden bg-background">
+    <div className="w-full h-full flex flex-col overflow-hidden bg-background">
       {/* Top Navigation Bar */}
-      <header className="flex items-center justify-between px-6 py-3 border-b border-border/40 bg-card/60 backdrop-blur-md shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between px-4 lg:px-6 py-2.5 border-b border-border/40 bg-card/60 backdrop-blur-md shrink-0 gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="h-9 w-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0 shadow-neo-raised-sm">
             <Users className="h-5 w-5" />
           </div>
-          <div>
-            <h1 className="text-lg font-bold text-foreground flex items-center gap-2">
+          <div className="min-w-0">
+            <h1 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2 truncate">
               Student Community & Collaboration
-              <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
+              <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/30 shrink-0">
                 {onlineCount} Online
               </Badge>
             </h1>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground truncate hidden sm:block">
               Peer-to-peer technical chat, private study circles, student directory & projects
             </p>
           </div>
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex items-center gap-1.5 p-1 bg-muted/40 rounded-xl border border-border/40">
+        <div className="flex items-center gap-1.5 p-1 bg-muted/40 rounded-xl border border-border/40 overflow-x-auto no-scrollbar shrink-0 max-w-full">
           <button
             onClick={() => setActiveTab("chat")}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={cn(
+              "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 cursor-pointer",
               activeTab === "chat"
-                ? "bg-background text-foreground shadow-sm"
+                ? "bg-background text-foreground shadow-sm font-semibold"
                 : "text-muted-foreground hover:text-foreground"
-            }`}
+            )}
           >
             <MessageSquare className="h-3.5 w-3.5" />
             Chat & Groups
           </button>
           <button
             onClick={() => setActiveTab("discover")}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={cn(
+              "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 cursor-pointer",
               activeTab === "discover"
-                ? "bg-background text-foreground shadow-sm"
+                ? "bg-background text-foreground shadow-sm font-semibold"
                 : "text-muted-foreground hover:text-foreground"
-            }`}
+            )}
           >
             <Compass className="h-3.5 w-3.5" />
             Discover Groups
           </button>
           <button
             onClick={() => setActiveTab("students")}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={cn(
+              "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 cursor-pointer",
               activeTab === "students"
-                ? "bg-background text-foreground shadow-sm"
+                ? "bg-background text-foreground shadow-sm font-semibold"
                 : "text-muted-foreground hover:text-foreground"
-            }`}
+            )}
           >
             <UserCheck className="h-3.5 w-3.5" />
             Student Directory
           </button>
           <button
             onClick={() => setActiveTab("projects")}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={cn(
+              "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 cursor-pointer",
               activeTab === "projects"
-                ? "bg-background text-foreground shadow-sm"
+                ? "bg-background text-foreground shadow-sm font-semibold"
                 : "text-muted-foreground hover:text-foreground"
-            }`}
+            )}
           >
             <FolderGit2 className="h-3.5 w-3.5" />
             Project Collaboration
@@ -510,10 +519,15 @@ const CommunityPage: React.FC = () => {
         {/* TAB 1: CHAT & GROUPS                                              */}
         {/* ================================================================= */}
         {activeTab === "chat" && (
-          <div className="flex h-full">
+          <div className="flex h-full w-full overflow-hidden">
             {/* Left Column: Group Sidebar */}
-            <aside className="w-72 border-r border-border/40 flex flex-col bg-card/30 shrink-0">
-              <div className="p-3 border-b border-border/40 flex items-center justify-between gap-2">
+            <aside
+              className={cn(
+                "w-full md:w-72 lg:w-80 border-r border-border/40 flex flex-col bg-card/25 shrink-0 h-full",
+                mobileView === "chat" ? "hidden md:flex" : "flex"
+              )}
+            >
+              <div className="p-3 border-b border-border/40 flex items-center justify-between gap-2 shrink-0">
                 <div className="relative flex-1">
                   <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
                   <Input
@@ -553,12 +567,16 @@ const CommunityPage: React.FC = () => {
                       return (
                         <button
                           key={group._id}
-                          onClick={() => setActiveGroup(group)}
-                          className={`w-full text-left p-2.5 rounded-xl transition-all flex items-start gap-3 ${
+                          onClick={() => {
+                            setActiveGroup(group);
+                            setMobileView("chat");
+                          }}
+                          className={cn(
+                            "w-full text-left p-2.5 rounded-xl transition-all flex items-start gap-3 cursor-pointer",
                             isSelected
-                              ? "bg-primary/10 border border-primary/30 shadow-sm"
+                              ? "bg-primary/10 border border-primary/30 shadow-xs"
                               : "hover:bg-muted/40 border border-transparent"
-                          }`}
+                          )}
                         >
                           <div className="h-9 w-9 rounded-xl bg-muted/60 border border-border/40 flex items-center justify-center text-foreground font-semibold shrink-0">
                             {group.isGlobal ? (
@@ -592,12 +610,29 @@ const CommunityPage: React.FC = () => {
             </aside>
 
             {/* Center Column: Chat Messages Timeline */}
-            <main className="flex-1 flex flex-col h-full bg-background overflow-hidden">
+            <main
+              className={cn(
+                "flex-1 min-w-0 flex flex-col h-full bg-background overflow-hidden relative",
+                mobileView === "groups" ? "hidden md:flex" : "flex"
+              )}
+            >
               {activeGroup ? (
                 <>
                   {/* Chat Group Header */}
-                  <div className="h-14 px-5 border-b border-border/40 flex items-center justify-between bg-card/40 backdrop-blur-sm shrink-0">
-                    <div className="flex items-center gap-3 min-w-0">
+                  <div className="h-14 px-4 lg:px-6 border-b border-border/40 flex items-center justify-between bg-card/40 backdrop-blur-sm shrink-0">
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                      {/* Mobile back button to show groups */}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setMobileView("groups")}
+                        className="md:hidden h-8 w-8 text-muted-foreground hover:text-foreground shrink-0"
+                        aria-label="Back to groups"
+                        title="Back to groups"
+                      >
+                        <ArrowLeft className="h-4 w-4" />
+                      </Button>
+
                       <div className="h-8 w-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
                         {activeGroup.isGlobal ? (
                           <Globe className="h-4 w-4" />
@@ -619,26 +654,26 @@ const CommunityPage: React.FC = () => {
 
                     <div className="flex items-center gap-2">
                       <Button
-                        variant="ghost"
+                        variant={showRightSidebar ? "secondary" : "ghost"}
                         size="sm"
                         onClick={toggleRightSidebar}
-                        className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground"
+                        className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground gap-1.5"
                       >
-                        <Users className="h-3.5 w-3.5 mr-1.5" />
-                        Details & Members
+                        <Users className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Details & Members</span>
                       </Button>
                     </div>
                   </div>
 
                   {/* Messages Scroll Area */}
-                  <div className="flex-1 overflow-y-auto p-4 space-y-3.5">
+                  <div className="flex-1 overflow-y-auto px-4 lg:px-6 py-4 space-y-3.5">
                     {loadingMessages ? (
                       <div className="text-center p-8 text-xs text-muted-foreground animate-pulse">
                         Loading message history...
                       </div>
                     ) : messages.length === 0 ? (
                       <div className="h-full flex flex-col items-center justify-center text-center p-8">
-                        <div className="h-12 w-12 rounded-2xl bg-muted/40 border border-border/40 flex items-center justify-center text-muted-foreground mb-3">
+                        <div className="h-12 w-12 rounded-2xl bg-muted/40 border border-border/40 flex items-center justify-center text-muted-foreground mb-3 shadow-neo-raised-sm">
                           <MessageSquare className="h-6 w-6" />
                         </div>
                         <h3 className="font-semibold text-sm text-foreground">
@@ -659,7 +694,7 @@ const CommunityPage: React.FC = () => {
                             }`}
                           >
                             {/* Avatar */}
-                            <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-primary/30 to-blue-500/30 border border-primary/20 flex items-center justify-center font-bold text-xs text-foreground shrink-0 overflow-hidden">
+                            <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-primary/30 to-blue-500/30 border border-primary/20 flex items-center justify-center font-bold text-xs text-foreground shrink-0 overflow-hidden shadow-xs">
                               {msg.sender?.photoURL ? (
                                 <img
                                   src={msg.sender.photoURL}
@@ -673,7 +708,7 @@ const CommunityPage: React.FC = () => {
 
                             {/* Message Bubble Container */}
                             <div
-                              className={`max-w-[70%] flex flex-col ${
+                              className={`max-w-[85%] sm:max-w-[75%] md:max-w-[70%] flex flex-col ${
                                 isSelf ? "items-end" : "items-start"
                               }`}
                             >
@@ -683,7 +718,7 @@ const CommunityPage: React.FC = () => {
                                   {isSelf ? "You" : msg.sender?.displayName || "Student"}
                                 </span>
                                 {msg.sender?.academic?.branchName && (
-                                  <span className="text-[10px] opacity-70">
+                                  <span className="text-[10px] opacity-75">
                                     • {msg.sender.academic.branchName}
                                   </span>
                                 )}
@@ -697,12 +732,12 @@ const CommunityPage: React.FC = () => {
 
                               {/* Bubble */}
                               <div
-                                className={`p-3 rounded-2xl text-xs leading-relaxed ${
+                                className={`p-3.5 rounded-2xl text-xs leading-relaxed ${
                                   msg.isDeleted
                                     ? "bg-muted/40 text-muted-foreground italic border border-border/30"
                                     : isSelf
-                                    ? "bg-primary text-primary-foreground rounded-tr-none shadow-sm"
-                                    : "bg-muted/50 text-foreground rounded-tl-none border border-border/40 shadow-sm"
+                                    ? "bg-primary text-primary-foreground rounded-tr-xs shadow-sm"
+                                    : "bg-card text-foreground rounded-tl-xs border border-border/50 shadow-sm"
                                 }`}
                               >
                                 {msg.replyTo && (
@@ -717,14 +752,14 @@ const CommunityPage: React.FC = () => {
                               <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2 mt-1 px-1 text-[10px] text-muted-foreground">
                                 <button
                                   onClick={() => setReplyingTo(msg)}
-                                  className="hover:text-primary transition-colors"
+                                  className="hover:text-primary transition-colors cursor-pointer"
                                 >
                                   Reply
                                 </button>
                                 {isSelf && !msg.isDeleted && (
                                   <button
                                     onClick={() => handleDeleteMessage(msg._id)}
-                                    className="hover:text-destructive transition-colors"
+                                    className="hover:text-destructive transition-colors cursor-pointer"
                                   >
                                     Delete
                                   </button>
@@ -746,7 +781,7 @@ const CommunityPage: React.FC = () => {
                   )}
 
                   {/* Message Input Composer */}
-                  <div className="p-4 border-t border-border/40 bg-card/30">
+                  <div className="p-3 lg:p-4 border-t border-border/40 bg-card/30 backdrop-blur-xs shrink-0">
                     {replyingTo && (
                       <div className="mb-2 p-2 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-between text-xs">
                         <span className="truncate text-muted-foreground">
@@ -754,7 +789,7 @@ const CommunityPage: React.FC = () => {
                         </span>
                         <button
                           onClick={() => setReplyingTo(null)}
-                          className="text-muted-foreground hover:text-foreground ml-2"
+                          className="text-muted-foreground hover:text-foreground ml-2 cursor-pointer"
                         >
                           <X className="h-3.5 w-3.5" />
                         </button>
@@ -777,7 +812,7 @@ const CommunityPage: React.FC = () => {
                       <Button
                         type="submit"
                         disabled={!messageInput.trim() || sendingMessage}
-                        className="h-10 px-4 rounded-xl text-xs gap-1.5"
+                        className="h-10 px-4 rounded-xl text-xs gap-1.5 cursor-pointer"
                       >
                         <Send className="h-3.5 w-3.5" />
                         Send
@@ -786,22 +821,35 @@ const CommunityPage: React.FC = () => {
                   </div>
                 </>
               ) : (
-                <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground">
-                  Select a community group to begin chatting.
+                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-xs text-muted-foreground">
+                  <div className="h-12 w-12 rounded-2xl bg-muted/40 border border-border/40 flex items-center justify-center text-muted-foreground mb-3 shadow-neo-raised-sm">
+                    <MessageSquare className="h-6 w-6" />
+                  </div>
+                  <h3 className="font-semibold text-sm text-foreground mb-1">No group selected</h3>
+                  <p className="max-w-xs text-muted-foreground">
+                    Select a community from the list or explore new groups in the Discover tab.
+                  </p>
                 </div>
               )}
             </main>
 
             {/* Right Column: Group Details & Members Sidebar */}
             {showRightSidebar && activeGroup && (
-              <aside className="w-64 border-l border-border/40 bg-card/20 flex flex-col h-full shrink-0">
-                <div className="p-4 border-b border-border/40 flex items-center justify-between">
-                  <h3 className="font-bold text-xs text-foreground uppercase tracking-wider">
+              <aside
+                className={cn(
+                  "border-l border-border/40 bg-card/30 flex flex-col h-full shrink-0 z-20",
+                  "fixed inset-y-0 right-0 w-80 shadow-2xl xl:static xl:w-72 2xl:w-80 xl:shadow-none"
+                )}
+              >
+                <div className="p-4 border-b border-border/40 flex items-center justify-between shrink-0">
+                  <h3 className="font-bold text-xs text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Info className="h-3.5 w-3.5 text-primary" />
                     Group Details
                   </h3>
                   <button
                     onClick={() => setShowRightSidebar(false)}
-                    className="text-muted-foreground hover:text-foreground"
+                    className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-muted/40 transition-colors cursor-pointer"
+                    aria-label="Close group details"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -809,7 +857,7 @@ const CommunityPage: React.FC = () => {
 
                 <div className="p-4 flex-1 overflow-y-auto space-y-4 text-xs">
                   <div>
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                       About
                     </span>
                     <p className="mt-1 text-muted-foreground leading-relaxed">
@@ -818,17 +866,30 @@ const CommunityPage: React.FC = () => {
                   </div>
 
                   <div>
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                       Category
                     </span>
-                    <Badge variant="outline" className="mt-1 block w-fit text-[11px]">
-                      {activeGroup.category}
-                    </Badge>
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <Badge variant="outline" className="text-[11px]">
+                        {activeGroup.category}
+                      </Badge>
+                      {activeGroup.visibility === "private" ? (
+                        <Badge className="text-[10px] bg-amber-500/10 text-amber-400 border-amber-500/20">
+                          <Lock className="h-3 w-3 mr-1" />
+                          Private Circle
+                        </Badge>
+                      ) : (
+                        <Badge className="text-[10px] bg-blue-500/10 text-blue-400 border-blue-500/20">
+                          <Globe className="h-3 w-3 mr-1" />
+                          Public Community
+                        </Badge>
+                      )}
+                    </div>
                   </div>
 
                   {activeGroup.rules && activeGroup.rules.length > 0 && (
                     <div>
-                      <span className="text-[10px] font-bold text-muted-foreground uppercase">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                         Community Rules
                       </span>
                       <ul className="mt-1.5 space-y-1 text-muted-foreground list-disc pl-3">
@@ -842,7 +903,7 @@ const CommunityPage: React.FC = () => {
                   )}
 
                   <div className="pt-2 border-t border-border/30">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-2">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-2">
                       Members ({members.length})
                     </span>
 
@@ -878,7 +939,7 @@ const CommunityPage: React.FC = () => {
         {/* TAB 2: DISCOVER GROUPS                                            */}
         {/* ================================================================= */}
         {activeTab === "discover" && (
-          <div className="p-6 max-w-6xl mx-auto h-full overflow-y-auto space-y-6">
+          <div className="w-full h-full p-4 lg:p-6 overflow-y-auto space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <h2 className="text-xl font-bold text-foreground">Discover Technical Communities</h2>
@@ -886,7 +947,7 @@ const CommunityPage: React.FC = () => {
                   Join student-run engineering squads, competitive coding circles, and interdisciplinary hubs.
                 </p>
               </div>
-              <Button onClick={() => setShowCreateModal(true)} className="text-xs gap-1.5">
+              <Button onClick={() => setShowCreateModal(true)} className="text-xs gap-1.5 cursor-pointer">
                 <Plus className="h-4 w-4" />
                 Create Group
               </Button>
@@ -898,7 +959,7 @@ const CommunityPage: React.FC = () => {
                 <button
                   key={cat}
                   onClick={() => setGroupCategoryFilter(cat)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all shrink-0 ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all shrink-0 cursor-pointer ${
                     groupCategoryFilter === cat
                       ? "bg-primary text-primary-foreground shadow-sm"
                       : "bg-muted/40 text-muted-foreground hover:text-foreground border border-border/30"
@@ -923,7 +984,7 @@ const CommunityPage: React.FC = () => {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
                 {discoverGroups.map((group) => (
                   <div
                     key={group._id}
@@ -959,7 +1020,7 @@ const CommunityPage: React.FC = () => {
                         size="sm"
                         onClick={() => handleJoinGroup(group)}
                         disabled={joiningGroup}
-                        className="h-8 px-3 text-xs"
+                        className="h-8 px-3 text-xs cursor-pointer"
                       >
                         Join Group
                       </Button>
@@ -975,7 +1036,7 @@ const CommunityPage: React.FC = () => {
         {/* TAB 3: STUDENT DIRECTORY                                          */}
         {/* ================================================================= */}
         {activeTab === "students" && (
-          <div className="p-6 max-w-6xl mx-auto h-full overflow-y-auto space-y-6">
+          <div className="w-full h-full p-4 lg:p-6 overflow-y-auto space-y-6">
             <div>
               <h2 className="text-xl font-bold text-foreground">Student Directory & Peer Discovery</h2>
               <p className="text-xs text-muted-foreground mt-0.5">
@@ -1027,7 +1088,7 @@ const CommunityPage: React.FC = () => {
                 <p className="text-xs text-muted-foreground mt-1">Try adjusting your filters or search term.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
                 {students.map((student) => (
                   <div
                     key={student._id}
@@ -1087,7 +1148,7 @@ const CommunityPage: React.FC = () => {
         {/* TAB 4: PROJECT COLLABORATION                                      */}
         {/* ================================================================= */}
         {activeTab === "projects" && (
-          <div className="p-6 max-w-6xl mx-auto h-full overflow-y-auto space-y-6">
+          <div className="w-full h-full p-4 lg:p-6 overflow-y-auto space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <h2 className="text-xl font-bold text-foreground">Project Collaboration Hub</h2>
@@ -1099,7 +1160,7 @@ const CommunityPage: React.FC = () => {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setCollabOnly(!collabOnly)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
                     collabOnly
                       ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
                       : "bg-muted/40 text-muted-foreground border-border/30"
@@ -1124,7 +1185,7 @@ const CommunityPage: React.FC = () => {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
                 {projects.map((proj) => (
                   <div
                     key={proj._id}
