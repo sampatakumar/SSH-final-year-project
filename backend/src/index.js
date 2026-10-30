@@ -2,6 +2,10 @@ import mongoose from "mongoose";
 import { app } from "./app.js";
 import { env } from "./config/env.js";
 import { connectDB } from "./core/database/db.js";
+import {
+  initCommunitySocket,
+  closeCommunitySocket,
+} from "./modules/community/socket/communitySocket.js";
 
 let server = null;
 let isShuttingDown = false;
@@ -18,6 +22,7 @@ export const shutdown = async (signal = "SIGTERM", exitProcess = true, exitCode 
 
   // 1. Close HTTP server and reject new incoming connections
   if (server) {
+    await closeCommunitySocket().catch(() => {});
     await new Promise((resolve) => {
       const timer = setTimeout(() => {
         console.warn("[Shutdown] HTTP server close timed out (10s), forcing termination.");
@@ -63,6 +68,11 @@ export const startServer = async () => {
     return new Promise((resolve) => {
       server = app.listen(env.PORT, () => {
         console.log(`[Startup] Smart Skill Hub Server running on port ${env.PORT} in ${env.NODE_ENV} mode`);
+        try {
+          initCommunitySocket(server);
+        } catch (socketErr) {
+          console.warn("[Startup] Community socket initialization warning:", socketErr.message);
+        }
         resolve({ server, shutdown });
       });
     });

@@ -34,6 +34,7 @@ import practicalLabRouter from "./modules/academic/routes/practicalLab.routes.js
 import notificationRouter from "./modules/notifications/routes/notification.routes.js";
 import careerPathwayRouter from "./modules/career/routes/careerPathway.routes.js";
 import toolsRouter from "./modules/tools/routes/tools.routes.js";
+import communityRouter from "./modules/community/routes/community.routes.js";
 import { handleGitHubCallback } from "./modules/settings/controllers/integrations.controller.js";
 import { apiHitTracker } from "./core/middleware/analytics.middleware.js";
 import { incrementDailyCounter } from "./core/database/models/analytics.models.js";
@@ -174,6 +175,7 @@ app.use(`${env.API_PREFIX}/labs`, practicalLabRouter);
 app.use(`${env.API_PREFIX}/career/pathways`, careerPathwayRouter);
 app.use(`${env.API_PREFIX}/career`, careerPathwayRouter);
 app.use(`${env.API_PREFIX}/tools`, toolsRouter);
+app.use(`${env.API_PREFIX}/community`, communityRouter);
 app.use(`${env.API_PREFIX}/notifications`, notificationRouter);
 app.use(`${env.API_PREFIX}/admin`, adminRouter);
 app.use(`${env.API_PREFIX}/portfolio`, portfolioRouter);

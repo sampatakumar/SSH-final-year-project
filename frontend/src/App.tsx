@@ -31,6 +31,7 @@ const PracticalLabsPage = lazy(() => import("./pages/PracticalLabsPage"));
 const CareerPathwayStudioPage = lazy(() => import("./pages/CareerPathwayStudioPage"));
 const ToolHubPage = lazy(() => import("./pages/ToolHubPage").then((m) => ({ default: m.ToolHubPage })));
 const ToolWorkspacePage = lazy(() => import("./pages/ToolWorkspacePage").then((m) => ({ default: m.ToolWorkspacePage })));
+const CommunityPage = lazy(() => import("./pages/CommunityPage"));
 const GitHubIntelligencePage = lazy(() => import("./modules/github/GitHubIntelligencePage"));
 const Resumes = lazy(() => import("./modules/resume/Resumes"));
 const Projects = lazy(() => import("./modules/resume/Projects"));
@@ -113,6 +114,8 @@ const App = () => (
                       <Route path="career" element={<Navigate to="/dashboard/career-pathways" replace />} />
                       <Route path="tools" element={<ToolHubPage />} />
                       <Route path="tools/:toolId" element={<ToolWorkspacePage />} />
+                      <Route path="community" element={<CommunityPage />} />
+                      <Route path="community/*" element={<CommunityPage />} />
                       <Route path="github" element={<GitHubIntelligencePage />} />
                       <Route path="resumes" element={<Resumes />} />
                       <Route path="projects" element={<Projects />} />

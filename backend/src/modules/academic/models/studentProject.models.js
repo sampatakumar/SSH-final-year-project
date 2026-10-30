@@ -233,6 +233,28 @@ const studentProjectSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    isPublic: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    openForCollaboration: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    collaborationDescription: {
+      type: String,
+      default: "",
+    },
+    neededRoles: {
+      type: [String],
+      default: [],
+    },
+    neededSkills: {
+      type: [String],
+      default: [],
+    },
     syncedToResume: {
       type: Boolean,
       default: false,
