@@ -193,15 +193,29 @@ const CommunityPage: React.FC = () => {
           },
         });
 
-        // Fetch user groups
+        // 1. Fetch or initialize the platform-wide Global Community
+        let globalCommunity: CommunityGroup | null = null;
+        try {
+          globalCommunity = await communityClient.getGlobalCommunity();
+        } catch (globalErr: any) {
+          console.warn("Global community auto-enroll note:", globalErr.message);
+        }
+
+        // 2. Fetch user groups
         const data = await communityClient.listGroups({ tab: "all" });
         if (!isMounted) return;
-        setGroups(data.groups || []);
 
-        // Auto-select Global Community if available, else first group
-        const globalGroup = (data.groups || []).find((g) => g.isGlobal) || (data.groups || [])[0];
-        if (globalGroup && isMounted) {
-          setActiveGroup(globalGroup);
+        let allGroups = data.groups || [];
+        if (globalCommunity && !allGroups.some((g) => g._id === globalCommunity?._id)) {
+          allGroups = [globalCommunity, ...allGroups];
+        }
+
+        setGroups(allGroups);
+
+        // 3. Auto-select Global Community if available, else first group
+        const defaultActive = globalCommunity || allGroups.find((g) => g.isGlobal) || allGroups[0] || null;
+        if (defaultActive && isMounted) {
+          setActiveGroup(defaultActive);
         }
       } catch (err: any) {
         console.warn("Community init note:", err.message);
@@ -317,6 +331,20 @@ const CommunityPage: React.FC = () => {
   };
 
   // 5. Join Group
+  const handleJoinGlobalDirectly = async () => {
+    try {
+      const global = await communityClient.getGlobalCommunity();
+      setGroups((prev) => {
+        if (prev.some((g) => g._id === global._id)) return prev;
+        return [global, ...prev];
+      });
+      setActiveGroup(global);
+      toast.success("Connected to Global Community Chat!");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to load Global Community");
+    }
+  };
+
   const handleJoinGroup = async (group: CommunityGroup) => {
     if (group.isPasswordProtected) {
       setPasswordModalGroup(group);
@@ -554,8 +582,17 @@ const CommunityPage: React.FC = () => {
                     Loading communities...
                   </div>
                 ) : groups.length === 0 ? (
-                  <div className="p-4 text-center text-xs text-muted-foreground">
-                    No groups found. Create one or explore Discover.
+                  <div className="p-4 text-center text-xs text-muted-foreground space-y-3">
+                    <p>No groups found yet.</p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleJoinGlobalDirectly}
+                      className="text-xs w-full gap-1.5 cursor-pointer"
+                    >
+                      <Globe className="h-3.5 w-3.5 text-primary" />
+                      Join Global Community
+                    </Button>
                   </div>
                 ) : (
                   groups
@@ -826,9 +863,28 @@ const CommunityPage: React.FC = () => {
                     <MessageSquare className="h-6 w-6" />
                   </div>
                   <h3 className="font-semibold text-sm text-foreground mb-1">No group selected</h3>
-                  <p className="max-w-xs text-muted-foreground">
-                    Select a community from the list or explore new groups in the Discover tab.
+                  <p className="max-w-xs text-muted-foreground mb-4">
+                    Select a community from the list or launch the platform Global Community Chat.
                   </p>
+                  <div className="flex items-center gap-2.5">
+                    <Button
+                      size="sm"
+                      onClick={handleJoinGlobalDirectly}
+                      className="text-xs gap-1.5 cursor-pointer"
+                    >
+                      <Globe className="h-3.5 w-3.5" />
+                      Open Global Chat
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setActiveTab("discover")}
+                      className="text-xs gap-1.5 cursor-pointer"
+                    >
+                      <Compass className="h-3.5 w-3.5" />
+                      Explore Discover Tab
+                    </Button>
+                  </div>
                 </div>
               )}
             </main>

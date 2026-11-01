@@ -186,6 +186,9 @@ class CommunityGroupService {
    */
   async listGroups(user, { category, search, tab = "all", page = 1, limit = 20 } = {}) {
     await this.ensureGlobalCommunity();
+    if (user?._id) {
+      await this.ensureGlobalMembership(user._id).catch(() => {});
+    }
 
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
