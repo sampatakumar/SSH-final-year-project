@@ -261,8 +261,11 @@ export class AdaptiveLearningPathwayService {
         priorityGaps: diagnosis.priorityGaps.slice(0, 5),
         masteredSkills: diagnosis.masteredSkills,
         unassessedSkills: diagnosis.unassessedSkills.slice(0, 5),
+        allDiagnosed: diagnosis.diagnosedSkills || [],
+        diagnosedSkills: diagnosis.diagnosedSkills || [],
       },
       progression: progressionMetrics,
+      masteryProgression: progressionMetrics,
       generatedAt: new Date().toISOString(),
     };
   }

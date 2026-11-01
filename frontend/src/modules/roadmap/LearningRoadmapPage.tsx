@@ -45,7 +45,37 @@ export const LearningRoadmapPage = () => {
           return [];
         }),
       ]);
-      setPathway(pathwayData);
+      let normalizedPathway: AdaptivePathwayResponse | null = pathwayData;
+      if (normalizedPathway) {
+        if (!normalizedPathway.actions) {
+          normalizedPathway.actions = [];
+        }
+        if (!normalizedPathway.diagnosis) {
+          normalizedPathway.diagnosis = {
+            totalDiagnosed: 0,
+            priorityGapsCount: 0,
+            masteredSkillsCount: 0,
+            unassessedCount: 0,
+            priorityGaps: [],
+            masteredSkills: [],
+            unassessedSkills: [],
+            allDiagnosed: [],
+          };
+        } else if (!normalizedPathway.diagnosis.allDiagnosed) {
+          normalizedPathway.diagnosis.allDiagnosed =
+            (normalizedPathway.diagnosis as any).diagnosedSkills ||
+            [
+              ...(normalizedPathway.diagnosis.priorityGaps || []),
+              ...(normalizedPathway.diagnosis.masteredSkills || []),
+              ...(normalizedPathway.diagnosis.unassessedSkills || []),
+            ];
+        }
+        if (!normalizedPathway.masteryProgression && (normalizedPathway as any).progression) {
+          normalizedPathway.masteryProgression = (normalizedPathway as any).progression;
+        }
+      }
+
+      setPathway(normalizedPathway);
       setRecommendations(recs || []);
     } catch (err: any) {
       console.error("Failed to load learning roadmap data:", err);

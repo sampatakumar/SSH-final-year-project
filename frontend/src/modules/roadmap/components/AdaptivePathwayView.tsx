@@ -46,9 +46,10 @@ const CYCLE_STAGES = [
 ];
 
 export const AdaptivePathwayView: React.FC<AdaptivePathwayViewProps> = ({ pathway, onRefresh }) => {
+  const actionsList = pathway?.actions || [];
   const [completingIds, setCompletingIds] = useState<Record<string, boolean>>({});
   const [completedSet, setCompletedSet] = useState<Set<string>>(
-    new Set(pathway.actions.filter((a) => a.isCompleted).map((a) => a.actionId))
+    new Set(actionsList.filter((a) => a.isCompleted).map((a) => a.actionId))
   );
 
   const handleCompleteAction = async (action: LearningActionItem) => {
@@ -183,15 +184,16 @@ export const AdaptivePathwayView: React.FC<AdaptivePathwayViewProps> = ({ pathwa
             </h2>
           </div>
           <span className="text-xs font-semibold text-foreground">
-            Current Stage: <span className="text-primary font-mono">{pathway.cycleStage.replace("_", " ")}</span>
+            Current Stage: <span className="text-primary font-mono">{typeof pathway?.cycleStage === "string" ? pathway.cycleStage.replace(/_/g, " ") : "ASSESS"}</span>
           </span>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 pt-1">
           {CYCLE_STAGES.map((st, idx) => {
+            const currentStage = pathway?.cycleStage;
             const isActive =
-              pathway.cycleStage === st.key ||
-              (pathway.cycleStage === "PLAN_PRACTICE" && (st.key === "PLAN" || st.key === "PRACTICE_APPLY"));
+              currentStage === st.key ||
+              (currentStage === "PLAN_PRACTICE" && (st.key === "PLAN" || st.key === "PRACTICE_APPLY"));
             return (
               <div
                 key={st.key}
@@ -265,11 +267,11 @@ export const AdaptivePathwayView: React.FC<AdaptivePathwayViewProps> = ({ pathwa
             </p>
           </div>
           <span className="text-xs font-semibold text-muted-foreground">
-            {pathway.completedActionsCount} of {pathway.totalActionsCount} completed
+            {pathway?.completedActionsCount ?? actionsList.filter((a) => a.isCompleted).length} of {pathway?.totalActionsCount ?? actionsList.length} completed
           </span>
         </div>
 
-        {pathway.actions.length === 0 ? (
+        {actionsList.length === 0 ? (
           <div className="p-8 text-center rounded-2xl border border-border/40 bg-surface space-y-2">
             <CheckCircle2 className="h-8 w-8 text-emerald-400 mx-auto" />
             <h4 className="text-sm font-bold text-foreground">No Pending Actions Required</h4>
@@ -279,7 +281,7 @@ export const AdaptivePathwayView: React.FC<AdaptivePathwayViewProps> = ({ pathwa
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {pathway.actions.map((act) => {
+            {actionsList.map((act) => {
               const isDone = completedSet.has(act.actionId);
               const isBusy = completingIds[act.actionId];
 
@@ -372,126 +374,164 @@ export const AdaptivePathwayView: React.FC<AdaptivePathwayViewProps> = ({ pathwa
               </tr>
             </thead>
             <tbody className="divide-y divide-border/20">
-              {pathway.diagnosis.allDiagnosed.map((item) => {
-                const badge = getStatusBadge(item.currentStatus);
-                return (
-                  <tr key={item.skill} className="hover:bg-muted/10 transition-colors">
-                    <td className="py-3 px-4">
-                      <div className="font-bold text-foreground">{item.skill}</div>
-                      <div className="text-[10px] text-muted-foreground font-mono">{item.importance}</div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className={`px-2 py-0.5 rounded border text-[10px] font-bold ${badge.className}`}>
-                        {badge.label}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      {item.latestScore !== null ? (
-                        <span className={`font-mono font-bold ${item.latestScore >= 70 ? "text-emerald-400" : "text-destructive"}`}>
-                          {item.latestScore}%
+              {(() => {
+                const allDiagnosed: DiagnosedSkillItem[] =
+                  pathway?.diagnosis?.allDiagnosed ||
+                  (pathway?.diagnosis as any)?.diagnosedSkills ||
+                  [
+                    ...(pathway?.diagnosis?.priorityGaps || []),
+                    ...(pathway?.diagnosis?.masteredSkills || []),
+                    ...(pathway?.diagnosis?.unassessedSkills || []),
+                  ];
+
+                if (!allDiagnosed || allDiagnosed.length === 0) {
+                  return (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-xs text-muted-foreground">
+                        No diagnosed academic skills on record yet. Complete an assessment in the Assessment Center to generate your competency profile.
+                      </td>
+                    </tr>
+                  );
+                }
+
+                return allDiagnosed.map((item) => {
+                  const badge = getStatusBadge(item?.currentStatus || "unassessed");
+                  const prereqs = item?.prerequisites || { hasPrerequisites: false, isReady: true, missingPrerequisites: [] };
+                  return (
+                    <tr key={item.skill} className="hover:bg-muted/10 transition-colors">
+                      <td className="py-3 px-4">
+                        <div className="font-bold text-foreground">{item.skill}</div>
+                        <div className="text-[10px] text-muted-foreground font-mono">{item.importance || "Curriculum Focus"}</div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className={`px-2 py-0.5 rounded border text-[10px] font-bold ${badge.className}`}>
+                          {badge.label}
                         </span>
-                      ) : (
-                        <span className="text-muted-foreground font-mono text-[11px]">Unassessed</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className="font-mono font-bold text-foreground">
-                        {item.learningPriorityScore}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground"> / 100</span>
-                    </td>
-                    <td className="py-3 px-4">
-                      {item.prerequisites.hasPrerequisites ? (
-                        item.prerequisites.isReady ? (
-                          <span className="text-[10px] font-semibold text-emerald-400">All Met</span>
-                        ) : (
-                          <span className="text-[10px] text-amber-400 font-semibold" title={item.prerequisites.missingPrerequisites.join(", ")}>
-                            Needs: {item.prerequisites.missingPrerequisites.slice(0, 1).join(", ")}
+                      </td>
+                      <td className="py-3 px-4">
+                        {item.latestScore !== null && item.latestScore !== undefined ? (
+                          <span className={`font-mono font-bold ${item.latestScore >= 70 ? "text-emerald-400" : "text-destructive"}`}>
+                            {item.latestScore}%
                           </span>
-                        )
-                      ) : (
-                        <span className="text-[10px] text-muted-foreground">None</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 max-w-xs">
-                      <div className="text-[11px] text-muted-foreground line-clamp-2">
-                        {item.actionRationale}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                        ) : (
+                          <span className="text-muted-foreground font-mono text-[11px]">Unassessed</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="font-mono font-bold text-foreground">
+                          {item.learningPriorityScore ?? 0}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground"> / 100</span>
+                      </td>
+                      <td className="py-3 px-4">
+                        {prereqs.hasPrerequisites ? (
+                          prereqs.isReady ? (
+                            <span className="text-[10px] font-semibold text-emerald-400">All Met</span>
+                          ) : (
+                            <span className="text-[10px] text-amber-400 font-semibold" title={(prereqs.missingPrerequisites || []).join(", ")}>
+                              Needs: {(prereqs.missingPrerequisites || []).slice(0, 1).join(", ")}
+                            </span>
+                          )
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground">None</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 max-w-xs">
+                        <div className="text-[11px] text-muted-foreground line-clamp-2">
+                          {item.actionRationale || "Targeted revision recommended."}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                });
+              })()}
             </tbody>
           </table>
         </div>
       </div>
 
       {/* 5. Evidence-Based Comparable Mastery Progression */}
-      <div className="p-5 rounded-2xl bg-surface border border-border/40 shadow-neo-raised space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/20 pb-3">
-          <div>
-            <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-emerald-400" /> Evidence-Based Mastery Progression
-            </h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Verified score improvement measured exclusively across comparable assessment attempts.
-            </p>
-          </div>
-          {pathway.masteryProgression.totalComparisons > 0 && (
-            <span className="text-xs font-mono font-semibold text-emerald-400 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30">
-              Avg Δ: {pathway.masteryProgression.averageScoreDelta > 0 ? `+${pathway.masteryProgression.averageScoreDelta}%` : `${pathway.masteryProgression.averageScoreDelta}%`}
-            </span>
-          )}
-        </div>
+      {(() => {
+        const progression = pathway?.masteryProgression || (pathway as any)?.progression || {
+          totalComparisons: 0,
+          averageScoreDelta: 0,
+          comparisons: [],
+        };
+        const comparisons = Array.isArray(progression.comparisons) ? progression.comparisons : [];
+        const hasComparisons = (progression.totalComparisons ?? 0) > 0 || comparisons.length > 0;
+        const avgDelta = progression.averageScoreDelta ?? 0;
 
-        {pathway.masteryProgression.comparisons.length === 0 ? (
-          <div className="py-6 text-center text-xs text-muted-foreground space-y-1">
-            <p className="font-semibold text-foreground">No Reassessment Comparisons Available Yet</p>
-            <p className="max-w-md mx-auto">
-              Mastery progression is computed when you retake a comparable assessment after targeted revision. Single baseline attempts cannot infer progression without subsequent evidence.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {pathway.masteryProgression.comparisons.map((c) => (
-              <div
-                key={`${c.skill}-${c.latestDate}`}
-                className="p-3.5 rounded-xl border border-border/30 bg-background/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
-              >
-                <div className="space-y-1">
-                  <div className="font-bold text-foreground">{c.skill}</div>
-                  <div className="text-muted-foreground text-[11px]">{c.interpretation}</div>
-                </div>
-
-                <div className="flex items-center gap-3 shrink-0">
-                  <div className="text-right">
-                    <div className="text-[10px] text-muted-foreground">Baseline vs Latest</div>
-                    <div className="font-mono text-xs">
-                      {c.initialScore}% → <span className="font-bold">{c.latestScore}%</span>
-                    </div>
-                  </div>
-
-                  <span
-                    className={`font-mono font-bold text-xs px-2 py-1 rounded border ${
-                      c.scoreDelta > 0
-                        ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-                        : c.scoreDelta === 0
-                        ? "bg-muted text-muted-foreground border-border/40"
-                        : "bg-destructive/15 text-destructive border-destructive/30"
-                    }`}
-                  >
-                    {c.scoreDelta > 0 ? `+${c.scoreDelta}%` : `${c.scoreDelta}%`}
-                  </span>
-                </div>
+        return (
+          <div className="p-5 rounded-2xl bg-surface border border-border/40 shadow-neo-raised space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/20 pb-3">
+              <div>
+                <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-emerald-400" /> Evidence-Based Mastery Progression
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Verified score improvement measured exclusively across comparable assessment attempts.
+                </p>
               </div>
-            ))}
-          </div>
-        )}
+              {hasComparisons && (
+                <span className="text-xs font-mono font-semibold text-emerald-400 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30">
+                  Avg Δ: {avgDelta > 0 ? `+${avgDelta}%` : `${avgDelta}%`}
+                </span>
+              )}
+            </div>
 
-        <div className="text-[10px] text-muted-foreground/75 leading-relaxed pt-2 border-t border-border/20">
-          ℹ️ <b>Integrity Safeguard:</b> Score deltas reflect verified server-graded performance on comparable assessment objectives. Improvement is demonstrated solely through subsequent evidence, not passive activity views.
-        </div>
-      </div>
+            {comparisons.length === 0 ? (
+              <div className="py-6 text-center text-xs text-muted-foreground space-y-1">
+                <p className="font-semibold text-foreground">No Reassessment Comparisons Available Yet</p>
+                <p className="max-w-md mx-auto">
+                  Mastery progression is computed when you retake a comparable assessment after targeted revision. Single baseline attempts cannot infer progression without subsequent evidence.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {comparisons.map((c: any) => {
+                  const delta = c.scoreDelta ?? 0;
+                  return (
+                    <div
+                      key={`${c.skill}-${c.latestDate || ""}`}
+                      className="p-3.5 rounded-xl border border-border/30 bg-background/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="space-y-1">
+                        <div className="font-bold text-foreground">{c.skill}</div>
+                        <div className="text-muted-foreground text-[11px]">{c.interpretation || "Verified score progression"}</div>
+                      </div>
+
+                      <div className="flex items-center gap-3 shrink-0">
+                        <div className="text-right">
+                          <div className="text-[10px] text-muted-foreground">Baseline vs Latest</div>
+                          <div className="font-mono text-xs">
+                            {c.initialScore}% → <span className="font-bold">{c.latestScore}%</span>
+                          </div>
+                        </div>
+
+                        <span
+                          className={`font-mono font-bold text-xs px-2 py-1 rounded border ${
+                            delta > 0
+                              ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                              : delta === 0
+                              ? "bg-muted text-muted-foreground border-border/40"
+                              : "bg-destructive/15 text-destructive border-destructive/30"
+                          }`}
+                        >
+                          {delta > 0 ? `+${delta}%` : `${delta}%`}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="text-[10px] text-muted-foreground/75 leading-relaxed pt-2 border-t border-border/20">
+              ℹ️ <b>Integrity Safeguard:</b> Score deltas reflect verified server-graded performance on comparable assessment objectives. Improvement is demonstrated solely through subsequent evidence, not passive activity views.
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };
