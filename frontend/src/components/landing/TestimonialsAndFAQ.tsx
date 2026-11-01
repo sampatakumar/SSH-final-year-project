@@ -65,7 +65,7 @@ export const TestimonialsAndFAQ: React.FC = () => {
 
   return (
     <section id="testimonials" className="py-20 sm:py-28 relative">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full max-w-[1800px] mx-auto px-4 sm:px-8 lg:px-12 2xl:px-16">
         
         {/* Side by side grid on desktop */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-14">

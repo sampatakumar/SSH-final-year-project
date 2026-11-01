@@ -155,7 +155,7 @@ export default function RegisterPage() {
       <div className="absolute bottom-0 left-1/4 w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[140px] pointer-events-none -z-10" />
 
       {/* Header bar with Brand */}
-      <header className="absolute top-0 left-0 right-0 p-6 flex items-center justify-between max-w-7xl mx-auto z-20">
+      <header className="absolute top-0 left-0 right-0 p-6 sm:p-8 lg:px-12 2xl:px-16 flex items-center justify-between w-full max-w-[1800px] mx-auto z-20">
         <Link to="/" className="flex items-center gap-2.5 group">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-500 flex items-center justify-center shadow-[0_0_15px_rgba(99,102,241,0.4)] group-hover:scale-105 transition-transform">
             <Sparkles className="w-4 h-4 text-white" />
@@ -174,50 +174,50 @@ export default function RegisterPage() {
       </header>
 
       {/* Main Container */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 sm:py-28 w-full grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+      <div className="w-full max-w-[1800px] mx-auto px-4 sm:px-8 lg:px-12 2xl:px-16 py-24 sm:py-28 min-h-screen grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 2xl:gap-20 items-center">
         
         {/* Left Column: Developer Journey Visualization (Desktop) */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5 }}
-          className="hidden lg:flex lg:col-span-6 flex-col justify-center space-y-7 pr-6"
+          className="hidden lg:flex lg:col-span-7 2xl:col-span-7 flex-col justify-center space-y-7 pr-0 lg:pr-6 2xl:pr-10"
         >
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs font-semibold mb-4">
               <Sparkles className="w-3.5 h-3.5" /> Start Your Career Journey
             </div>
-            <h2 className="text-4xl font-extrabold text-white tracking-tight leading-tight">
+            <h2 className="text-4xl sm:text-5xl 2xl:text-6xl font-extrabold text-white tracking-tight leading-tight">
               One account. <br />
               One developer identity. <br />
               <span className="bg-gradient-to-r from-purple-400 via-indigo-300 to-cyan-300 bg-clip-text text-transparent">
                 Everything connected.
               </span>
             </h2>
-            <p className="text-slate-400 text-sm mt-3 max-w-md leading-relaxed">
+            <p className="text-slate-400 text-sm sm:text-base 2xl:text-lg mt-3 max-w-xl leading-relaxed">
               Join thousands of developers leveling up with automated AI mentoring, skill gap analysis, and interactive EduTube courses.
             </p>
           </div>
 
           {/* Timeline steps */}
-          <div className="space-y-3 pt-1">
+          <div className="space-y-3 2xl:space-y-4 pt-1">
             {journeySteps.map((step, i) => (
               <div
                 key={i}
-                className="p-3 rounded-xl bg-slate-900/60 border border-white/[0.08] backdrop-blur-md flex items-center gap-3.5 hover:border-purple-500/30 transition-colors"
+                className="p-3.5 2xl:p-4 rounded-xl bg-slate-900/60 border border-white/[0.08] backdrop-blur-md flex items-center gap-4 hover:border-purple-500/30 transition-colors"
               >
-                <div className="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 shrink-0">
-                  <step.icon className="w-4 h-4" />
+                <div className="w-9 h-9 2xl:w-10 2xl:h-10 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 shrink-0">
+                  <step.icon className="w-4 h-4 2xl:w-5 2xl:h-5" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-slate-200">{step.title}</h4>
-                  <p className="text-[11px] text-slate-400">{step.desc}</p>
+                  <h4 className="text-xs 2xl:text-sm font-bold text-slate-200">{step.title}</h4>
+                  <p className="text-[11px] 2xl:text-xs text-slate-400 mt-0.5">{step.desc}</p>
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="flex items-center gap-2 text-xs text-slate-400">
+          <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-400">
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
             <span>Zero password storage in database • Firebase JWT security</span>
           </div>
@@ -228,9 +228,9 @@ export default function RegisterPage() {
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.4 }}
-          className="lg:col-span-6 w-full max-w-md mx-auto"
+          className="lg:col-span-5 2xl:col-span-5 w-full max-w-md 2xl:max-w-lg mx-auto"
         >
-          <div className="rounded-2xl bg-slate-900/80 border border-white/10 p-6 sm:p-8 backdrop-blur-xl shadow-[0_10px_40px_rgba(0,0,0,0.6)]">
+          <div className="rounded-2xl bg-slate-900/80 border border-white/10 p-6 sm:p-8 2xl:p-10 backdrop-blur-xl shadow-[0_10px_40px_rgba(0,0,0,0.6)]">
             
             {/* Card Title */}
             <div className="mb-6">

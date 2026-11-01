@@ -53,7 +53,7 @@ export default function ForgotPasswordPage() {
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] bg-indigo-600/10 rounded-full blur-[140px] pointer-events-none -z-10" />
 
       {/* Header bar */}
-      <header className="absolute top-0 left-0 right-0 p-6 flex items-center justify-between max-w-7xl mx-auto z-20">
+      <header className="absolute top-0 left-0 right-0 p-6 sm:p-8 lg:px-12 2xl:px-16 flex items-center justify-between w-full max-w-[1800px] mx-auto z-20">
         <Link to="/" className="flex items-center gap-2.5 group">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-500 flex items-center justify-center shadow-[0_0_15px_rgba(99,102,241,0.4)] group-hover:scale-105 transition-transform">
             <Sparkles className="w-4 h-4 text-white" />

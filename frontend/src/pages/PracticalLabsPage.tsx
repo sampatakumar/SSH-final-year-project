@@ -125,7 +125,7 @@ export const PracticalLabsPage: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl space-y-6">
+    <div className="container mx-auto px-4 py-8 max-w-full 2xl:max-w-[1800px] space-y-6">
       {/* Active Lab Workspace View */}
       {activeLab ? (
         <LabWorkspace

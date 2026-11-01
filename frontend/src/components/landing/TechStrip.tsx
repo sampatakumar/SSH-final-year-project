@@ -73,7 +73,7 @@ export const TechStrip: React.FC = () => {
 
   return (
     <section className="py-12 border-y border-white/[0.06] bg-[#070A12]/60 backdrop-blur-sm relative z-10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <div className="w-full max-w-[1800px] mx-auto px-4 sm:px-8 lg:px-12 2xl:px-16 text-center">
         <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-6">
           Trusted by learners and developers
         </p>

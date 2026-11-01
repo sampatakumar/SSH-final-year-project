@@ -99,7 +99,7 @@ export const CareerPathwayStudioPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen bg-background text-foreground p-4 sm:p-6 lg:p-8 max-w-full 2xl:max-w-[1800px] mx-auto space-y-8">
       {/* Page Header */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary/10 via-card to-background border border-border p-6 sm:p-8">
         <div className="max-w-3xl space-y-3">

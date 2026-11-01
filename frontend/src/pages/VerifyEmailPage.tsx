@@ -190,7 +190,7 @@ export default function VerifyEmailPage() {
       <div className="absolute bottom-1/4 right-1/3 w-[400px] h-[400px] bg-cyan-500/10 rounded-full blur-[120px] pointer-events-none -z-10" />
 
       {/* Top Header Bar */}
-      <header className="absolute top-0 left-0 right-0 p-6 flex items-center justify-between max-w-7xl mx-auto z-20">
+      <header className="absolute top-0 left-0 right-0 p-6 sm:p-8 lg:px-12 2xl:px-16 flex items-center justify-between w-full max-w-[1800px] mx-auto z-20">
         <Link to="/" className="flex items-center gap-2.5 group">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-primary to-cyan-500 flex items-center justify-center shadow-neo-raised group-hover:scale-105 transition-transform">
             <Sparkles className="w-4 h-4 text-white" />
