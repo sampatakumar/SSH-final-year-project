@@ -1,32 +1,38 @@
 import { firebaseAuth, getAuthToken } from "./firebase";
 
 const DEFAULT_API_BASE_URL = "http://localhost:8000/api/v1";
+const RENDER_PROD_API_BASE_URL = "https://ssh-final-year-project.onrender.com/api/v1";
 
 export const getApiBaseUrl = () => {
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL.replace(/\/$/, "");
-  }
-
   if (typeof window !== "undefined") {
     const host = window.location.host;
     const hostname = window.location.hostname;
+    const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1";
 
-    // If accessed through devtunnels (e.g. p7vc1nkb-8080.inc1.devtunnels.ms)
+    // 1. If accessed through devtunnels (e.g. p7vc1nkb-8080.inc1.devtunnels.ms)
     if (host.includes(".devtunnels.ms")) {
       const backendTunnelHost = host.replace(/-8080\./, "-8000.");
       return `https://${backendTunnelHost}/api/v1`;
     }
 
-    // If hosted on Smart Skill Hub Vercel domain, connect directly to production Render backend
+    // 2. If hosted on Smart Skill Hub Vercel domain or any vercel.app domain, connect directly to production Render backend
     if (host === "smartskillhub.vercel.app" || host.endsWith(".vercel.app")) {
-      return "https://ssh-final-year-project.onrender.com/api/v1";
+      return RENDER_PROD_API_BASE_URL;
     }
 
-    // In production non-localhost environments without explicit VITE_API_URL,
-    // fallback to same-origin path to prevent mixed-content or unreachable localhost calls
-    if (hostname !== "localhost" && hostname !== "127.0.0.1") {
-      return `${window.location.origin}/api/v1`;
+    // 3. In non-localhost production environments:
+    if (!isLocalhost) {
+      const envUrl = (import.meta.env.VITE_API_URL || "").trim();
+      if (envUrl && !envUrl.includes("localhost") && !envUrl.includes("127.0.0.1")) {
+        return envUrl.replace(/\/$/, "");
+      }
+      return RENDER_PROD_API_BASE_URL;
     }
+  }
+
+  // 4. Localhost, SSR, or testing environments
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL.replace(/\/$/, "");
   }
 
   return DEFAULT_API_BASE_URL.replace(/\/$/, "");
