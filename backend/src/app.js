@@ -89,6 +89,7 @@ app.use(
           "https://*.vercel.app",
           "https://*.devtunnels.ms",
           "https://p7vc1nkb-8080.inc1.devtunnels.ms",
+          "http://localhost:5173",
           "http://localhost:8080",
           "http://localhost:8081"
         ]

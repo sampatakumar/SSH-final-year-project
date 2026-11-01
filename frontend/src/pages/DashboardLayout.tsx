@@ -62,6 +62,9 @@ const DashboardLayout: React.FC = () => {
   const isMentorPage = location.pathname.startsWith("/dashboard/mentor");
   const isCommunityPage = location.pathname.startsWith("/dashboard/community");
 
+  const isCodingPage = location.pathname.startsWith("/dashboard/coding");
+  const isToolWorkspacePage = location.pathname.startsWith("/dashboard/tools/");
+
   const targetRole = backendUser?.targetRole || "Full Stack Developer";
   const isAdmin =
     backendUser?.role === "admin" ||
@@ -297,15 +300,17 @@ const DashboardLayout: React.FC = () => {
           </div>
         </header>
 
-        {/* Content Container - Expands to full width for Smart Mentor and Community */}
+        {/* Content Container - Expands to full width for workspaces and allows modern desktop breathing room */}
         <div
           className={cn(
             "flex-1 flex flex-col w-full min-w-0",
             isCommunityPage
               ? "p-0 max-w-none h-full overflow-hidden"
               : isMentorPage
-              ? "p-3 sm:p-4 md:p-5 lg:p-6 max-w-full"
-              : "p-4 md:p-6 lg:p-8 max-w-7xl mx-auto min-h-full"
+                ? "p-3 sm:p-4 md:p-5 lg:p-6 max-w-full"
+                : isCodingPage || isToolWorkspacePage
+                  ? "p-3 sm:p-4 md:p-6 max-w-full 2xl:max-w-[1920px] mx-auto min-h-full"
+                  : "p-4 md:p-6 lg:p-8 max-w-[1600px] 2xl:max-w-[1800px] mx-auto min-h-full"
           )}
         >
           <ErrorBoundary>
