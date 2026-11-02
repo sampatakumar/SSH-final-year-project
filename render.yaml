@@ -19,7 +19,7 @@ services:
       - key: GROQ_MODEL
         value: openai/gpt-oss-120b
       - key: CORS_ORIGIN
-        value: https://smartskillhub.vercel.app
+        value: https://smartskillhub.vercel.app,https://sampatakumar.github.io
       - key: FRONTEND_URL
         value: https://smartskillhub.vercel.app
       - key: BACKEND_URL
