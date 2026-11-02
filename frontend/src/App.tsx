@@ -73,7 +73,7 @@ const App = () => (
 
           {/* Routing wrapped with ErrorBoundary and Suspense */}
           <ErrorBoundary>
-            <BrowserRouter>
+            <BrowserRouter basename={import.meta.env.BASE_URL}>
               <Suspense
                 fallback={
                   <div className="min-h-screen bg-background flex items-center justify-center">
